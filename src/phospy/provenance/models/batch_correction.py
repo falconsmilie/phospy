@@ -11,14 +11,14 @@ from phospy.provenance.immutability import (
     freeze_optional_json_mapping,
     thaw_json_mapping,
 )
-from phospy.provenance.models._shared import (
-    JsonValue,
-    _empty_json_mapping,
-    _provenance_string_tuple,
-)
 from phospy.provenance.models.tables import (
     TableFingerprint,
     require_table_fingerprint_sequence,
+)
+from phospy.provenance.scalar_validation import (
+    JsonValue,
+    empty_json_mapping,
+    provenance_string_tuple,
 )
 
 BATCH_CORRECTION_PROVENANCE_SCHEMA_VERSION_V1 = 1
@@ -82,7 +82,7 @@ class BatchCorrectionProvenance:
     observation_masks: tuple[TableFingerprint, ...]
     input_matrix_fingerprint: TableFingerprint
     output_matrix_fingerprint: TableFingerprint | None
-    diagnostics: Mapping[str, JsonValue] = field(default_factory=_empty_json_mapping)
+    diagnostics: Mapping[str, JsonValue] = field(default_factory=empty_json_mapping)
     warnings: tuple[str, ...] = ()
     rejected_entities: tuple[BatchCorrectionRejectedEntity, ...] = ()
     phospy_version: str = "unknown"
@@ -120,7 +120,7 @@ class BatchCorrectionProvenance:
         object.__setattr__(
             self,
             "preprocessing_stage_order",
-            _provenance_string_tuple(
+            provenance_string_tuple(
                 self.preprocessing_stage_order,
                 field_name="batch_correction_provenance.preprocessing_stage_order",
             ),
@@ -136,7 +136,7 @@ class BatchCorrectionProvenance:
         object.__setattr__(
             self,
             "selected_site_key_rows",
-            _provenance_string_tuple(
+            provenance_string_tuple(
                 self.selected_site_key_rows,
                 field_name="batch_correction_provenance.selected_site_key_rows",
             ),
@@ -205,7 +205,7 @@ class BatchCorrectionProvenance:
         object.__setattr__(
             self,
             "warnings",
-            _provenance_string_tuple(
+            provenance_string_tuple(
                 self.warnings,
                 field_name="batch_correction_provenance.warnings",
             ),

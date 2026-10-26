@@ -13,12 +13,12 @@ from phospy.errors.transformations import (
     TransformerExecutionError,
 )
 from phospy.errors.validation import TransformationValidationError
-from phospy.quantitative._authority import (
-    _dataset_resolver_establishment_authority,
+from phospy.quantitative.authority import (
+    dataset_resolver_establishment_authority,
 )
 from phospy.quantitative.contracts import Transformer
 from phospy.quantitative.declared_scale_diagnostics import (
-    _run_declared_scale_sanity_diagnostics,
+    run_declared_scale_sanity_diagnostics,
 )
 from phospy.quantitative.models import (
     DeclaredIntensityScaleDiagnosticPolicy,
@@ -32,7 +32,7 @@ from phospy.quantitative.state_coherence import (
     require_intensity_scale_state_coherence,
 )
 from phospy.quantitative.transformers import IdentityTransformer, Log2Transformer
-from phospy.quantitative.transformers._identifiers import (
+from phospy.quantitative.transformers.identifiers import (
     resolve_transformer_identifier,
 )
 
@@ -186,7 +186,7 @@ class DatasetIntensityScaleResolver:
         )
         diagnostic_warnings = ()
         if establishment_mode is IntensityScaleEstablishmentMode.DECLARED:
-            diagnostic_warnings = _run_declared_scale_sanity_diagnostics(
+            diagnostic_warnings = run_declared_scale_sanity_diagnostics(
                 declared_scale_kind=state.phospho.kind,
                 phospho=transformed.phospho,
                 total=transformed.total,
@@ -235,7 +235,7 @@ class DatasetIntensityScaleResolver:
             ),
             trace_id=establishment_trace_id,
             diagnostic_warnings=diagnostic_warnings,
-            _authority=_dataset_resolver_establishment_authority(),
+            _authority=dataset_resolver_establishment_authority(),
         )
         return ResolvedIntensityScale(
             phospho=transformed.phospho,

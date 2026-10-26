@@ -9,11 +9,11 @@ from phospy.provenance.immutability import (
     freeze_json_mapping,
     freeze_optional_json_mapping,
 )
-from phospy.provenance.models._shared import JsonValue
 from phospy.provenance.models.tables import (
     TableFingerprint,
     require_table_fingerprint_sequence,
 )
+from phospy.provenance.scalar_validation import JsonValue
 
 
 @dataclass(frozen=True, slots=True)

@@ -1,4 +1,4 @@
-"""Stable provenance identifiers for quantitative transformers."""
+"""Owner-internal stable identifiers for quantitative transformers."""
 
 from __future__ import annotations
 

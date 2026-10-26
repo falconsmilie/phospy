@@ -1,4 +1,4 @@
-"""Internal authority capabilities for intensity-scale-state establishment.
+"""Owner-internal authority contract for quantitative state establishment.
 
 This module is package-internal and defines the only approved lanes that can
 mint an established intensity scale state.
@@ -12,94 +12,94 @@ from phospy.errors.transformations import InvalidTransformationStateError
 
 
 @dataclass(frozen=True, slots=True, eq=False)
-class _EstablishmentAuthority:
+class EstablishmentAuthority:
     """Opaque capability object for approved establishment lanes."""
 
     source: str
 
 
 @dataclass(frozen=True, slots=True, eq=False)
-class _QuantitativeMeaningTransitionAuthority:
+class QuantitativeMeaningTransitionAuthority:
     """Opaque capability object for quantitative-meaning transitions."""
 
     source: str
 
 
-_DATASET_RESOLVER_AUTHORITY = _EstablishmentAuthority(
+_DATASET_RESOLVER_AUTHORITY = EstablishmentAuthority(
     source="phospy.science.datasets.builders.transformation_resolver"
 )
-_SPS_REFERENCE_ESTABLISHMENT_AUTHORITY = _EstablishmentAuthority(
+_SPS_REFERENCE_ESTABLISHMENT_AUTHORITY = EstablishmentAuthority(
     # This historical stored authority value is part of predecessor evidence.
     source="phospy.science.datasets.builders.transformation_resolver"
 )
-_IDENTITY_TRANSFORMER_AUTHORITY = _EstablishmentAuthority(
+_IDENTITY_TRANSFORMER_AUTHORITY = EstablishmentAuthority(
     source="phospy.science.transformations.transformers.identity"
 )
-_BUNDLE_RECONSTRUCTION_AUTHORITY = _EstablishmentAuthority(
+_BUNDLE_RECONSTRUCTION_AUTHORITY = EstablishmentAuthority(
     source="phospy.io.bundles._shared.intensity_scale_state"
 )
-_DATASET_QUANTITATIVE_MEANING_AUTHORITY = _QuantitativeMeaningTransitionAuthority(
+_DATASET_QUANTITATIVE_MEANING_AUTHORITY = QuantitativeMeaningTransitionAuthority(
     source="phospy.science.datasets.preprocessing.state_builder"
 )
-_SPS_REFERENCE_QUANTITATIVE_MEANING_AUTHORITY = _QuantitativeMeaningTransitionAuthority(
+_SPS_REFERENCE_QUANTITATIVE_MEANING_AUTHORITY = QuantitativeMeaningTransitionAuthority(
     source="phospy.science.batch_correction.sps_discovery"
 )
 _BUNDLE_QUANTITATIVE_MEANING_RESTORATION_AUTHORITY = (
-    _QuantitativeMeaningTransitionAuthority(
+    QuantitativeMeaningTransitionAuthority(
         source="phospy.io.bundles._shared.intensity_scale_state"
     )
 )
 
 
-def _dataset_resolver_establishment_authority() -> _EstablishmentAuthority:
+def dataset_resolver_establishment_authority() -> EstablishmentAuthority:
     """Return authority for the dataset intensity-scale resolver lane."""
 
     return _DATASET_RESOLVER_AUTHORITY
 
 
-def _identity_transformer_establishment_authority() -> _EstablishmentAuthority:
+def identity_transformer_establishment_authority() -> EstablishmentAuthority:
     """Return authority for the internal identity-transformer lane."""
 
     return _IDENTITY_TRANSFORMER_AUTHORITY
 
 
-def _sps_reference_establishment_authority() -> _EstablishmentAuthority:
+def sps_reference_establishment_authority() -> EstablishmentAuthority:
     """Return the dedicated SPS external-assertion establishment capability."""
 
     return _SPS_REFERENCE_ESTABLISHMENT_AUTHORITY
 
 
-def _bundle_reconstruction_establishment_authority() -> _EstablishmentAuthority:
+def bundle_reconstruction_establishment_authority() -> EstablishmentAuthority:
     """Return authority for supported bundle reconstruction lanes."""
 
     return _BUNDLE_RECONSTRUCTION_AUTHORITY
 
 
-def _dataset_quantitative_meaning_transition_authority() -> (
-    _QuantitativeMeaningTransitionAuthority
+def dataset_quantitative_meaning_transition_authority() -> (
+    QuantitativeMeaningTransitionAuthority
 ):
     """Return authority for dataset-builder semantic meaning transitions."""
 
     return _DATASET_QUANTITATIVE_MEANING_AUTHORITY
 
 
-def _bundle_quantitative_meaning_restoration_authority() -> (
-    _QuantitativeMeaningTransitionAuthority
+def bundle_quantitative_meaning_restoration_authority() -> (
+    QuantitativeMeaningTransitionAuthority
 ):
     """Return authority for restoring serialized quantitative meaning provenance."""
 
     return _BUNDLE_QUANTITATIVE_MEANING_RESTORATION_AUTHORITY
 
 
-def _sps_reference_quantitative_meaning_transition_authority() -> (
-    _QuantitativeMeaningTransitionAuthority
+def sps_reference_quantitative_meaning_transition_authority() -> (
+    QuantitativeMeaningTransitionAuthority
 ):
     """Return authority for the supported SPS reference assertion boundary."""
 
     return _SPS_REFERENCE_QUANTITATIVE_MEANING_AUTHORITY
 
 
-def _resolve_establishment_authority_source(authority: object | None) -> str:
+def resolve_establishment_authority_source(authority: object | None) -> str:
     """Validate authority and return its owning source lane."""
 
     if authority is _DATASET_RESOLVER_AUTHORITY:
@@ -116,7 +116,7 @@ def _resolve_establishment_authority_source(authority: object | None) -> str:
     )
 
 
-def _resolve_quantitative_meaning_transition_authority_source(
+def resolve_quantitative_meaning_transition_authority_source(
     authority: object | None,
 ) -> str:
     """Validate quantitative-meaning authority and return its owning lane."""
@@ -133,27 +133,16 @@ def _resolve_quantitative_meaning_transition_authority_source(
     )
 
 
-# Public aliases for cross-module internal typing/authority checks.
-EstablishmentAuthority = _EstablishmentAuthority
-QuantitativeMeaningTransitionAuthority = _QuantitativeMeaningTransitionAuthority
-dataset_resolver_establishment_authority = _dataset_resolver_establishment_authority
-identity_transformer_establishment_authority = (
-    _identity_transformer_establishment_authority
-)
-sps_reference_establishment_authority = _sps_reference_establishment_authority
-bundle_reconstruction_establishment_authority = (
-    _bundle_reconstruction_establishment_authority
-)
-dataset_quantitative_meaning_transition_authority = (
-    _dataset_quantitative_meaning_transition_authority
-)
-bundle_quantitative_meaning_restoration_authority = (
-    _bundle_quantitative_meaning_restoration_authority
-)
-sps_reference_quantitative_meaning_transition_authority = (
-    _sps_reference_quantitative_meaning_transition_authority
-)
-resolve_establishment_authority_source = _resolve_establishment_authority_source
-resolve_quantitative_meaning_transition_authority_source = (
-    _resolve_quantitative_meaning_transition_authority_source
-)
+__all__ = [
+    "EstablishmentAuthority",
+    "QuantitativeMeaningTransitionAuthority",
+    "bundle_quantitative_meaning_restoration_authority",
+    "bundle_reconstruction_establishment_authority",
+    "dataset_quantitative_meaning_transition_authority",
+    "dataset_resolver_establishment_authority",
+    "identity_transformer_establishment_authority",
+    "resolve_establishment_authority_source",
+    "resolve_quantitative_meaning_transition_authority_source",
+    "sps_reference_establishment_authority",
+    "sps_reference_quantitative_meaning_transition_authority",
+]

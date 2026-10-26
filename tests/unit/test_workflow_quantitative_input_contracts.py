@@ -24,7 +24,7 @@ from phospy.differential.validation.workflow import DifferentialAnalysisValidato
 from phospy.errors import WorkflowValidationError
 from phospy.errors.transformations import InvalidTransformationStateError
 from phospy.kinase.validator import KinaseWorkflowValidator
-from phospy.quantitative._authority import (
+from phospy.quantitative.authority import (
     bundle_quantitative_meaning_restoration_authority,
 )
 from phospy.quantitative.models import (

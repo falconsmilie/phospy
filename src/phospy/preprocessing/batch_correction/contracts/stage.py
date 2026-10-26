@@ -11,8 +11,8 @@ from phospy.preprocessing.batch_correction.contracts.output import (
     CorrectedPreprocessingOutput,
 )
 from phospy.preprocessing.control_sites.contracts import ControlSiteSet
-from phospy.provenance.models._shared import JsonValue
 from phospy.provenance.models.batch_correction import BatchCorrectionProvenance
+from phospy.provenance.scalar_validation import JsonValue
 
 
 class BatchDesignMetadataValidatorProtocol(Protocol):

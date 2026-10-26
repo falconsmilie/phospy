@@ -22,6 +22,7 @@ class ImportRecord:
     source_path: Path
     target: str
     line: int
+    imported_symbol: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -39,7 +40,7 @@ def build_import_graph(*, package_root: Path, src_root: Path) -> ImportGraph:
     return _build_import_graph(
         package_root=package_root,
         src_root=src_root,
-        import_extractor=imported_modules,
+        import_extractor=_import_references,
     )
 
 
@@ -49,7 +50,7 @@ def build_eager_import_graph(*, package_root: Path, src_root: Path) -> ImportGra
     return _build_import_graph(
         package_root=package_root,
         src_root=src_root,
-        import_extractor=eager_imported_modules,
+        import_extractor=_eager_import_references,
     )
 
 
@@ -57,7 +58,9 @@ def _build_import_graph(
     *,
     package_root: Path,
     src_root: Path,
-    import_extractor: Callable[[str, Path, ast.AST], Iterable[tuple[str, int]]],
+    import_extractor: Callable[
+        [str, Path, ast.AST], Iterable[tuple[str, int, str | None]]
+    ],
 ) -> ImportGraph:
 
     paths = {
@@ -70,12 +73,15 @@ def _build_import_graph(
     for source_module, path in paths.items():
         resolved_edges: set[str] = set()
         tree = ast.parse(path.read_text(encoding="utf-8-sig"), filename=str(path))
-        for imported, line_number in import_extractor(source_module, path, tree):
+        for imported, line_number, requested_symbol in import_extractor(
+            source_module, path, tree
+        ):
             if not imported.startswith("phospy"):
                 continue
             resolved = resolve_module(imported, modules)
             if resolved is None or resolved == source_module:
                 continue
+            imported_symbol = requested_symbol if imported != resolved else None
             resolved_edges.add(resolved)
             records.append(
                 ImportRecord(
@@ -83,6 +89,7 @@ def _build_import_graph(
                     source_path=path,
                     target=resolved,
                     line=line_number,
+                    imported_symbol=imported_symbol,
                 )
             )
         module_edges[source_module] = frozenset(resolved_edges)
@@ -135,6 +142,38 @@ def imported_modules(
                 yield imported, node.lineno
 
 
+def _import_references(
+    source_module: str,
+    path: Path,
+    tree: ast.AST,
+) -> Iterable[tuple[str, int, str | None]]:
+    """Yield analyzed targets plus the actual requested from-import symbol."""
+
+    importlib_aliases, import_module_aliases = _importlib_bindings(tree)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                yield alias.name, node.lineno, None
+        elif isinstance(node, ast.ImportFrom):
+            imported = resolve_import_from(source_module, path, node)
+            if imported is None:
+                continue
+            for alias in node.names:
+                yield (
+                    f"{imported}.{alias.name}" if imported else alias.name,
+                    node.lineno,
+                    alias.name,
+                )
+        elif isinstance(node, ast.Call):
+            imported = static_dynamic_import_target(
+                node,
+                importlib_aliases=importlib_aliases,
+                import_module_aliases=import_module_aliases,
+            )
+            if imported is not None:
+                yield imported, node.lineno, None
+
+
 def eager_imported_modules(
     source_module: str,
     path: Path,
@@ -169,6 +208,42 @@ def eager_imported_modules(
             )
             if imported is not None:
                 yield imported, node.lineno
+
+
+def _eager_import_references(
+    source_module: str,
+    path: Path,
+    tree: ast.AST,
+) -> Iterable[tuple[str, int, str | None]]:
+    """Yield targets evaluated during import with requested symbol metadata."""
+
+    visitor = _EagerNodeVisitor()
+    visitor.visit(tree)
+    importlib_aliases, import_module_aliases = _importlib_bindings_from_nodes(
+        visitor.nodes
+    )
+    for node in visitor.nodes:
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                yield alias.name, node.lineno, None
+        elif isinstance(node, ast.ImportFrom):
+            imported = resolve_import_from(source_module, path, node)
+            if imported is None:
+                continue
+            for alias in node.names:
+                yield (
+                    f"{imported}.{alias.name}" if imported else alias.name,
+                    node.lineno,
+                    alias.name,
+                )
+        elif isinstance(node, ast.Call):
+            imported = static_dynamic_import_target(
+                node,
+                importlib_aliases=importlib_aliases,
+                import_module_aliases=import_module_aliases,
+            )
+            if imported is not None:
+                yield imported, node.lineno, None
 
 
 class _EagerNodeVisitor(ast.NodeVisitor):

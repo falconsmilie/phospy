@@ -7,7 +7,7 @@ from collections.abc import Mapping
 from phospy.provenance.models import (
     TableFingerprint,
 )
-from phospy.provenance.serialization._payload import (
+from phospy.provenance.serialization.payload import (
     optional_mapping,
     optional_str,
     raise_legacy_provenance_schema,

@@ -216,7 +216,7 @@ compatibility behavior where historical names appear in non-contract internals.
   establishment and quantitative-meaning state transitions are defined in
   `src/phospy/quantitative/scale_state.py`.
 - Quantitative-meaning transition authority and provenance are defined in
-  `src/phospy/quantitative/_authority.py` and
+  `src/phospy/quantitative/authority.py` and
   `src/phospy/quantitative/provenance.py`. Public DTOs may request a
   declaration, but they do not mint transition authority.
 - Operation-level quantitative contracts are defined in

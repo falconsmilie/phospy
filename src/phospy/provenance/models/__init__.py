@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from phospy.provenance.immutability import FrozenJsonValue
-from phospy.provenance.models._shared import JsonPrimitive, JsonValue
 from phospy.provenance.models.batch_correction import (
     BATCH_CORRECTION_PROVENANCE_SCHEMA_VERSION_V1,
     BATCH_CORRECTION_SELECTED_SITE_KEY_ROW_SENTINELS,
@@ -20,6 +19,7 @@ from phospy.provenance.models.tables import (
     RowAttritionReport,
     TableFingerprint,
 )
+from phospy.provenance.scalar_validation import JsonPrimitive, JsonValue
 from phospy.provenance.scientific_policy_models import ScientificPolicyRecord
 
 __all__ = [

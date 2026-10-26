@@ -10,7 +10,7 @@ from phospy.provenance.models.batch_correction import (
     BatchCorrectionProvenance,
     BatchCorrectionRejectedEntity,
 )
-from phospy.provenance.serialization._payload import (
+from phospy.provenance.serialization.payload import (
     optional_mapping,
     optional_str,
     require_int,

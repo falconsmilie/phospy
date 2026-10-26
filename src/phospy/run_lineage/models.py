@@ -12,12 +12,12 @@ from phospy.preprocessing.provenance.models import (
     require_preprocessing_stage_sequence,
 )
 from phospy.provenance.immutability import freeze_json_mapping, thaw_json_mapping
-from phospy.provenance.models._shared import JsonValue
 from phospy.provenance.models.environment import EnvironmentProvenance
 from phospy.provenance.models.tables import (
     TableFingerprint,
     require_table_fingerprint_sequence,
 )
+from phospy.provenance.scalar_validation import JsonValue
 from phospy.provenance.scientific_policy_models import ScientificPolicyRecord
 from phospy.references.provenance.context import ReferenceContext
 from phospy.references.provenance.models import (

@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from phospy.provenance.immutability import freeze_json_mapping
-from phospy.provenance.models._shared import JsonValue
+from phospy.provenance.scalar_validation import JsonValue
 
 ENVIRONMENT_PROVENANCE_SCHEMA_VERSION_V1 = 1
 

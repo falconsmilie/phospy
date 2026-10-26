@@ -8,7 +8,7 @@ import pandas as pd
 from phospy.quantitative.models import IntensityScaleKind
 
 
-def _run_declared_scale_sanity_diagnostics(
+def run_declared_scale_sanity_diagnostics(
     *,
     declared_scale_kind: IntensityScaleKind,
     phospho: pd.DataFrame,
@@ -126,4 +126,4 @@ def _fraction_within_log2_like_range(values: np.ndarray) -> float:
     return float(np.mean((values >= -10.0) & (values <= 20.0)))
 
 
-__all__: list[str] = []
+__all__ = ["run_declared_scale_sanity_diagnostics"]

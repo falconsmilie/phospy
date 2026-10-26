@@ -195,7 +195,7 @@
       "src/phospy/io/bundles/_signalome/tables.py",
       "src/phospy/preprocessing/provenance/serialization.py",
       "src/phospy/preprocessing/results/quantitative_evidence.py",
-      "src/phospy/provenance/serialization/_payload.py",
+      "src/phospy/provenance/serialization/payload.py",
       "src/phospy/provenance/serialization/environment.py",
       "src/phospy/provenance/serialization/tables.py",
       "src/phospy/quantitative/models.py",
@@ -260,7 +260,7 @@
       "phospy.science.sequences",
       "phospy.science.sequences.resolver.v1"
     ],
-    "src/phospy/quantitative/_authority.py": [
+    "src/phospy/quantitative/authority.py": [
       "phospy.science.batch_correction.sps_discovery",
       "phospy.science.datasets.builders.transformation_resolver",
       "phospy.science.datasets.preprocessing.state_builder",

@@ -1,4 +1,4 @@
-"""Shared provenance payload coercion helpers."""
+"""Owner-internal provenance payload coercion contract."""
 
 from __future__ import annotations
 

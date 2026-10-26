@@ -73,6 +73,22 @@ class MixedModuleReview:
     foreign_owners: Mapping[str, str]
 
 
+@dataclass(frozen=True, slots=True)
+class PrivateImportPermission:
+    """One exact capability import of a private shared/foundation target."""
+
+    source_module: str
+    target_module: str
+    target_symbol: str | None
+    rationale: str
+
+
+# ARCH-016 found no private capability-to-shared/foundation import that needed
+# to remain private. New entries require an exact source/module/symbol review;
+# owner-wide or package-prefix permissions are intentionally unsupported.
+CAPABILITY_PRIVATE_IMPORT_PERMISSIONS: tuple[PrivateImportPermission, ...] = ()
+
+
 SHARED_ALLOWED_TARGETS: Mapping[str, frozenset[str]] = {
     "errors": frozenset(),
     "taxonomy": frozenset({"errors"}),
@@ -525,12 +541,12 @@ RUN_LINEAGE_ALLOWED_TARGETS: Mapping[str, frozenset[str]] = {
             "phospy.provenance.environment",
             "phospy.provenance.immutability",
             "phospy.provenance.models",
-            "phospy.provenance.models._shared",
             "phospy.provenance.models.environment",
             "phospy.provenance.models.tables",
+            "phospy.provenance.scalar_validation",
             "phospy.provenance.scientific_policy_models",
             "phospy.provenance.serialization",
-            "phospy.provenance.serialization._payload",
+            "phospy.provenance.serialization.payload",
             "phospy.provenance.serialization.environment",
             "phospy.provenance.serialization.tables",
         }
@@ -1091,7 +1107,11 @@ def classify_imports(
     *,
     project_root: Path,
     owners_by_module: Mapping[str, str],
+    private_permissions: Iterable[
+        PrivateImportPermission
+    ] = CAPABILITY_PRIVATE_IMPORT_PERMISSIONS,
 ) -> tuple[ClassifiedImport, ...]:
+    reviewed_private_permissions = tuple(private_permissions)
     classified: list[ClassifiedImport] = []
     for record in graph.records:
         source_owner = owners_by_module[record.source_module]
@@ -1101,6 +1121,8 @@ def classify_imports(
             target_owner=target_owner,
             source_module=record.source_module,
             target_module=record.target,
+            target_symbol=record.imported_symbol,
+            private_permissions=reviewed_private_permissions,
         )
         classified.append(
             ClassifiedImport(
@@ -1111,6 +1133,87 @@ def classify_imports(
             )
         )
     return tuple(classified)
+
+
+def capability_private_import_problems(
+    graph: ImportGraph,
+    *,
+    project_root: Path,
+    owners_by_module: Mapping[str, str],
+    private_permissions: Iterable[
+        PrivateImportPermission
+    ] = CAPABILITY_PRIVATE_IMPORT_PERMISSIONS,
+) -> list[str]:
+    """Return prohibited private capability-to-shared/foundation imports."""
+
+    reviewed_private_permissions = tuple(private_permissions)
+    problems: list[str] = []
+    for record in graph.records:
+        source_owner = owners_by_module[record.source_module]
+        target_owner = owners_by_module[record.target]
+        if not _is_private_capability_dependency(
+            source_owner=source_owner,
+            target_owner=target_owner,
+            target_module=record.target,
+            target_symbol=record.imported_symbol,
+        ):
+            continue
+        if _has_exact_private_import_permission(
+            source_module=record.source_module,
+            target_module=record.target,
+            target_symbol=record.imported_symbol,
+            permissions=reviewed_private_permissions,
+        ):
+            continue
+        try:
+            source_path = record.source_path.relative_to(project_root).as_posix()
+        except ValueError:
+            source_path = record.source_path.as_posix()
+        target = record.target
+        if record.imported_symbol is not None:
+            target = f"{target}.{record.imported_symbol}"
+        problems.append(
+            f"{source_path}:{record.line}: prohibited private owner import "
+            f"{record.source_module} ({source_owner}) -> {target} ({target_owner})"
+        )
+    return problems
+
+
+def private_import_permission_problems(
+    permissions: Iterable[PrivateImportPermission],
+) -> list[str]:
+    """Validate exact private permissions without broadening by prefix."""
+
+    reviewed = tuple(permissions)
+    counts = Counter(
+        (item.source_module, item.target_module, item.target_symbol)
+        for item in reviewed
+    )
+    problems = [
+        "duplicate private import permission: "
+        f"{source} -> {target}.{symbol or '<module>'}"
+        for (source, target, symbol), count in sorted(
+            counts.items(), key=lambda item: repr(item[0])
+        )
+        if count != 1
+    ]
+    for item in reviewed:
+        if not item.rationale.strip():
+            problems.append(
+                "missing private import permission rationale: "
+                f"{item.source_module} -> {item.target_module}."
+                f"{item.target_symbol or '<module>'}"
+            )
+        if not (
+            _has_private_module_component(item.target_module)
+            or _is_private_symbol(item.target_symbol)
+        ):
+            problems.append(
+                "private import permission does not name a private target: "
+                f"{item.source_module} -> {item.target_module}."
+                f"{item.target_symbol or '<module>'}"
+            )
+    return problems
 
 
 def logical_owner_edges(
@@ -1277,6 +1380,10 @@ def is_allowed_import(
     target_owner: str,
     source_module: str,
     target_module: str,
+    target_symbol: str | None = None,
+    private_permissions: Iterable[
+        PrivateImportPermission
+    ] = CAPABILITY_PRIVATE_IMPORT_PERMISSIONS,
 ) -> bool:
     """Apply owner direction and contract-path rules to one resolved import."""
 
@@ -1286,6 +1393,18 @@ def is_allowed_import(
         return True
     if (source_owner, target_owner) not in PERMITTED_LOGICAL_OWNER_EDGES:
         return False
+    if _is_private_capability_dependency(
+        source_owner=source_owner,
+        target_owner=target_owner,
+        target_module=target_module,
+        target_symbol=target_symbol,
+    ):
+        return _has_exact_private_import_permission(
+            source_module=source_module,
+            target_module=target_module,
+            target_symbol=target_symbol,
+            permissions=private_permissions,
+        )
     if source_owner == "public_facades":
         return _public_facade_target(target_owner, target_module)
     if source_owner in SHARED_ALLOWED_TARGETS:
@@ -1336,6 +1455,47 @@ def is_allowed_import(
     if source_owner == "io":
         return _io_adapter_target(target_owner, target_module)
     return False
+
+
+def _is_private_capability_dependency(
+    *,
+    source_owner: str,
+    target_owner: str,
+    target_module: str,
+    target_symbol: str | None,
+) -> bool:
+    return (
+        source_owner in CAPABILITY_OWNERS
+        and target_owner in SHARED_OWNERS | FOUNDATION_OWNERS
+        and (
+            _has_private_module_component(target_module)
+            or _is_private_symbol(target_symbol)
+        )
+    )
+
+
+def _has_private_module_component(module: str) -> bool:
+    parts = module.split(".")
+    return any(part.startswith("_") for part in parts[1:])
+
+
+def _is_private_symbol(symbol: str | None) -> bool:
+    return symbol is not None and symbol.startswith("_")
+
+
+def _has_exact_private_import_permission(
+    *,
+    source_module: str,
+    target_module: str,
+    target_symbol: str | None,
+    permissions: Iterable[PrivateImportPermission],
+) -> bool:
+    return any(
+        permission.source_module == source_module
+        and permission.target_module == target_module
+        and permission.target_symbol == target_symbol
+        for permission in permissions
+    )
 
 
 def _preparation_record_target(

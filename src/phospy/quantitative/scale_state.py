@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from typing import Final, cast
 
 from phospy.errors.transformations import InvalidTransformationStateError
-from phospy.quantitative._authority import (
+from phospy.quantitative.authority import (
     EstablishmentAuthority,
     QuantitativeMeaningTransitionAuthority,
     resolve_establishment_authority_source,

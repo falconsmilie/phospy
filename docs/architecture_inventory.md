@@ -452,7 +452,7 @@ identifiers from live compatibility routes. Their exact sets are enforced.
 - `src/phospy/preprocessing/stages/sequence.py`
   - `phospy.science.sequences`
   - `phospy.science.sequences.resolver.v1`
-- `src/phospy/quantitative/_authority.py`
+- `src/phospy/quantitative/authority.py`
   - `phospy.science.batch_correction.sps_discovery`
   - `phospy.science.datasets.builders.transformation_resolver`
   - `phospy.science.datasets.preprocessing.state_builder`
@@ -524,7 +524,7 @@ identifiers from live compatibility routes. Their exact sets are enforced.
   - `src/phospy/io/bundles/_signalome/tables.py`
   - `src/phospy/preprocessing/provenance/serialization.py`
   - `src/phospy/preprocessing/results/quantitative_evidence.py`
-  - `src/phospy/provenance/serialization/_payload.py`
+  - `src/phospy/provenance/serialization/payload.py`
   - `src/phospy/provenance/serialization/environment.py`
   - `src/phospy/provenance/serialization/tables.py`
   - `src/phospy/quantitative/models.py`
@@ -1029,22 +1029,22 @@ identifiers from live compatibility routes. Their exact sets are enforced.
 - `src/phospy/provenance/hashing.py`
 - `src/phospy/provenance/immutability.py`
 - `src/phospy/provenance/models/__init__.py`
-- `src/phospy/provenance/models/_shared.py`
 - `src/phospy/provenance/models/batch_correction.py`
 - `src/phospy/provenance/models/environment.py`
 - `src/phospy/provenance/models/tables.py`
 - `src/phospy/provenance/result_caveats.py`
 - `src/phospy/provenance/row_attrition.py`
+- `src/phospy/provenance/scalar_validation.py`
 - `src/phospy/provenance/scientific_policy_models.py`
 - `src/phospy/provenance/serialization/__init__.py`
-- `src/phospy/provenance/serialization/_payload.py`
 - `src/phospy/provenance/serialization/batch_correction.py`
 - `src/phospy/provenance/serialization/environment.py`
+- `src/phospy/provenance/serialization/payload.py`
 - `src/phospy/provenance/serialization/tables.py`
 - `src/phospy/quantitative/__init__.py`
-- `src/phospy/quantitative/_authority.py`
 - `src/phospy/quantitative/_payloads.py`
 - `src/phospy/quantitative/assertions.py`
+- `src/phospy/quantitative/authority.py`
 - `src/phospy/quantitative/contracts.py`
 - `src/phospy/quantitative/declared_scale_diagnostics.py`
 - `src/phospy/quantitative/evidence.py`
@@ -1057,7 +1057,7 @@ identifiers from live compatibility routes. Their exact sets are enforced.
 - `src/phospy/quantitative/serialization.py`
 - `src/phospy/quantitative/state_coherence.py`
 - `src/phospy/quantitative/transformers/__init__.py`
-- `src/phospy/quantitative/transformers/_identifiers.py`
+- `src/phospy/quantitative/transformers/identifiers.py`
 - `src/phospy/quantitative/transformers/identity.py`
 - `src/phospy/quantitative/transformers/log2.py`
 - `src/phospy/quantitative/validation.py`
@@ -1672,22 +1672,22 @@ identifiers from live compatibility routes. Their exact sets are enforced.
 | `src/phospy/provenance/hashing.py` | `phospy.provenance.hashing` | `provenance` | Generic immutable provenance infrastructure |
 | `src/phospy/provenance/immutability.py` | `phospy.provenance.immutability` | `provenance` | Generic immutable provenance infrastructure |
 | `src/phospy/provenance/models/__init__.py` | `phospy.provenance.models` | `provenance` | Generic immutable provenance infrastructure |
-| `src/phospy/provenance/models/_shared.py` | `phospy.provenance.models._shared` | `provenance` | Generic immutable provenance infrastructure |
 | `src/phospy/provenance/models/batch_correction.py` | `phospy.provenance.models.batch_correction` | `provenance` | Immutable batch-correction audit wire contract |
 | `src/phospy/provenance/models/environment.py` | `phospy.provenance.models.environment` | `provenance` | Generic immutable provenance infrastructure |
 | `src/phospy/provenance/models/tables.py` | `phospy.provenance.models.tables` | `provenance` | Generic immutable provenance infrastructure |
 | `src/phospy/provenance/result_caveats.py` | `phospy.provenance.result_caveats` | `provenance` | Generic immutable provenance infrastructure |
 | `src/phospy/provenance/row_attrition.py` | `phospy.provenance.row_attrition` | `provenance` | Generic immutable provenance infrastructure |
+| `src/phospy/provenance/scalar_validation.py` | `phospy.provenance.scalar_validation` | `provenance` | Owner-internal provenance scalar-validation contract |
 | `src/phospy/provenance/scientific_policy_models.py` | `phospy.provenance.scientific_policy_models` | `provenance` | Generic immutable provenance infrastructure |
 | `src/phospy/provenance/serialization/__init__.py` | `phospy.provenance.serialization` | `provenance` | Generic immutable provenance infrastructure |
-| `src/phospy/provenance/serialization/_payload.py` | `phospy.provenance.serialization._payload` | `provenance` | Generic immutable provenance infrastructure |
 | `src/phospy/provenance/serialization/batch_correction.py` | `phospy.provenance.serialization.batch_correction` | `provenance` | Direct historical batch-correction provenance codec |
 | `src/phospy/provenance/serialization/environment.py` | `phospy.provenance.serialization.environment` | `provenance` | Generic immutable provenance infrastructure |
+| `src/phospy/provenance/serialization/payload.py` | `phospy.provenance.serialization.payload` | `provenance` | Owner-internal provenance payload coercion contract |
 | `src/phospy/provenance/serialization/tables.py` | `phospy.provenance.serialization.tables` | `provenance` | Generic immutable provenance infrastructure |
 | `src/phospy/quantitative/__init__.py` | `phospy.quantitative` | `quantitative` | Shared quantitative state, transformation, validation, or serialization contract |
-| `src/phospy/quantitative/_authority.py` | `phospy.quantitative._authority` | `quantitative` | Shared quantitative state, transformation, validation, or serialization contract |
 | `src/phospy/quantitative/_payloads.py` | `phospy.quantitative._payloads` | `quantitative` | Shared quantitative state, transformation, validation, or serialization contract |
 | `src/phospy/quantitative/assertions.py` | `phospy.quantitative.assertions` | `quantitative` | Shared quantitative state, transformation, validation, or serialization contract |
+| `src/phospy/quantitative/authority.py` | `phospy.quantitative.authority` | `quantitative` | Owner-internal quantitative authority contract |
 | `src/phospy/quantitative/contracts.py` | `phospy.quantitative.contracts` | `quantitative` | Shared quantitative state, transformation, validation, or serialization contract |
 | `src/phospy/quantitative/declared_scale_diagnostics.py` | `phospy.quantitative.declared_scale_diagnostics` | `quantitative` | Shared quantitative state, transformation, validation, or serialization contract |
 | `src/phospy/quantitative/evidence.py` | `phospy.quantitative.evidence` | `quantitative` | Shared quantitative state, transformation, validation, or serialization contract |
@@ -1700,7 +1700,7 @@ identifiers from live compatibility routes. Their exact sets are enforced.
 | `src/phospy/quantitative/serialization.py` | `phospy.quantitative.serialization` | `quantitative` | Shared quantitative state, transformation, validation, or serialization contract |
 | `src/phospy/quantitative/state_coherence.py` | `phospy.quantitative.state_coherence` | `quantitative` | Shared quantitative state, transformation, validation, or serialization contract |
 | `src/phospy/quantitative/transformers/__init__.py` | `phospy.quantitative.transformers` | `quantitative` | Shared quantitative state, transformation, validation, or serialization contract |
-| `src/phospy/quantitative/transformers/_identifiers.py` | `phospy.quantitative.transformers._identifiers` | `quantitative` | Shared quantitative state, transformation, validation, or serialization contract |
+| `src/phospy/quantitative/transformers/identifiers.py` | `phospy.quantitative.transformers.identifiers` | `quantitative` | Owner-internal quantitative transformer identifier contract |
 | `src/phospy/quantitative/transformers/identity.py` | `phospy.quantitative.transformers.identity` | `quantitative` | Shared quantitative state, transformation, validation, or serialization contract |
 | `src/phospy/quantitative/transformers/log2.py` | `phospy.quantitative.transformers.log2` | `quantitative` | Shared quantitative state, transformation, validation, or serialization contract |
 | `src/phospy/quantitative/validation.py` | `phospy.quantitative.validation` | `quantitative` | Shared quantitative state, transformation, validation, or serialization contract |

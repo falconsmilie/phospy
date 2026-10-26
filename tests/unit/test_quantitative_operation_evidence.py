@@ -78,7 +78,7 @@ from phospy.preprocessing.results.quantitative_evidence import (
     TotalProteinRowMappingEvidence,
 )
 from phospy.provenance.models import BatchCorrectionProvenance
-from phospy.quantitative._authority import (
+from phospy.quantitative.authority import (
     dataset_resolver_establishment_authority,
 )
 from phospy.quantitative.models import (

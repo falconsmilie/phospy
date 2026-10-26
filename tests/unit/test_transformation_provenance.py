@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Iterator, Mapping
+from collections.abc import Callable, Iterator, Mapping
 from typing import cast
 
 import numpy as np
@@ -13,9 +13,16 @@ from phospy.datasets.construction.intensity_scale import (
 from phospy.errors.transformations import InvalidTransformationStateError
 from phospy.provenance.hashing import hash_json_payload
 from phospy.provenance.models import JsonValue
-from phospy.quantitative._authority import (
+from phospy.quantitative.authority import (
+    bundle_quantitative_meaning_restoration_authority,
+    bundle_reconstruction_establishment_authority,
     dataset_quantitative_meaning_transition_authority,
     dataset_resolver_establishment_authority,
+    identity_transformer_establishment_authority,
+    resolve_establishment_authority_source,
+    resolve_quantitative_meaning_transition_authority_source,
+    sps_reference_establishment_authority,
+    sps_reference_quantitative_meaning_transition_authority,
 )
 from phospy.quantitative.models import (
     QUANTITATIVE_MEANING_OPERATION_SCALE_CONTRACT_INFERENCE,
@@ -30,6 +37,63 @@ from phospy.quantitative.models import (
     QuantitativeMeaningTransitionProvenance,
 )
 from phospy.quantitative.transformers import IdentityTransformer
+
+
+@pytest.mark.parametrize(
+    ("authority_factory", "expected_source"),
+    (
+        (
+            dataset_resolver_establishment_authority,
+            "phospy.science.datasets.builders.transformation_resolver",
+        ),
+        (
+            sps_reference_establishment_authority,
+            "phospy.science.datasets.builders.transformation_resolver",
+        ),
+        (
+            identity_transformer_establishment_authority,
+            "phospy.science.transformations.transformers.identity",
+        ),
+        (
+            bundle_reconstruction_establishment_authority,
+            "phospy.io.bundles._shared.intensity_scale_state",
+        ),
+    ),
+)
+def test_establishment_authority_preserves_serialized_source_identity(
+    authority_factory: Callable[[], object],
+    expected_source: str,
+) -> None:
+    assert (
+        resolve_establishment_authority_source(authority_factory()) == expected_source
+    )
+
+
+@pytest.mark.parametrize(
+    ("authority_factory", "expected_source"),
+    (
+        (
+            dataset_quantitative_meaning_transition_authority,
+            "phospy.science.datasets.preprocessing.state_builder",
+        ),
+        (
+            sps_reference_quantitative_meaning_transition_authority,
+            "phospy.science.batch_correction.sps_discovery",
+        ),
+        (
+            bundle_quantitative_meaning_restoration_authority,
+            "phospy.io.bundles._shared.intensity_scale_state",
+        ),
+    ),
+)
+def test_quantitative_meaning_authority_preserves_serialized_source_identity(
+    authority_factory: Callable[[], object],
+    expected_source: str,
+) -> None:
+    assert (
+        resolve_quantitative_meaning_transition_authority_source(authority_factory())
+        == expected_source
+    )
 
 
 def _phospho() -> pd.DataFrame:

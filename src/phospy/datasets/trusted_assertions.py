@@ -10,13 +10,13 @@ from typing import cast
 
 from phospy.errors.input import PhosPyInputError
 from phospy.provenance.immutability import freeze_json_mapping, thaw_json_mapping
-from phospy.provenance.models._shared import (
+from phospy.provenance.scalar_validation import (
     JsonValue,
-    _optional_provenance_float,
-    _optional_provenance_text,
-    _required_non_negative_row_count,
-    _required_provenance_bool,
-    _required_provenance_text,
+    optional_provenance_float,
+    optional_provenance_text,
+    required_non_negative_row_count,
+    required_provenance_bool,
+    required_provenance_text,
 )
 
 TRUSTED_DATASET_CONSTRUCTION_ASSERTIONS_SCHEMA_VERSION_V1 = 1
@@ -109,7 +109,7 @@ class TrustedDatasetConstructionEvidence:
     details: Mapping[str, JsonValue] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        kind = _required_provenance_text(
+        kind = required_provenance_text(
             self.kind,
             field_name="trusted_dataset_construction_evidence.kind",
         )
@@ -119,10 +119,10 @@ class TrustedDatasetConstructionEvidence:
                 "trusted_dataset_construction_evidence.kind must be one of: "
                 + supported
             )
-        source = _optional_provenance_text(self.source)
-        policy = _optional_provenance_text(self.policy)
-        waiver_reason = _optional_provenance_text(self.waiver_reason)
-        threshold = _optional_provenance_float(
+        source = optional_provenance_text(self.source)
+        policy = optional_provenance_text(self.policy)
+        waiver_reason = optional_provenance_text(self.waiver_reason)
+        threshold = optional_provenance_float(
             self.threshold,
             field_name="trusted_dataset_construction_evidence.threshold",
         )
@@ -219,13 +219,13 @@ class TrustedDatasetConstructionEvidence:
                 payload.get("kind"),
                 field_name=f"{field_name}.kind",
             ),
-            source=_optional_provenance_text(payload.get("source")),
-            policy=_optional_provenance_text(payload.get("policy")),
-            threshold=_optional_provenance_float(
+            source=optional_provenance_text(payload.get("source")),
+            policy=optional_provenance_text(payload.get("policy")),
+            threshold=optional_provenance_float(
                 payload.get("threshold"),
                 field_name=f"{field_name}.threshold",
             ),
-            waiver_reason=_optional_provenance_text(payload.get("waiver_reason")),
+            waiver_reason=optional_provenance_text(payload.get("waiver_reason")),
             details=details,
         )
         _require_canonical_payload(
@@ -328,7 +328,7 @@ class TrustedDatasetConstructionAssertions:
                 "trusted_dataset_construction_assertions.numeric_semantic_domain"
             ),
         )
-        assertion_metadata_provided = _required_provenance_bool(
+        assertion_metadata_provided = required_provenance_bool(
             self.assertion_metadata_provided,
             field_name=(
                 "trusted_dataset_construction_assertions.assertion_metadata_provided"
@@ -368,7 +368,7 @@ class TrustedDatasetConstructionAssertions:
                 )
             _require_aligned_structure_evidence(aligned_structure)
             _require_localisation_evidence_or_waiver(localisation)
-        schema_version = _required_non_negative_row_count(
+        schema_version = required_non_negative_row_count(
             self.schema_version,
             field_name="trusted_dataset_construction_assertions.schema_version",
         )
@@ -397,14 +397,14 @@ class TrustedDatasetConstructionAssertions:
         object.__setattr__(
             self,
             "asserted_by",
-            _optional_provenance_text(self.asserted_by),
+            optional_provenance_text(self.asserted_by),
         )
         object.__setattr__(
             self,
             "assertion_source",
-            _optional_provenance_text(self.assertion_source),
+            optional_provenance_text(self.assertion_source),
         )
-        object.__setattr__(self, "notes", _optional_provenance_text(self.notes))
+        object.__setattr__(self, "notes", optional_provenance_text(self.notes))
         object.__setattr__(self, "schema_version", schema_version)
 
     @property
@@ -538,14 +538,14 @@ class TrustedDatasetConstructionAssertions:
                 payload.get("numeric_semantic_domain"),
                 field_name=f"{field_name}.numeric_semantic_domain",
             ),
-            assertion_metadata_provided=_required_provenance_bool(
+            assertion_metadata_provided=required_provenance_bool(
                 payload.get("assertion_metadata_provided"),
                 field_name=f"{field_name}.assertion_metadata_provided",
             ),
-            asserted_by=_optional_provenance_text(payload.get("asserted_by")),
-            assertion_source=_optional_provenance_text(payload.get("assertion_source")),
-            notes=_optional_provenance_text(payload.get("notes")),
-            schema_version=_required_non_negative_row_count(
+            asserted_by=optional_provenance_text(payload.get("asserted_by")),
+            assertion_source=optional_provenance_text(payload.get("assertion_source")),
+            notes=optional_provenance_text(payload.get("notes")),
+            schema_version=required_non_negative_row_count(
                 payload.get("schema_version"),
                 field_name=f"{field_name}.schema_version",
             ),
@@ -663,7 +663,7 @@ def _required_trusted_payload_mapping(
 def _required_trusted_payload_text(value: object, *, field_name: str) -> str:
     if not isinstance(value, str):
         raise PhosPyInputError(f"{field_name} must be a string")
-    return _required_provenance_text(value, field_name=field_name)
+    return required_provenance_text(value, field_name=field_name)
 
 
 def _require_exact_payload_keys(

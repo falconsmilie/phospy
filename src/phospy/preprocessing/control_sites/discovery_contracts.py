@@ -31,12 +31,12 @@ from phospy.provenance.serialization.tables import (
     table_fingerprint_from_payload,
     table_fingerprint_to_payload,
 )
-from phospy.quantitative._authority import (
+from phospy.quantitative.authority import (
     sps_reference_establishment_authority,
     sps_reference_quantitative_meaning_transition_authority,
 )
 from phospy.quantitative.declared_scale_diagnostics import (
-    _run_declared_scale_sanity_diagnostics,  # pyright: ignore[reportPrivateUsage] - The authorised shared helpers retain their historical private names.
+    run_declared_scale_sanity_diagnostics,
 )
 from phospy.quantitative.models import (
     IntensityScaleEstablishmentMode,
@@ -355,7 +355,7 @@ class SpsReferenceDataset:
             phospho=MatrixIntensityScaleState.log2(),
             quantity=QuantitativeMeaning.PHOSPHOSITE_LOG_ABUNDANCE,
         )
-        diagnostic_warnings = _run_declared_scale_sanity_diagnostics(
+        diagnostic_warnings = run_declared_scale_sanity_diagnostics(
             declared_scale_kind=IntensityScaleKind.LOG2,
             phospho=owned_intensities,
             total=None,

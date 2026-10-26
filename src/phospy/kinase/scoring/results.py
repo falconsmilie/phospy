@@ -12,8 +12,8 @@ import pandas as pd
 from phospy.errors.validation import PhosPyValidationError
 from phospy.frames.comparison import dataframe_equals, optional_dataframe_equals
 from phospy.frames.ownership import (
-    _borrow_dataframe,
-    _borrow_optional_dataframe,
+    borrow_dataframe,
+    borrow_optional_dataframe,
     export_dataframe,
     export_optional_dataframe,
     own_optional_dataframe,
@@ -397,57 +397,57 @@ class KinaseScoringResult:
     def _borrow_profile_scores_frame(self) -> pd.DataFrame:
         """Package-private profile-score snapshot for internal views."""
 
-        return _borrow_dataframe(self._profile_scores)
+        return borrow_dataframe(self._profile_scores)
 
     def _borrow_motif_scores_frame(self) -> pd.DataFrame | None:
         """Package-private motif-score snapshot for internal views."""
 
-        return _borrow_optional_dataframe(self._motif_scores)
+        return borrow_optional_dataframe(self._motif_scores)
 
     def _borrow_rank_weighted_fusion_scores_frame(self) -> pd.DataFrame | None:
         """Package-private fusion-score snapshot for internal views."""
 
-        return _borrow_optional_dataframe(self._rank_weighted_fusion_scores)
+        return borrow_optional_dataframe(self._rank_weighted_fusion_scores)
 
     def _borrow_kinase_library_motif_scores_frame(self) -> pd.DataFrame | None:
         """Package-private Kinase Library score snapshot for internal views."""
 
-        return _borrow_optional_dataframe(self._kinase_library_motif_scores)
+        return borrow_optional_dataframe(self._kinase_library_motif_scores)
 
     def _borrow_combined_profile_motif_scores_frame(self) -> pd.DataFrame | None:
         """Package-private combined profile/motif score snapshot."""
 
-        return _borrow_optional_dataframe(self._combined_profile_motif_scores)
+        return borrow_optional_dataframe(self._combined_profile_motif_scores)
 
     def _borrow_score_fusion_weights_frame(self) -> pd.DataFrame | None:
         """Package-private fusion-weight snapshot for internal views."""
 
-        return _borrow_optional_dataframe(self._score_fusion_weights)
+        return borrow_optional_dataframe(self._score_fusion_weights)
 
     def _borrow_score_source_matrix_frame(self) -> pd.DataFrame | None:
         """Package-private score-source matrix snapshot for internal views."""
 
-        return _borrow_optional_dataframe(self._score_source_matrix)
+        return borrow_optional_dataframe(self._score_source_matrix)
 
     def _borrow_score_source_summary_frame(self) -> pd.DataFrame | None:
         """Package-private score-source summary snapshot for internal views."""
 
-        return _borrow_optional_dataframe(self._score_source_summary)
+        return borrow_optional_dataframe(self._score_source_summary)
 
     def _borrow_profile_score_diagnostics_frame(self) -> pd.DataFrame | None:
         """Package-private profile-score diagnostic snapshot."""
 
-        return _borrow_optional_dataframe(self._profile_score_diagnostics)
+        return borrow_optional_dataframe(self._profile_score_diagnostics)
 
     def _borrow_kinase_library_site_diagnostics_frame(self) -> pd.DataFrame | None:
         """Package-private Kinase Library site-diagnostics snapshot."""
 
-        return _borrow_optional_dataframe(self._kinase_library_site_diagnostics)
+        return borrow_optional_dataframe(self._kinase_library_site_diagnostics)
 
     def _borrow_kinase_library_kinase_diagnostics_frame(self) -> pd.DataFrame | None:
         """Package-private Kinase Library kinase-diagnostics snapshot."""
 
-        return _borrow_optional_dataframe(self._kinase_library_kinase_diagnostics)
+        return borrow_optional_dataframe(self._kinase_library_kinase_diagnostics)
 
     def _borrow_authoritative_scores_frame(self) -> pd.DataFrame:
         """Package-private authoritative downstream score snapshot."""
@@ -456,14 +456,14 @@ class KinaseScoringResult:
 
         if self._score_source is DownstreamScoreSource.RANK_WEIGHTED_FUSION_SCORES:
             if self._rank_weighted_fusion_scores is not None:
-                return _borrow_dataframe(self._rank_weighted_fusion_scores)
+                return borrow_dataframe(self._rank_weighted_fusion_scores)
         if self._score_source is DownstreamScoreSource.KINASE_LIBRARY_MOTIF_SCORES:
             if self._kinase_library_motif_scores is not None:
-                return _borrow_dataframe(self._kinase_library_motif_scores)
+                return borrow_dataframe(self._kinase_library_motif_scores)
         if self._score_source is DownstreamScoreSource.COMBINED_PROFILE_MOTIF_SCORES:
             if self._combined_profile_motif_scores is not None:
-                return _borrow_dataframe(self._combined_profile_motif_scores)
-        return _borrow_dataframe(self._profile_scores)
+                return borrow_dataframe(self._combined_profile_motif_scores)
+        return borrow_dataframe(self._profile_scores)
 
     @classmethod
     def _from_owned(

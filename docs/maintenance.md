@@ -468,9 +468,10 @@ Exposure categories:
 - `owned_internal`: DataFrames stored in dataset/result/table dataclass fields.
 - `safe_public_copy`: `to_dataframe(...)`, `to_pandas(...)`, and
   `*_dataframe(...)` helpers (always caller-writable defensive snapshots).
-- `borrowed_internal_view`: private/internal helpers only (`_borrow_dataframe`,
-  `_borrow_optional_dataframe`); read-only by contract, and writes may raise or
-  detach locally depending on pandas, but must not mutate the owner.
+- `borrowed_internal_view`: owner-internal contract functions
+  (`borrow_dataframe`, `borrow_optional_dataframe`); read-only by contract, and
+  writes may raise or detach locally depending on pandas, but must not mutate
+  the owner.
 - `export_snapshot`: persisted outputs and provenance fingerprints.
 
 ## Release Notes

@@ -92,7 +92,7 @@ def test_public_inventories_and_owner_identities_are_exact() -> None:
     ) == (
         3,
         66,
-        124,
+        126,
     )
     owner_routes = {
         "BatchCovariate": "phospy.differential.design.models",

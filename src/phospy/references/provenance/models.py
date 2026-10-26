@@ -9,11 +9,11 @@ from phospy.errors.validation import ReferenceValidationError
 from phospy.provenance.immutability import (
     freeze_optional_json_mapping,
 )
-from phospy.provenance.models._shared import JsonValue, _optional_provenance_text
 from phospy.provenance.models.tables import (
     TableFingerprint,
     require_table_fingerprint_sequence,
 )
+from phospy.provenance.scalar_validation import JsonValue, optional_provenance_text
 from phospy.references.provenance.context import ReferenceContext
 from phospy.references.provenance.identifiers import (
     ReferenceIdentifierNormalisationReport,
@@ -98,7 +98,7 @@ class ReferenceProvenance:
                 field_name="reference_provenance.manifest",
             ),
         )
-        source_version = _optional_provenance_text(self.source_version)
+        source_version = optional_provenance_text(self.source_version)
         object.__setattr__(self, "source_version", source_version)
         _require_reference_provenance_organism_coherence(
             organism=organism,

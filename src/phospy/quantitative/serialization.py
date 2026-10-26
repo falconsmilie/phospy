@@ -6,9 +6,9 @@ from collections.abc import Mapping
 
 from phospy.errors.input import PhosPyInputError
 from phospy.errors.transformations import InvalidTransformationStateError
-from phospy.quantitative._authority import (
-    _bundle_reconstruction_establishment_authority,
+from phospy.quantitative.authority import (
     bundle_quantitative_meaning_restoration_authority,
+    bundle_reconstruction_establishment_authority,
 )
 from phospy.quantitative.models import (
     QUANTITATIVE_MEANING_LEGACY_UNVERIFIED_CAVEAT_CODE,
@@ -102,7 +102,7 @@ def intensity_scale_state_from_payload(
     established = establish_intensity_scale_state(
         state,
         established_via="phospy.io.bundles._shared.intensity_scale_state",
-        _authority=_bundle_reconstruction_establishment_authority(),
+        _authority=bundle_reconstruction_establishment_authority(),
     )
     provenance = _quantitative_meaning_provenance_from_payload(
         payload,

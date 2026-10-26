@@ -7,12 +7,12 @@ from dataclasses import dataclass
 
 from phospy.errors.input import PhosPyInputError
 from phospy.provenance.immutability import freeze_optional_json_mapping
-from phospy.provenance.models._shared import (
+from phospy.provenance.scalar_validation import (
     JsonValue,
-    _provenance_string_tuple,
-    _required_non_negative_row_count,
-    _required_provenance_text,
-    _required_provenance_text_tuple,
+    provenance_string_tuple,
+    required_non_negative_row_count,
+    required_provenance_text,
+    required_provenance_text_tuple,
 )
 
 
@@ -28,15 +28,15 @@ class RowAttritionRecord:
     examples: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
-        input_rows = _required_non_negative_row_count(
+        input_rows = required_non_negative_row_count(
             self.input_rows,
             field_name="row_attrition_record.input_rows",
         )
-        output_rows = _required_non_negative_row_count(
+        output_rows = required_non_negative_row_count(
             self.output_rows,
             field_name="row_attrition_record.output_rows",
         )
-        removed_rows = _required_non_negative_row_count(
+        removed_rows = required_non_negative_row_count(
             self.removed_rows,
             field_name="row_attrition_record.removed_rows",
         )
@@ -53,7 +53,7 @@ class RowAttritionRecord:
         object.__setattr__(
             self,
             "stage",
-            _required_provenance_text(
+            required_provenance_text(
                 self.stage,
                 field_name="row_attrition_record.stage",
             ),
@@ -64,7 +64,7 @@ class RowAttritionRecord:
         object.__setattr__(
             self,
             "reason",
-            _required_provenance_text(
+            required_provenance_text(
                 self.reason,
                 field_name="row_attrition_record.reason",
             ),
@@ -72,7 +72,7 @@ class RowAttritionRecord:
         object.__setattr__(
             self,
             "examples",
-            _required_provenance_text_tuple(
+            required_provenance_text_tuple(
                 self.examples,
                 field_name="row_attrition_record.examples",
             ),
@@ -101,11 +101,11 @@ class RowAttritionReport:
 
     def __post_init__(self) -> None:
         records = _required_row_attrition_record_tuple(self.records)
-        input_rows = _required_non_negative_row_count(
+        input_rows = required_non_negative_row_count(
             self.input_rows,
             field_name="row_attrition_report.input_rows",
         )
-        final_rows = _required_non_negative_row_count(
+        final_rows = required_non_negative_row_count(
             self.final_rows,
             field_name="row_attrition_report.final_rows",
         )
@@ -186,20 +186,20 @@ class TableFingerprint:
     column_index_structure: Mapping[str, JsonValue] | None = None
 
     def __post_init__(self) -> None:
-        name = _required_provenance_text(self.name, field_name="table_fingerprint.name")
-        rows = _required_non_negative_row_count(
+        name = required_provenance_text(self.name, field_name="table_fingerprint.name")
+        rows = required_non_negative_row_count(
             self.rows,
             field_name="table_fingerprint.rows",
         )
-        columns = _required_non_negative_row_count(
+        columns = required_non_negative_row_count(
             self.columns,
             field_name="table_fingerprint.columns",
         )
-        column_names = _provenance_string_tuple(
+        column_names = provenance_string_tuple(
             self.column_names,
             field_name="table_fingerprint.column_names",
         )
-        dtypes = _provenance_string_tuple(
+        dtypes = provenance_string_tuple(
             self.dtypes,
             field_name="table_fingerprint.dtypes",
         )
@@ -225,7 +225,7 @@ class TableFingerprint:
         object.__setattr__(
             self,
             "exact_hash_algorithm",
-            _required_provenance_text(
+            required_provenance_text(
                 self.exact_hash_algorithm,
                 field_name="table_fingerprint.exact_hash_algorithm",
             ),
@@ -233,7 +233,7 @@ class TableFingerprint:
         object.__setattr__(
             self,
             "exact_hash_value",
-            _required_provenance_text(
+            required_provenance_text(
                 self.exact_hash_value,
                 field_name="table_fingerprint.exact_hash_value",
             ),
@@ -241,7 +241,7 @@ class TableFingerprint:
         object.__setattr__(
             self,
             "tolerance_hash_algorithm",
-            _required_provenance_text(
+            required_provenance_text(
                 self.tolerance_hash_algorithm,
                 field_name="table_fingerprint.tolerance_hash_algorithm",
             ),
@@ -249,7 +249,7 @@ class TableFingerprint:
         object.__setattr__(
             self,
             "tolerance_hash_value",
-            _required_provenance_text(
+            required_provenance_text(
                 self.tolerance_hash_value,
                 field_name="table_fingerprint.tolerance_hash_value",
             ),

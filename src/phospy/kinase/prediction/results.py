@@ -9,8 +9,8 @@ import pandas as pd
 from phospy.errors.validation import PhosPyValidationError
 from phospy.frames.comparison import dataframe_equals, optional_dataframe_equals
 from phospy.frames.ownership import (
-    _borrow_dataframe,
-    _borrow_optional_dataframe,
+    borrow_dataframe,
+    borrow_optional_dataframe,
     export_dataframe,
     export_optional_dataframe,
     own_optional_dataframe,
@@ -62,12 +62,12 @@ class KinasePredictionResult:
     def _borrow_pred_mat_frame(self) -> pd.DataFrame:
         """Package-private prediction-matrix snapshot for internal views."""
 
-        return _borrow_dataframe(self._pred_mat)
+        return borrow_dataframe(self._pred_mat)
 
     def _borrow_substrate_list_frame(self) -> pd.DataFrame | None:
         """Package-private substrate-list snapshot for internal views."""
 
-        return _borrow_optional_dataframe(self._substrate_list)
+        return borrow_optional_dataframe(self._substrate_list)
 
     @classmethod
     def _from_owned(

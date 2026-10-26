@@ -14,7 +14,7 @@ from phospy.quantitative.models import (
     IntensityTransformationEvent,
     MatrixIntensityScaleState,
 )
-from phospy.quantitative.transformers._identifiers import (
+from phospy.quantitative.transformers.identifiers import (
     resolve_transformer_identifier,
 )
 

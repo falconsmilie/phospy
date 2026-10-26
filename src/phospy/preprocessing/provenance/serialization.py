@@ -14,7 +14,11 @@ from phospy.preprocessing.provenance.models import (
     PreprocessingStageProvenance,
     ReproducibilityCaveat,
 )
-from phospy.provenance.serialization._payload import (
+from phospy.provenance.serialization.batch_correction import (
+    batch_correction_provenance_from_payload,
+    batch_correction_provenance_to_payload,
+)
+from phospy.provenance.serialization.payload import (
     optional_int,
     optional_str,
     raise_legacy_provenance_schema,
@@ -26,10 +30,6 @@ from phospy.provenance.serialization._payload import (
     require_str,
     to_json_safe,
     to_json_value,
-)
-from phospy.provenance.serialization.batch_correction import (
-    batch_correction_provenance_from_payload,
-    batch_correction_provenance_to_payload,
 )
 from phospy.provenance.serialization.tables import (
     table_fingerprint_to_payload,

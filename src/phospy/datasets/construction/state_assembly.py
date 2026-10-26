@@ -45,7 +45,7 @@ from phospy.preprocessing.dataset_construction import (
 from phospy.provenance.models import (
     TableFingerprint,
 )
-from phospy.quantitative._authority import (
+from phospy.quantitative.authority import (
     dataset_quantitative_meaning_transition_authority,
 )
 from phospy.quantitative.models import (

@@ -42,8 +42,8 @@ from phospy.preprocessing.batch_correction.provenance.assembly import (
     build_native_batch_correction_provenance,
 )
 from phospy.preprocessing.control_sites.contracts import ControlSiteSet
-from phospy.provenance.models._shared import JsonValue
 from phospy.provenance.models.batch_correction import BatchCorrectionProvenance
+from phospy.provenance.scalar_validation import JsonValue
 
 
 @dataclass(frozen=True, slots=True)

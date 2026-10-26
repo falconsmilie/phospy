@@ -403,9 +403,9 @@ def test_fake_authority_object_is_rejected_even_with_supported_source() -> None:
 
 
 def test_user_created_matching_authority_token_is_rejected() -> None:
-    from phospy.quantitative._authority import _EstablishmentAuthority
+    from phospy.quantitative.authority import EstablishmentAuthority
 
-    fabricated = _EstablishmentAuthority(
+    fabricated = EstablishmentAuthority(
         source="phospy.science.datasets.builders.transformation_resolver"
     )
     with pytest.raises(

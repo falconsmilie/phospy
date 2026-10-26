@@ -6,6 +6,8 @@ import types
 import typing
 from pathlib import Path
 
+import pytest
+
 import phospy
 import phospy.advanced
 import phospy.api
@@ -17,6 +19,7 @@ from tools.architecture.import_graph import (
     package_edges,
 )
 from tools.architecture.logical_ownership import (
+    CAPABILITY_PRIVATE_IMPORT_PERMISSIONS,
     DATASET_PATH_READER_EDGE,
     DATASET_PREPROCESSING_ALLOWED_IMPORTS,
     OWNER_KEYED_MODULE_ALLOW_LISTS,
@@ -25,6 +28,8 @@ from tools.architecture.logical_ownership import (
     REVIEWED_MIXED_MODULES,
     RUN_LINEAGE_ALLOWED_TARGETS,
     PermanentCondensationClassification,
+    PrivateImportPermission,
+    capability_private_import_problems,
     classify_imports,
     is_allowed_import,
     load_module_owners,
@@ -35,6 +40,7 @@ from tools.architecture.logical_ownership import (
     module_inventory_problems,
     owner_graph_views,
     owner_keyed_module_allow_list_problems,
+    private_import_permission_problems,
 )
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -108,6 +114,172 @@ def test_owner_keyed_module_allow_list_invariant_rejects_bad_fixture_targets() -
         owners_by_module=owners_by_module,
         allow_lists=unknown_target_policy,
     ) == ["fixture[datasets]: unknown module target phospy.datasets.unknown"]
+
+
+def test_live_capability_imports_use_supported_shared_contracts() -> None:
+    graph = _live_graph()
+    entries = load_module_owners(OWNER_MAP)
+
+    assert CAPABILITY_PRIVATE_IMPORT_PERMISSIONS == ()
+    assert (
+        private_import_permission_problems(CAPABILITY_PRIVATE_IMPORT_PERMISSIONS) == []
+    )
+    assert (
+        capability_private_import_problems(
+            graph,
+            project_root=PROJECT_ROOT,
+            owners_by_module={entry.module: entry.owner for entry in entries},
+        )
+        == []
+    )
+
+
+def test_capability_private_import_policy_is_symbol_and_module_exact() -> None:
+    permission = PrivateImportPermission(
+        source_module="phospy.datasets.approved_consumer",
+        target_module="phospy.quantitative._approved_private",
+        target_symbol="approved_symbol",
+        rationale="Reviewed synthetic permission for exactness coverage.",
+    )
+
+    assert private_import_permission_problems((permission,)) == []
+    assert is_allowed_import(
+        source_owner="datasets",
+        target_owner="quantitative",
+        source_module=permission.source_module,
+        target_module=permission.target_module,
+        target_symbol=permission.target_symbol,
+        private_permissions=(permission,),
+    )
+    for source_module, target_module, target_symbol in (
+        (
+            "phospy.datasets.other_consumer",
+            permission.target_module,
+            permission.target_symbol,
+        ),
+        (
+            permission.source_module,
+            "phospy.quantitative._private_sibling",
+            permission.target_symbol,
+        ),
+        (
+            permission.source_module,
+            permission.target_module,
+            "other_symbol",
+        ),
+        (
+            permission.source_module,
+            permission.target_module,
+            None,
+        ),
+    ):
+        assert not is_allowed_import(
+            source_owner="datasets",
+            target_owner="quantitative",
+            source_module=source_module,
+            target_module=target_module,
+            target_symbol=target_symbol,
+            private_permissions=(permission,),
+        )
+
+    assert is_allowed_import(
+        source_owner="datasets",
+        target_owner="quantitative",
+        source_module="phospy.datasets.construction.intensity_scale",
+        target_module="phospy.quantitative.authority",
+        target_symbol="dataset_resolver_establishment_authority",
+    )
+    assert not is_allowed_import(
+        source_owner="datasets",
+        target_owner="quantitative",
+        source_module="phospy.datasets.construction.intensity_scale",
+        target_module="phospy.quantitative.authority",
+        target_symbol="_authority_token",
+    )
+    assert not is_allowed_import(
+        source_owner="datasets",
+        target_owner="quantitative",
+        source_module="phospy.datasets.construction.intensity_scale",
+        target_module="phospy._private_contract",
+    )
+    assert is_allowed_import(
+        source_owner="quantitative",
+        target_owner="quantitative",
+        source_module="phospy.quantitative.models",
+        target_module="phospy.quantitative._payloads",
+    )
+
+
+@pytest.mark.parametrize(
+    "source",
+    (
+        "import phospy.quantitative._private\n",
+        "import phospy.quantitative._private as ordinary_contract\n",
+        "from phospy.quantitative import _private\n",
+        "from phospy.quantitative._private import token\n",
+        ("def load_contract():\n    from phospy.quantitative._private import token\n"),
+        (
+            "from typing import TYPE_CHECKING\n"
+            "if TYPE_CHECKING:\n"
+            "    from phospy.quantitative._private import token\n"
+        ),
+        ("import importlib\nimportlib.import_module('phospy.quantitative._private')\n"),
+        (
+            "from importlib import import_module as load_module\n"
+            "load_module('phospy.quantitative._private')\n"
+        ),
+        "__import__('phospy.quantitative._private')\n",
+        (
+            "from phospy.quantitative.contracts import "
+            "_private_symbol as ordinary_contract\n"
+        ),
+    ),
+    ids=(
+        "ordinary",
+        "ordinary-alias",
+        "from-module",
+        "from-symbol",
+        "local",
+        "type-checking",
+        "literal-importlib",
+        "literal-importlib-alias",
+        "literal-dunder-import",
+        "private-symbol-alias",
+    ),
+)
+def test_capability_private_import_forms_cannot_conceal_analyzed_target(
+    tmp_path: Path,
+    source: str,
+) -> None:
+    src_root = tmp_path / "src"
+    package_root = src_root / "phospy"
+    source_path = package_root / "datasets/consumer.py"
+    private_path = package_root / "quantitative/_private.py"
+    contract_path = package_root / "quantitative/contracts.py"
+    source_path.parent.mkdir(parents=True)
+    private_path.parent.mkdir(parents=True)
+    (package_root / "__init__.py").write_text("", encoding="utf-8")
+    (source_path.parent / "__init__.py").write_text("", encoding="utf-8")
+    (private_path.parent / "__init__.py").write_text("", encoding="utf-8")
+    source_path.write_text(source, encoding="utf-8")
+    private_path.write_text("token = object()\n", encoding="utf-8")
+    contract_path.write_text("_private_symbol = object()\n", encoding="utf-8")
+
+    graph = build_import_graph(package_root=package_root, src_root=src_root)
+    owners_by_module = {
+        module: ("datasets" if module.startswith("phospy.datasets") else "quantitative")
+        for module in graph.modules
+    }
+    owners_by_module["phospy"] = "public_facades"
+    problems = capability_private_import_problems(
+        graph,
+        project_root=tmp_path,
+        owners_by_module=owners_by_module,
+    )
+
+    assert len(problems) == 1
+    assert "prohibited private owner import" in problems[0]
+    assert "ordinary_contract" not in problems[0]
 
 
 def test_permitted_logical_owner_graph_is_acyclic() -> None:

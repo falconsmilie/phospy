@@ -5,11 +5,11 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 
-from phospy.provenance.models._shared import (
-    _optional_provenance_text,
-    _required_provenance_text,
-)
 from phospy.provenance.result_caveats import ResultCaveat
+from phospy.provenance.scalar_validation import (
+    optional_provenance_text,
+    required_provenance_text,
+)
 from phospy.quantitative.models import (
     IntensityScaleEvidenceLevel,
     IntensityScaleState,
@@ -36,7 +36,7 @@ class InputIntensityScaleEvidence:
         object.__setattr__(
             self,
             "input_intensity_scale",
-            _required_provenance_text(
+            required_provenance_text(
                 self.input_intensity_scale,
                 field_name="input_intensity_scale",
             ),
@@ -44,7 +44,7 @@ class InputIntensityScaleEvidence:
         object.__setattr__(
             self,
             "input_intensity_scale_evidence_level",
-            _required_provenance_text(
+            required_provenance_text(
                 self.input_intensity_scale_evidence_level,
                 field_name="input_intensity_scale_evidence_level",
             ),
@@ -52,7 +52,7 @@ class InputIntensityScaleEvidence:
         object.__setattr__(
             self,
             "input_intensity_scale_source",
-            _required_provenance_text(
+            required_provenance_text(
                 self.input_intensity_scale_source,
                 field_name="input_intensity_scale_source",
             ),
@@ -60,7 +60,7 @@ class InputIntensityScaleEvidence:
         object.__setattr__(
             self,
             "input_intensity_scale_source_detail",
-            _optional_provenance_text(self.input_intensity_scale_source_detail),
+            optional_provenance_text(self.input_intensity_scale_source_detail),
         )
 
     def to_payload(self) -> dict[str, object]:

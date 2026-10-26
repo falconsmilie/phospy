@@ -8,7 +8,7 @@ from phospy.provenance.models import (
     ENVIRONMENT_PROVENANCE_SCHEMA_VERSION_V2,
     EnvironmentProvenance,
 )
-from phospy.provenance.serialization._payload import (
+from phospy.provenance.serialization.payload import (
     optional_str,
     raise_legacy_provenance_schema,
     require_int,

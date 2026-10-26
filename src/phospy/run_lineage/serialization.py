@@ -12,7 +12,11 @@ from phospy.preprocessing.provenance.serialization import (
     stage_to_payload,
 )
 from phospy.provenance.scientific_policy_models import ScientificPolicyRecord
-from phospy.provenance.serialization._payload import (
+from phospy.provenance.serialization.environment import (
+    environment_from_payload,
+    environment_to_payload,
+)
+from phospy.provenance.serialization.payload import (
     optional_int,
     optional_mapping,
     optional_str,
@@ -20,10 +24,6 @@ from phospy.provenance.serialization._payload import (
     require_sequence,
     to_json_safe,
     to_json_value,
-)
-from phospy.provenance.serialization.environment import (
-    environment_from_payload,
-    environment_to_payload,
 )
 from phospy.provenance.serialization.tables import (
     table_fingerprint_from_payload,

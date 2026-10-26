@@ -39,6 +39,31 @@ resolve computed module names, assignment/re-export bindings, plugin discovery,
 import hooks, or other runtime-generated imports. The separately enforced eager
 module graph covers imports reachable during module and class-body execution.
 
+Capability imports from shared scientific and technical-foundation owners are
+also checked at the resolved target. A target module component or imported
+symbol beginning with `_` is rejected unless an exact reviewed
+`(source module, target module, target symbol)` permission exists. Import aliases
+do not change that resolved identity. ARCH-016 retains no such private-import
+permission; the three ADR-0053 package-condensation classifications remain a
+separate policy and are not private-import exemptions.
+
+The reviewed cross-owner seams now use these owner-internal contracts. None of
+the superseded imports had an exact authorization; they passed only through the
+former broad capability-to-shared/foundation rule.
+
+| Superseded private seam | Owner-internal contract | Consumers | Purpose |
+| --- | --- | --- | --- |
+| `phospy.quantitative._authority` | `phospy.quantitative.authority` | Dataset intensity-scale/state construction and preprocessing SPS discovery | Opaque scale-establishment and quantitative-meaning authority tokens; historical serialized `source` values remain unchanged. |
+| `phospy.quantitative.transformers._identifiers` | `phospy.quantitative.transformers.identifiers` | Dataset intensity-scale resolution | Stable built-in/custom transformer provenance identifiers. |
+| `_run_declared_scale_sanity_diagnostics` | `phospy.quantitative.declared_scale_diagnostics.run_declared_scale_sanity_diagnostics` | Dataset intensity-scale resolution and SPS reference declarations | Shared declared-scale sanity diagnostics. |
+| `phospy.provenance.models._shared` and its private scalar guards | `phospy.provenance.scalar_validation` | Dataset assertions, preprocessing provenance/batch contracts, and Kinase reference provenance | JSON value typing and field-qualified scalar guards. |
+| `phospy.provenance.serialization._payload` | `phospy.provenance.serialization.payload` | Preprocessing provenance serialization | Historical provenance payload validation/coercion. |
+| `phospy.frames.ownership._borrow_dataframe` and `_borrow_optional_dataframe` | Existing `borrow_dataframe` and `borrow_optional_dataframe` owner contract | Kinase scoring and prediction results | Immutable internal dataframe snapshots without public mutable borrowing. |
+
+These modules are not exported by `phospy`, `phospy.api`, or
+`phospy.advanced`; direct owner-module imports remain unsupported for external
+callers.
+
 The supported public surfaces are the `phospy`, `phospy.api`, and
 `phospy.advanced` facades. Public exports preserve the exact object identities of
 their domain owners. Domain code cannot depend on those aggregate facades, and

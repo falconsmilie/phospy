@@ -315,7 +315,7 @@ def test_boundary_and_signalome_imports_do_not_load_kinase_implementation() -> N
     assert completed.returncode == 0, completed.stderr
 
 
-def test_public_inventories_remain_ordered_3_66_124() -> None:
+def test_public_inventories_remain_ordered_3_66_126() -> None:
     assert tuple(phospy_root.__all__) == tuple(ROOT_PUBLIC_API)
     assert tuple(phospy_api.__all__) == tuple(ORDINARY_PUBLIC_API)
     assert tuple(phospy_advanced.__all__) == tuple(ADVANCED_PUBLIC_API)
@@ -324,4 +324,4 @@ def test_public_inventories_remain_ordered_3_66_124() -> None:
             len,
             (phospy_root.__all__, phospy_api.__all__, phospy_advanced.__all__),
         )
-    ) == (3, 66, 124)
+    ) == (3, 66, 126)

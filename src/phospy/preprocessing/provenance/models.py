@@ -12,18 +12,18 @@ from phospy.provenance.immutability import (
     freeze_optional_json_mapping,
     thaw_json_mapping,
 )
-from phospy.provenance.models._shared import (
-    JsonValue,
-    _provenance_string_tuple,
-    _required_provenance_text,
-    _required_shape,
-)
 from phospy.provenance.models.batch_correction import (
     BatchCorrectionProvenance as _BatchCorrectionProvenance,
 )
 from phospy.provenance.models.tables import (
     TableFingerprint,
     require_table_fingerprint_sequence,
+)
+from phospy.provenance.scalar_validation import (
+    JsonValue,
+    provenance_string_tuple,
+    required_provenance_text,
+    required_shape,
 )
 
 PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V1 = 1
@@ -77,11 +77,11 @@ class ReproducibilityCaveat:
         object.__setattr__(
             self,
             "code",
-            _required_provenance_text(
+            required_provenance_text(
                 self.code, field_name="reproducibility_caveat.code"
             ),
         )
-        severity = _required_provenance_text(
+        severity = required_provenance_text(
             self.severity,
             field_name="reproducibility_caveat.severity",
         )
@@ -94,7 +94,7 @@ class ReproducibilityCaveat:
         object.__setattr__(
             self,
             "message",
-            _required_provenance_text(
+            required_provenance_text(
                 self.message,
                 field_name="reproducibility_caveat.message",
             ),
@@ -200,14 +200,14 @@ class PreprocessingStageProvenance:
         object.__setattr__(
             self,
             "input_shape",
-            _required_shape(
+            required_shape(
                 self.input_shape, field_name="preprocessing_stage.input_shape"
             ),
         )
         object.__setattr__(
             self,
             "output_shape",
-            _required_shape(
+            required_shape(
                 self.output_shape,
                 field_name="preprocessing_stage.output_shape",
             ),
@@ -215,7 +215,7 @@ class PreprocessingStageProvenance:
         object.__setattr__(
             self,
             "dropped_row_ids",
-            _provenance_string_tuple(
+            provenance_string_tuple(
                 self.dropped_row_ids,
                 field_name="preprocessing_stage.dropped_row_ids",
             ),
@@ -247,7 +247,7 @@ class PreprocessingStageProvenance:
         object.__setattr__(
             self,
             "imputed_row_ids",
-            _provenance_string_tuple(
+            provenance_string_tuple(
                 self.imputed_row_ids,
                 field_name="preprocessing_stage.imputed_row_ids",
             ),

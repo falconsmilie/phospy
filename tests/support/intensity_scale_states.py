@@ -9,7 +9,7 @@ from phospy.datasets.construction.preprocessing import (
     build_dataset_processing_state,
 )
 from phospy.preprocessing.contracts import PreprocessingPlan
-from phospy.quantitative._authority import (
+from phospy.quantitative.authority import (
     bundle_quantitative_meaning_restoration_authority,
 )
 from phospy.quantitative.models import (
