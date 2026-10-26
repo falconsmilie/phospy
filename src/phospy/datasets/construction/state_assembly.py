@@ -398,7 +398,7 @@ def _assemble_processing_state_components(
             trace_facts=trace_facts,
             matrix_state=matrix_state,
         ),
-        normalisation=NormalisationState(policy=plan.normalisation_policy.value),
+        normalisation=NormalisationState(policy=plan.normalisation_policy),
         total_protein_correction=_resolve_total_protein_correction_state(
             trace_facts=trace_facts,
             quantitative_state=quantitative_state,

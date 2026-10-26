@@ -134,7 +134,7 @@ tests/unit/references/test_reference_manifest.py,references,576,26,true,true,,,,
 tests/unit/references/test_reference_provenance_source_versions.py,references,673,17,true,true,,,,,,[auto-orchestration] 12 hit(s); indicators: private_member_access
 tests/unit/science/datasets/test_analysis_ready_dataset_builder.py,datasets,203,5,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/unit/science/datasets/test_direct_construction_assertions.py,datasets,850,26,true,true,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
-tests/unit/science/datasets/test_processing_state.py,datasets,770,31,true,true,,,,,,
+tests/unit/science/datasets/test_processing_state.py,datasets,791,33,true,true,,,,,,
 tests/unit/science/differential/test_compound_symmetry_gls.py,differential,566,10,true,true,,,,,,
 tests/unit/science/differential/test_differential_diagnostics.py,differential,124,2,false,false,,,,,,
 tests/unit/science/differential/test_duplicate_correlation_reml_estimator.py,differential,1174,27,true,true,,,,,,[auto-orchestration] 11 hit(s); indicators: private_member_access
@@ -206,7 +206,7 @@ tests/unit/test_differential_result_contract.py,unit,1259,44,true,true,,,,,,
 tests/unit/test_differential_result_table_helpers.py,unit,147,10,false,false,,,,,,
 tests/unit/test_differential_technical_replicate_policy.py,unit,846,18,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_differential_unsupported_designs.py,unit,258,8,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
-tests/unit/test_differential_workflow_components.py,unit,2690,67,true,true,,,,,,[auto-orchestration] 23 hit(s); indicators: private_member_access
+tests/unit/test_differential_workflow_components.py,unit,2728,68,true,true,,,,,,[auto-orchestration] 23 hit(s); indicators: private_member_access
 tests/unit/test_docs_identity_contracts.py,unit,253,7,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_docs_support_claim_guard.py,unit,849,10,false,false,,,,,,
 tests/unit/test_docs_terminology_contracts.py,unit,88,3,false,false,,,,,,

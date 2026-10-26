@@ -1045,6 +1045,7 @@ class InterpretedDifferentialAnalysisRequest:
     design_rank: int
     residual_degrees_of_freedom: float
     design_decomposition: DifferentialDesignDecomposition
+    normalisation_state: str
     policy_provenance: DifferentialPolicyProvenance | None = None
     workflow_provenance: Mapping[str, object] | None = None
     caveats: tuple[ResultCaveat, ...] = ()
@@ -1053,7 +1054,6 @@ class InterpretedDifferentialAnalysisRequest:
     imputation_policy_inputs: DifferentialImputationPolicyInputs | None = None
     feature_eligibility_inputs: DifferentialFeatureEligibilityInputs | None = None
     protein_aware_inputs: ProteinAwareDifferentialResolvedInputs | None = None
-    normalisation_state: str = "not_recorded"
     ruv_readiness_enabled: bool = False
     ruv_readiness_ready: bool = False
 

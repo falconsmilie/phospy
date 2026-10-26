@@ -28,6 +28,7 @@ from phospy.io.bundles._shared.primitives import (
 )
 from phospy.preparation_records.policies import (
     MissingDataPolicy,
+    NormalisationPolicy,
     TotalProteinCorrectionPolicy,
 )
 from phospy.quantitative.models import QuantitativeMeaning
@@ -478,8 +479,11 @@ def _parse_normalisation_state(
     payload: Mapping[str, object],
 ) -> NormalisationState:
     return NormalisationState(
-        policy=require_str(
-            payload.get("policy"),
+        policy=NormalisationPolicy.parse(
+            require_str(
+                payload.get("policy"),
+                field_name="dataset.metadata.processing_state.normalisation.policy",
+            ),
             field_name="dataset.metadata.processing_state.normalisation.policy",
         )
     )

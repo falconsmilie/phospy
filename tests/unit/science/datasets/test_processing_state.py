@@ -24,6 +24,7 @@ from phospy.errors import DatasetProcessingStateError, DatasetValidationError
 from phospy.errors.input import PhosPyInputError
 from phospy.preparation_records.policies import (
     MissingDataPolicy,
+    NormalisationPolicy,
     TotalProteinCorrectionPolicy,
 )
 from phospy.provenance.hashing import hash_json_payload
@@ -612,6 +613,26 @@ def test_normalisation_state_rejects_empty_or_unknown_method() -> None:
 
     with pytest.raises(DatasetProcessingStateError, match="must be one of"):
         NormalisationState(policy="not_supported")
+
+
+@pytest.mark.parametrize("policy", tuple(NormalisationPolicy))
+def test_normalisation_state_canonicalises_supported_policy(
+    policy: NormalisationPolicy,
+) -> None:
+    state = NormalisationState(policy=policy)
+
+    assert state.policy is policy
+    assert state.policy.value == policy.value
+
+
+def test_dataset_processing_state_rejects_missing_normalisation_state() -> None:
+    state = supported_log2_processing_state(has_total_matrix=False)
+
+    with pytest.raises(
+        DatasetProcessingStateError,
+        match="normalisation must be a NormalisationState instance",
+    ):
+        replace(state, normalisation=None)
 
 
 def test_site_sequence_state_rejects_empty_sequence_source() -> None:

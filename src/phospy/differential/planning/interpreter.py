@@ -357,7 +357,9 @@ class DifferentialAnalysisInterpreter:
             imputation_policy_inputs=imputation_policy_inputs,
             feature_eligibility_inputs=feature_eligibility_inputs,
             protein_aware_inputs=protein_aware_inputs,
-            normalisation_state=_normalisation_state_label(resolved_dataset),
+            normalisation_state=(
+                resolved_dataset.processing_state.normalisation.policy.value
+            ),
             ruv_readiness_enabled=ruv_readiness_enabled,
             ruv_readiness_ready=ruv_readiness_ready,
         )
@@ -617,16 +619,6 @@ def _resolve_execution_config(
             else config.protein_aware_model.method
         ),
     )
-
-
-def _normalisation_state_label(dataset: object) -> str:
-    processing_state = getattr(dataset, "processing_state", None)
-    normalisation = getattr(processing_state, "normalisation", None)
-    policy = getattr(normalisation, "policy", None)
-    if policy is None:
-        return "not_recorded"
-    value = getattr(policy, "value", policy)
-    return str(value)
 
 
 __all__ = ["DifferentialAnalysisInterpreter"]

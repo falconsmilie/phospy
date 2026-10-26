@@ -221,7 +221,7 @@ class MissingDataState:
 class NormalisationState:
     """Normalisation policy state at the analysis-ready dataset boundary."""
 
-    policy: str
+    policy: NormalisationPolicy
 
     def __post_init__(self) -> None:
         try:

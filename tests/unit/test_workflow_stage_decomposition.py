@@ -156,7 +156,7 @@ def _interpreted_differential_request(
         design_decomposition=decomposition,
         workflow_provenance={"input_intensity_scale": "log2"},
         feature_eligibility_inputs=feature_eligibility_inputs,
-        normalisation_state="not_recorded",
+        normalisation_state="none",
     )
 
 

@@ -32,7 +32,10 @@ from phospy.datasets.internal_view import (
     DatasetInternalView,
     ProteinAwarePreparationInternalView,
 )
-from phospy.datasets.processing_state import DatasetPreprocessingReport
+from phospy.datasets.processing_state import (
+    DatasetPreprocessingReport,
+    NormalisationState,
+)
 from phospy.datasets.protein_aware import (
     ProteinAwarePreparationReport,
     ProteinAwarePreparationResult,
@@ -96,6 +99,7 @@ from phospy.errors import (
     WorkflowBoundaryError,
     WorkflowValidationError,
 )
+from phospy.preparation_records.policies import NormalisationPolicy
 from phospy.preparation_records.protein_aware import (
     ProteinAwarePreparationEligibility,
     ProteinAwareSampleAlignmentDiagnostics,
@@ -665,6 +669,40 @@ def test_differential_workflow_dependency_injection_supports_real_stage_contract
     )
     result = workflow.run(_request())
     assert isinstance(result, DifferentialAnalysisResult)
+
+
+@pytest.mark.parametrize("policy", tuple(NormalisationPolicy))
+def test_differential_interpreter_records_typed_normalisation_policy(
+    policy: NormalisationPolicy,
+) -> None:
+    base_request = _request()
+    base_dataset = base_request.dataset
+    processing_state = replace(
+        base_dataset.processing_state,
+        normalisation=NormalisationState(policy=policy),
+    )
+    dataset = trusted_analysis_ready_dataset_from_tables(
+        phospho=base_dataset.phospho,
+        site_metadata=base_dataset.site_metadata,
+        sample_metadata=base_dataset.sample_metadata,
+        total=base_dataset.total,
+        comparisons=base_dataset.comparisons,
+        organism=base_dataset.organism,
+        intensity_scale_state=base_dataset.intensity_scale_state,
+        processing_state=processing_state,
+    )
+
+    interpreted = DifferentialAnalysisInterpreter().run(
+        DifferentialAnalysisValidator().run(
+            DifferentialAnalysisRequest(
+                dataset=dataset,
+                design=base_request.design,
+                contrasts=base_request.contrasts,
+            )
+        )
+    )
+
+    assert interpreted.normalisation_state == policy.value
 
 
 def test_differential_workflow_uses_explicit_design_not_sample_metadata_conditions() -> (
