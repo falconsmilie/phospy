@@ -332,6 +332,7 @@ def _manual_result_with_table(
     table: pd.DataFrame,
     *,
     empirical_bayes_trend: bool = False,
+    prior_variance: float = 1.0,
     mean_variance_trend_diagnostics: MeanVarianceTrendDiagnostics | None = None,
     quantification_depth_trend_diagnostics: (
         QuantificationDepthTrendDiagnostics | None
@@ -360,7 +361,7 @@ def _manual_result_with_table(
             index=index.copy(),
             name="prior_degrees_of_freedom",
         ),
-        "prior_variance": 1.0,
+        "prior_variance": prior_variance,
         "prior_degrees_of_freedom": 10.0,
         "residual_degrees_of_freedom": 4.0,
         "empirical_bayes_method": "standard",
@@ -514,6 +515,118 @@ def test_direct_result_construction_accepts_site_key_identity_table() -> None:
     assert list(table.columns) == IDENTITY_COLUMNS + STATISTIC_COLUMNS
     assert table.index.name == "site_key"
     assert table.loc[:, "site_key"].tolist() == table.index.tolist()
+
+
+def test_to_payload_matches_empty_optional_contract() -> None:
+    table = _strict_result_table()
+    site_keys = table.index.astype(str).tolist()
+    result = _manual_result_with_table(table)
+    warning = (
+        "DifferentialAnalysisResult was constructed without workflow policy "
+        "provenance; design scope diagnostics are not recorded."
+    )
+
+    assert result.to_payload() == {
+        "caveats": [],
+        "diagnostics": {
+            "model_type": "not_recorded",
+            "design_columns": [],
+            "contrast_definitions": [],
+            "rank": 0,
+            "n_samples": 0,
+            "n_sites": 2,
+            "residual_degrees_of_freedom": 4.0,
+            "decomposition_method": "not_recorded",
+            "solver": "not_recorded",
+            "column_scale_method": "not_recorded",
+            "rank_tolerance_policy": "not_recorded",
+            "rank_tolerance": 0.0,
+            "condition_number": 0.0,
+            "max_condition_number": 0.0,
+            "singular_values": [],
+            "variance_method": "not_recorded",
+            "moderation_method": "empirical_bayes_standard",
+            "multiple_testing_method": "not_recorded",
+            "imputation_policy": "not_recorded",
+            "missing_value_policy": "not_recorded",
+            "intensity_scale": "not_recorded",
+            "normalisation_state": "not_recorded",
+            "batch_or_covariate_terms": [],
+            "unsupported_assumptions": [warning],
+            "warnings": [warning],
+        },
+        "workflow_provenance": None,
+        "policy_provenance": None,
+        "empirical_bayes": {
+            "method": "standard",
+            "robust": False,
+            "trend": False,
+            "prior_variance": 1.0,
+            "prior_degrees_of_freedom": 10.0,
+            "residual_degrees_of_freedom": 4.0,
+            "prior_residual_variance_by_feature": [
+                {"feature_id": site_keys[0], "value": 1.0},
+                {"feature_id": site_keys[1], "value": 1.0},
+            ],
+            "prior_degrees_of_freedom_by_feature": [
+                {"feature_id": site_keys[0], "value": 10.0},
+                {"feature_id": site_keys[1], "value": 10.0},
+            ],
+        },
+        "contrast_tables": {
+            "B_vs_A": [
+                {
+                    "site_key": site_keys[0],
+                    "display_id": "MAPK14;Y182;",
+                    "organism": "rat",
+                    "protein_namespace": "protein_id",
+                    "protein_identifier": "MAPK14",
+                    "gene_symbol": "MAPK14",
+                    "site": "Y182",
+                    "protein_id": "MAPK14",
+                    "logFC": 1.0,
+                    "t": 2.0,
+                    "P.Value": 0.05,
+                    "adj.P.Val": 0.10,
+                },
+                {
+                    "site_key": site_keys[1],
+                    "display_id": "GSK3B;S9;",
+                    "organism": "rat",
+                    "protein_namespace": "protein_id",
+                    "protein_identifier": "GSK3B",
+                    "gene_symbol": "GSK3B",
+                    "site": "S9",
+                    "protein_id": "GSK3B",
+                    "logFC": -1.0,
+                    "t": -2.0,
+                    "P.Value": 0.10,
+                    "adj.P.Val": 0.10,
+                },
+            ]
+        },
+    }
+
+
+def test_to_payload_normalizes_non_json_frame_and_numpy_scalars() -> None:
+    table = _strict_result_table()
+    table["optional_metric"] = pd.Series(
+        [pd.NA, np.float64(2.5)],
+        index=table.index,
+        dtype="object",
+    )
+    result = _manual_result_with_table(table, prior_variance=float("inf"))
+
+    payload = result.to_payload()
+    empirical_bayes = payload["empirical_bayes"]
+    assert isinstance(empirical_bayes, dict)
+    assert empirical_bayes["prior_variance"] is None
+    contrast_tables = payload["contrast_tables"]
+    assert isinstance(contrast_tables, dict)
+    records = contrast_tables["B_vs_A"]
+    assert isinstance(records, list)
+    assert records[0]["optional_metric"] is None
+    assert records[1]["optional_metric"] == 2.5
 
 
 def test_direct_result_rejects_depth_trend_diagnostics_when_nontrend() -> None:

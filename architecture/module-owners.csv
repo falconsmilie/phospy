@@ -61,6 +61,7 @@ src/phospy/datasets/validation/inputs.py,phospy.datasets.validation.inputs,datas
 src/phospy/datasets/validation/model_boundary.py,phospy.datasets.validation.model_boundary,datasets,Dataset construction lifecycle
 src/phospy/datasets/validation/request.py,phospy.datasets.validation.request,datasets,Dataset construction lifecycle
 src/phospy/differential/__init__.py,phospy.differential,differential,Complete Differential capability lifecycle
+src/phospy/differential/_payload_codec.py,phospy.differential._payload_codec,differential,Complete Differential capability lifecycle
 src/phospy/differential/aggregation/__init__.py,phospy.differential.aggregation,differential,Complete Differential capability lifecycle
 src/phospy/differential/aggregation/executor.py,phospy.differential.aggregation.executor,differential,Complete Differential capability lifecycle
 src/phospy/differential/aggregation/experimental.py,phospy.differential.aggregation.experimental,differential,Complete Differential capability lifecycle

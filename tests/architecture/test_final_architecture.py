@@ -151,9 +151,9 @@ def test_final_tracked_source_inventory_is_complete_and_classified() -> None:
     tracked = _git_paths("src/phospy")
     owners = load_module_owners(OWNER_MAP)
 
-    assert len(tracked) == 644
-    assert sum(path.endswith(".py") for path in tracked) == 638
-    assert len(owners) == 638
+    assert len(tracked) == 645
+    assert sum(path.endswith(".py") for path in tracked) == 639
+    assert len(owners) == 639
     assert (
         tracked_source_inventory_problems(
             tracked_paths=tracked,
@@ -351,9 +351,9 @@ def test_owner_map_has_permanent_schema_and_rationales() -> None:
 def test_final_architecture_inventory_is_complete_and_current() -> None:
     text = FINAL_INVENTORY.read_text(encoding="utf-8")
     assert text == render_inventory(ROOT)
-    assert "Tracked production files: **644**" in text
-    assert "Tracked Python modules: **638**" in text
-    assert "Owner-map entries: **638**" in text
+    assert "Tracked production files: **645**" in text
+    assert "Tracked Python modules: **639**" in text
+    assert "Owner-map entries: **639**" in text
     assert "Complete statically observed owner graph (before classifications)" in text
     assert "`datasets, io, kinase, signalome`" in text
     assert "Policy-filtered owner graph used by the DAG gate" in text

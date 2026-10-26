@@ -2,7 +2,12 @@ from __future__ import annotations
 
 import ast
 import importlib
+import os
+import subprocess
+import sys
 from pathlib import Path
+
+import pytest
 
 import phospy
 import phospy.advanced
@@ -186,6 +191,85 @@ def test_dependency_boundaries_are_exact() -> None:
         "phospy.preparation_records.protein_aware",
         "phospy.statistics.multiple_testing",
     }
+
+
+@pytest.mark.parametrize(
+    "first, second",
+    (
+        ("phospy.datasets.processing_state", "phospy.differential.results"),
+        ("phospy.differential.results", "phospy.datasets.processing_state"),
+    ),
+)
+def test_differential_result_dataset_record_import_order_is_clean(
+    tmp_path: Path,
+    first: str,
+    second: str,
+) -> None:
+    code = f"""
+import importlib
+
+first = importlib.import_module({first!r})
+second = importlib.import_module({second!r})
+assert importlib.import_module({first!r}) is first
+assert importlib.import_module({second!r}) is second
+from phospy.datasets.processing_state import DatasetPreprocessingReport
+from phospy.differential.results import DifferentialAnalysisResult
+assert DatasetPreprocessingReport.__module__ == "phospy.datasets.processing_state"
+assert DifferentialAnalysisResult.__module__ == "phospy.differential.results"
+"""
+    environment = os.environ.copy()
+    environment["PYTHONPATH"] = str(SRC_ROOT)
+    completed = subprocess.run(
+        [sys.executable, "-c", code],
+        cwd=tmp_path,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+
+
+def test_differential_result_does_not_suppress_mandatory_dataset_import_error(
+    tmp_path: Path,
+) -> None:
+    sentinel = "ARCH-017 mandatory dataset import failure"
+    code = f"""
+import importlib.abc
+import importlib.util
+import sys
+
+class BrokenLoader(importlib.abc.Loader):
+    def create_module(self, spec):
+        return None
+
+    def exec_module(self, module):
+        raise ImportError({sentinel!r})
+
+class BrokenFinder(importlib.abc.MetaPathFinder):
+    def find_spec(self, fullname, path=None, target=None):
+        if fullname == "phospy.datasets.processing_state":
+            return importlib.util.spec_from_loader(fullname, BrokenLoader())
+        return None
+
+sys.meta_path.insert(0, BrokenFinder())
+import phospy.differential.results
+"""
+    environment = os.environ.copy()
+    environment["PYTHONPATH"] = str(SRC_ROOT)
+    completed = subprocess.run(
+        [sys.executable, "-c", code],
+        cwd=tmp_path,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert completed.returncode != 0
+    assert sentinel in completed.stderr
+    assert "PhosPyInputError" not in completed.stderr
 
 
 def test_result_table_validator_definitions_are_single_owner() -> None:

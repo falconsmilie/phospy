@@ -193,6 +193,7 @@ strict = [
   "src/phospy/preprocessing/control_sites/discovery_provenance.py",
   "src/phospy/preprocessing/control_sites/discovery_ranking.py",
   "src/phospy/preprocessing/control_sites/discovery_results.py",
+  "src/phospy/differential/_payload_codec.py",
   "src/phospy/differential/models",
   "src/phospy/differential/diagnostics.py",
   "src/phospy/differential/moderation/config.py",

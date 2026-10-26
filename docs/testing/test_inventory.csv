@@ -9,7 +9,7 @@ tests/architecture/test_control_site_capability_boundaries.py,architecture,309,9
 tests/architecture/test_dataset_boundary.py,architecture,473,12,true,true,,,,,,[auto-orchestration] 7 hit(s); indicators: private_member_access
 tests/architecture/test_dataset_builder_preprocessor_contract.py,architecture,128,3,false,false,,,,,,[auto-orchestration] 3 hit(s); indicators: private_member_access
 tests/architecture/test_deprecation_governance.py,architecture,21,1,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
-tests/architecture/test_differential_ownership.py,architecture,223,6,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
+tests/architecture/test_differential_ownership.py,architecture,307,8,true,true,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/architecture/test_documentation_imports.py,architecture,93,3,false,false,,,,,,
 tests/architecture/test_duplicate_correlation_internal_contracts.py,architecture,137,2,false,false,,,,,,
 tests/architecture/test_enrichment_capability_boundaries.py,architecture,185,4,true,true,,,,,,
@@ -199,7 +199,7 @@ tests/unit/test_differential_protein_aware_result_assembly.py,unit,2027,23,true,
 tests/unit/test_differential_replicate_reliability_policy.py,unit,435,9,false,false,,,,,,
 tests/unit/test_differential_request_config_refactor.py,unit,62,6,false,false,,,,,,
 tests/unit/test_differential_result_caveats.py,unit,357,6,false,false,,,,,,
-tests/unit/test_differential_result_contract.py,unit,1259,44,true,true,,,,,,
+tests/unit/test_differential_result_contract.py,unit,1372,46,true,true,,,,,,
 tests/unit/test_differential_result_table_helpers.py,unit,147,10,false,false,,,,,,
 tests/unit/test_differential_technical_replicate_policy.py,unit,846,18,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/unit/test_differential_unsupported_designs.py,unit,258,8,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access

@@ -7,9 +7,9 @@ exact owner-edge policy, and the permanent classification registry.
 
 ## Counts and architecture assertions
 
-- Tracked production files: **644**.
-- Tracked Python modules: **638**.
-- Owner-map entries: **638**.
+- Tracked production files: **645**.
+- Tracked Python modules: **639**.
+- Owner-map entries: **639**.
 - Temporary architecture exceptions: **0**.
 - Retired tracked package roots (`contracts`, `science`, `tables`, `workflows`): **0**.
 - Unclassified structural forwarding candidates, old-path literals, compatibility behavior, and lazy loading: **0**.
@@ -602,6 +602,7 @@ identifiers from live compatibility routes. Their exact sets are enforced.
 - `src/phospy/datasets/validation/model_boundary.py`
 - `src/phospy/datasets/validation/request.py`
 - `src/phospy/differential/__init__.py`
+- `src/phospy/differential/_payload_codec.py`
 - `src/phospy/differential/aggregation/__init__.py`
 - `src/phospy/differential/aggregation/executor.py`
 - `src/phospy/differential/aggregation/experimental.py`
@@ -1245,6 +1246,7 @@ identifiers from live compatibility routes. Their exact sets are enforced.
 | `src/phospy/datasets/validation/model_boundary.py` | `phospy.datasets.validation.model_boundary` | `datasets` | Dataset construction lifecycle |
 | `src/phospy/datasets/validation/request.py` | `phospy.datasets.validation.request` | `datasets` | Dataset construction lifecycle |
 | `src/phospy/differential/__init__.py` | `phospy.differential` | `differential` | Complete Differential capability lifecycle |
+| `src/phospy/differential/_payload_codec.py` | `phospy.differential._payload_codec` | `differential` | Complete Differential capability lifecycle |
 | `src/phospy/differential/aggregation/__init__.py` | `phospy.differential.aggregation` | `differential` | Complete Differential capability lifecycle |
 | `src/phospy/differential/aggregation/executor.py` | `phospy.differential.aggregation.executor` | `differential` | Complete Differential capability lifecycle |
 | `src/phospy/differential/aggregation/experimental.py` | `phospy.differential.aggregation.experimental` | `differential` | Complete Differential capability lifecycle |
