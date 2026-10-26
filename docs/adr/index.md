@@ -48,7 +48,7 @@ user API.
 | ADR-0025 | Competitive Phosphoproteomics Workflow Coverage Roadmap | Accepted | 2026-06-11 | [adr_0025_competitive_phosphoproteomics_workflow_coverage.md](adr_0025_competitive_phosphoproteomics_workflow_coverage.md) |
 | ADR-0026 | Differential Imputation Policy | Accepted | 2026-06-14 | [adr_0026_differential_imputation_policy.md](adr_0026_differential_imputation_policy.md) |
 | ADR-0027 | Target Future Native PhosR-Style SPS/RUV-III Correction | Accepted | 2026-06-14 | [adr_0027_target_future_native_phosr_style_sps_ruv_iii_correction.md](adr_0027_target_future_native_phosr_style_sps_ruv_iii_correction.md) |
-| ADR-0028 | Semi-Public Science Import Policy | Accepted | 2026-06-15 | [adr_0028_semi_public_science_import_policy.md](adr_0028_semi_public_science_import_policy.md) |
+| ADR-0028 | Semi-Public Science Import Policy | Superseded | 2026-06-15 | [adr_0028_semi_public_science_import_policy.md](adr_0028_semi_public_science_import_policy.md) |
 | ADR-0029 | Native SPS/RUV-Style Batch Correction Prerequisites | Accepted | 2026-06-23 | [adr_0029_native_sps_ruv_style_batch_correction_prerequisites.md](adr_0029_native_sps_ruv_style_batch_correction_prerequisites.md) |
 | ADR-0030 | Ranked-List Enrichment Prerequisites | Accepted | 2026-06-23 | [adr_0030_ranked_list_enrichment_prerequisites.md](adr_0030_ranked_list_enrichment_prerequisites.md) |
 | ADR-0031 | Public API Stability Tiers | Accepted | 2026-06-30 | [adr_0031_public_api_stability_tiers.md](adr_0031_public_api_stability_tiers.md) |
@@ -75,6 +75,10 @@ user API.
 | ADR-0052 | Partial-Reference SPS Consensus Ordering | Accepted | 2026-09-18 | [adr_0052_partial_reference_sps_consensus_ordering.md](adr_0052_partial_reference_sps_consensus_ordering.md) |
 | ADR-0053 | Domain-First Capability Architecture and Dependency Governance | Accepted | 2026-09-26 | [adr_0053_domain_first_capability_architecture.md](adr_0053_domain_first_capability_architecture.md) |
 | ADR-0054 | Public API Reset and Compatibility Removal | Accepted | 2026-09-26 | [adr_0054_public_api_reset_and_compatibility_removal.md](adr_0054_public_api_reset_and_compatibility_removal.md) |
+
+ADR-0028 is fully superseded by
+[ADR-0054](adr_0054_public_api_reset_and_compatibility_removal.md), which removes
+the semi-public API tier.
 
 ## Decision Assessments (Non-ADRs)
 

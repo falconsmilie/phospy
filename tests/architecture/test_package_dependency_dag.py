@@ -498,8 +498,48 @@ importlib.import_module("phospy.io.bundles")
     )
 
 
-def test_public_import_routes_load_in_clean_interpreters() -> None:
-    code = "\n".join(
+def _assert_imports_load_in_clean_interpreter(code_lines: Iterable[str]) -> None:
+    code = "\n".join(code_lines)
+    environment = dict(os.environ)
+    environment["PYTHONPATH"] = os.pathsep.join(
+        [
+            str(SRC_ROOT),
+            environment.get("PYTHONPATH", ""),
+        ]
+    )
+
+    completed = subprocess.run(
+        [sys.executable, "-c", code],
+        cwd=PROJECT_ROOT,
+        env=environment,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+
+
+def test_supported_aggregate_facades_load_in_clean_interpreter() -> None:
+    _assert_imports_load_in_clean_interpreter(
+        [
+            "from phospy import AnalysisReadyDatasetBuilder, KinaseWorkflow",
+            "from phospy.api import DatasetBuildRequest, PhosPyError, "
+            "ReferenceBundle, ReferenceBundleBuilder",
+            "from phospy.advanced import SpsDiscoveryRequest",
+            "assert AnalysisReadyDatasetBuilder",
+            "assert KinaseWorkflow",
+            "assert DatasetBuildRequest",
+            "assert PhosPyError",
+            "assert ReferenceBundle",
+            "assert ReferenceBundleBuilder",
+            "assert SpsDiscoveryRequest",
+        ]
+    )
+
+
+def test_internal_owner_modules_load_after_facades_in_clean_interpreter() -> None:
+    _assert_imports_load_in_clean_interpreter(
         [
             "from phospy import AnalysisReadyDatasetBuilder, KinaseWorkflow",
             "from phospy.api import ReferenceBundleBuilder",
@@ -519,24 +559,6 @@ def test_public_import_routes_load_in_clean_interpreters() -> None:
             "assert KinaseWorkflow",
         ]
     )
-    environment = dict(os.environ)
-    environment["PYTHONPATH"] = os.pathsep.join(
-        [
-            str(SRC_ROOT),
-            environment.get("PYTHONPATH", ""),
-        ]
-    )
-
-    completed = subprocess.run(
-        [sys.executable, "-c", code],
-        cwd=PROJECT_ROOT,
-        env=environment,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-
-    assert completed.returncode == 0, completed.stderr
 
 
 @pytest.mark.parametrize("source_owner", ["quantitative", "statistics"])

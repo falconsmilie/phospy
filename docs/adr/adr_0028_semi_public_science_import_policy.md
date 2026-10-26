@@ -4,9 +4,16 @@
 
 - **ADR ID:** ADR-0028
 - **Title:** Semi-Public Science Import Policy
-- **Status:** Accepted
+- **Status:** Superseded
 - **Date:** 2026-06-15
 - **Decision Type:** API Governance
+
+## Supersession Note
+
+Fully superseded by
+[ADR-0054: Public API Reset and Compatibility Removal](adr_0054_public_api_reset_and_compatibility_removal.md),
+which removes the semi-public tier. The original rationale and decision text
+below are retained as historical context.
 
 ## Context
 
