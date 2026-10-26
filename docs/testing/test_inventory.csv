@@ -1,27 +1,27 @@
 path,test_area,line_count,test_function_count,uses_pytest_mark,uses_parametrization,primary_category,recommended_action,protected_risk_or_contract,reviewer,followup_ticket,notes
 tests/architecture/test_analysis_ready_construction_paths.py,architecture,53,2,false,false,,,,,,
 tests/architecture/test_api_boundaries.py,architecture,141,6,false,false,,,,,,
-tests/architecture/test_batch_correction_ownership_boundaries.py,architecture,149,5,true,true,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
+tests/architecture/test_batch_correction_ownership_boundaries.py,architecture,150,5,true,true,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
 tests/architecture/test_batch_correction_validation_decomposition.py,architecture,88,4,false,false,,,,,,
 tests/architecture/test_bundle_filesystem_lifecycle_ownership.py,architecture,78,2,false,false,,,,,,
 tests/architecture/test_config_ownership.py,architecture,217,6,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
-tests/architecture/test_control_site_capability_boundaries.py,architecture,308,9,true,true,,,,,,
-tests/architecture/test_dataset_boundary.py,architecture,472,12,true,true,,,,,,[auto-orchestration] 7 hit(s); indicators: private_member_access
+tests/architecture/test_control_site_capability_boundaries.py,architecture,309,9,true,true,,,,,,
+tests/architecture/test_dataset_boundary.py,architecture,473,12,true,true,,,,,,[auto-orchestration] 7 hit(s); indicators: private_member_access
 tests/architecture/test_dataset_builder_preprocessor_contract.py,architecture,128,3,false,false,,,,,,[auto-orchestration] 3 hit(s); indicators: private_member_access
 tests/architecture/test_deprecation_governance.py,architecture,21,1,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
-tests/architecture/test_differential_ownership.py,architecture,224,6,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
+tests/architecture/test_differential_ownership.py,architecture,223,6,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/architecture/test_documentation_imports.py,architecture,93,3,false,false,,,,,,
 tests/architecture/test_duplicate_correlation_internal_contracts.py,architecture,137,2,false,false,,,,,,
-tests/architecture/test_enrichment_capability_boundaries.py,architecture,184,4,true,true,,,,,,
+tests/architecture/test_enrichment_capability_boundaries.py,architecture,185,4,true,true,,,,,,
 tests/architecture/test_exported_json_state_immutability.py,architecture,532,3,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
-tests/architecture/test_final_architecture.py,architecture,326,15,false,false,,,,,,
+tests/architecture/test_final_architecture.py,architecture,400,17,false,false,,,,,,
 tests/architecture/test_kinase_activity_ownership.py,architecture,92,3,true,true,,,,,,
 tests/architecture/test_kinase_reference_projection_attrition.py,architecture,44,3,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
 tests/architecture/test_kinase_reference_scoring_ownership.py,architecture,338,10,true,true,,,,,,[auto-orchestration] 4 hit(s); indicators: private_member_access
 tests/architecture/test_kinase_result_boundary.py,architecture,327,7,false,false,,,,,,[auto-orchestration] 1 hit(s); indicators: private_member_access
-tests/architecture/test_logical_ownership_policy.py,architecture,912,26,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
-tests/architecture/test_package_dependency_dag.py,architecture,904,15,true,true,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
-tests/architecture/test_protein_aware_boundary.py,architecture,214,7,true,true,,,,,,
+tests/architecture/test_logical_ownership_policy.py,architecture,911,26,false,false,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
+tests/architecture/test_package_dependency_dag.py,architecture,905,15,true,true,,,,,,[auto-orchestration] 2 hit(s); indicators: private_member_access
+tests/architecture/test_protein_aware_boundary.py,architecture,215,7,true,true,,,,,,
 tests/architecture/test_public_constructor_signatures.py,architecture,93,3,false,false,,,,,,
 tests/architecture/test_public_consumer_contract_imports.py,architecture,105,1,false,false,,,,,,
 tests/architecture/test_quantitative_policy_ownership.py,architecture,93,3,false,false,,,,,,

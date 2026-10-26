@@ -6,13 +6,17 @@ import types
 import typing
 from pathlib import Path
 
-from import_graph_support import (
+import phospy
+import phospy.advanced
+import phospy.api
+from phospy.statistics.multiple_testing import MultipleTestingCorrection
+from tools.architecture.import_graph import (
     ImportGraph,
     ImportRecord,
     build_import_graph,
     package_edges,
 )
-from logical_ownership_policy import (
+from tools.architecture.logical_ownership import (
     DATASET_PATH_READER_EDGE,
     DATASET_PREPROCESSING_ALLOWED_IMPORTS,
     PERMITTED_LOGICAL_OWNER_EDGES,
@@ -29,11 +33,6 @@ from logical_ownership_policy import (
     module_inventory_problems,
     owner_graph_views,
 )
-
-import phospy
-import phospy.advanced
-import phospy.api
-from phospy.statistics.multiple_testing import MultipleTestingCorrection
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SRC_ROOT = PROJECT_ROOT / "src"

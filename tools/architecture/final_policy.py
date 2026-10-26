@@ -1,4 +1,4 @@
-"""Exact permanent architecture policy."""
+"""Exact permanent architecture policy shared by maintainer checks."""
 
 from __future__ import annotations
 

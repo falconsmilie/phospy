@@ -7,8 +7,9 @@ import sys
 from pathlib import Path
 
 import pytest
-from import_graph_support import build_import_graph
-from logical_ownership_policy import PUBLIC_FACADE_ALLOWED_TARGETS
+
+from tools.architecture.import_graph import build_import_graph
+from tools.architecture.logical_ownership import PUBLIC_FACADE_ALLOWED_TARGETS
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SRC_ROOT = PROJECT_ROOT / "src"

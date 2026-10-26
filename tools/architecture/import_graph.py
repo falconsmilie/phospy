@@ -1,4 +1,4 @@
-"""Shared static import-graph support for architecture tests.
+"""Shared static import-graph support for architecture maintenance.
 
 The analyser intentionally includes imports nested under ``TYPE_CHECKING`` and
 function bodies. It resolves absolute and relative imports, plus literal calls

@@ -3,8 +3,8 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-from import_graph_support import build_import_graph
-from logical_ownership_policy import CAPABILITY_OWNERS, load_module_owners
+from tools.architecture.import_graph import build_import_graph
+from tools.architecture.logical_ownership import CAPABILITY_OWNERS, load_module_owners
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SRC_ROOT = PROJECT_ROOT / "src"

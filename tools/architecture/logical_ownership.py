@@ -9,7 +9,7 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
-from import_graph_support import ImportGraph, ImportRecord
+from tools.architecture.import_graph import ImportGraph, ImportRecord
 
 OWNERS = frozenset(
     {

@@ -4,11 +4,10 @@ import ast
 import importlib
 from pathlib import Path
 
-from import_graph_support import build_import_graph
-
 import phospy
 import phospy.advanced
 import phospy.api
+from tools.architecture.import_graph import build_import_graph
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SRC_ROOT = PROJECT_ROOT / "src"

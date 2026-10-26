@@ -59,6 +59,19 @@ Its source is the policy code and machine-readable inputs above. The governing
 decisions are [ADR-0053](adr/adr_0053_domain_first_capability_architecture.md) and
 [ADR-0054](adr/adr_0054_public_api_reset_and_compatibility_removal.md).
 
+Reusable graph analysis, ownership, final-policy, and inventory rendering code
+is maintained in `tools/architecture`. Architecture tests import that maintainer
+implementation; the runtime `phospy` package does not depend on it. From the
+repository root, generate or check the inventory with:
+
+```console
+python -m tools.architecture.generate_architecture_inventory --repo-root .
+python -m tools.architecture.generate_architecture_inventory --repo-root . --check
+```
+
+Direct execution of `tools/architecture/generate_architecture_inventory.py`
+remains supported for existing maintainer workflows.
+
 ## Migration Status
 
 The domain-first architecture migration, including its final Wave 10 gate, was

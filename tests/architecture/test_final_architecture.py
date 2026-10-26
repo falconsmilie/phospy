@@ -3,12 +3,14 @@ from __future__ import annotations
 import ast
 import csv
 import json
+import os
 import re
 import subprocess
+import sys
 import tomllib
 from pathlib import Path
 
-from final_architecture_policy import (
+from tools.architecture.final_policy import (
     EXACT_OWNER_EDGE_RULES,
     PERMANENT_LAZY_LOADERS,
     PERMANENT_SPECIAL_MODULES,
@@ -18,15 +20,14 @@ from final_architecture_policy import (
     owner_edge_policy_problems,
     tracked_source_inventory_problems,
 )
-from import_graph_support import build_import_graph
-from logical_ownership_policy import (
+from tools.architecture.import_graph import build_import_graph
+from tools.architecture.inventory import render_inventory
+from tools.architecture.logical_ownership import (
     OwnerGraphViews,
     load_module_owners,
     load_permanent_condensation_classifications,
     owner_graph_views,
 )
-
-from tools.architecture.generate_architecture_inventory import render_inventory
 
 ROOT = Path(__file__).resolve().parents[2]
 SRC_ROOT = ROOT / "src"
@@ -178,7 +179,7 @@ def test_retired_package_roots_are_absent_from_git_and_pyright() -> None:
 
 
 def test_final_state_has_no_temporary_exception_mechanism() -> None:
-    policy = (ROOT / "tests/architecture/logical_ownership_policy.py").read_text(
+    policy = (ROOT / "tools/architecture/logical_ownership.py").read_text(
         encoding="utf-8"
     )
     assert "ArchitectureException" not in policy
@@ -190,6 +191,42 @@ def test_final_state_has_no_temporary_exception_mechanism() -> None:
         "dataset-input-source-validation",
         "dataset-request-source-validation",
     }
+
+
+def test_reusable_architecture_support_has_one_maintainer_owner() -> None:
+    support_paths = (
+        ROOT / "tools/architecture/final_policy.py",
+        ROOT / "tools/architecture/import_graph.py",
+        ROOT / "tools/architecture/inventory.py",
+        ROOT / "tools/architecture/logical_ownership.py",
+    )
+    retired_test_paths = (
+        ROOT / "tests/architecture/final_architecture_policy.py",
+        ROOT / "tests/architecture/import_graph_support.py",
+        ROOT / "tests/architecture/logical_ownership_policy.py",
+    )
+
+    assert all(path.is_file() for path in support_paths)
+    assert not any(path.exists() for path in retired_test_paths)
+    for path in support_paths:
+        source = path.read_text(encoding="utf-8")
+        tree = ast.parse(source, filename=str(path))
+        imported_modules = {
+            alias.name
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Import)
+            for alias in node.names
+        }
+        imported_modules.update(
+            node.module or ""
+            for node in ast.walk(tree)
+            if isinstance(node, ast.ImportFrom)
+        )
+        assert not any(
+            module == "tests" or module.startswith("tests.")
+            for module in imported_modules
+        )
+        assert "sys.path" not in source
 
 
 def test_safety_and_lazy_composition_are_exactly_classified() -> None:
@@ -324,3 +361,40 @@ def test_final_architecture_inventory_is_complete_and_current() -> None:
     assert "`dataset-builder-path-reader`" in text
     assert "`dataset-input-source-validation`" in text
     assert "`dataset-request-source-validation`" in text
+
+
+def test_architecture_inventory_cli_supports_module_and_direct_invocation(
+    tmp_path: Path,
+) -> None:
+    environment = os.environ.copy()
+    environment.pop("PYTHONPATH", None)
+    arguments = ("--repo-root", str(ROOT), "--check")
+
+    module_result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "tools.architecture.generate_architecture_inventory",
+            *arguments,
+        ],
+        cwd=ROOT,
+        env=environment,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert module_result.returncode == 0, module_result.stderr
+
+    direct_result = subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "tools/architecture/generate_architecture_inventory.py"),
+            *arguments,
+        ],
+        cwd=tmp_path,
+        env=environment,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert direct_result.returncode == 0, direct_result.stderr

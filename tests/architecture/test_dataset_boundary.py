@@ -7,8 +7,9 @@ import sys
 from pathlib import Path
 
 import pytest
-from import_graph_support import build_import_graph
-from logical_ownership_policy import PREPARATION_RECORD_ALLOWED_SYMBOLS
+
+from tools.architecture.import_graph import build_import_graph
+from tools.architecture.logical_ownership import PREPARATION_RECORD_ALLOWED_SYMBOLS
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SRC_ROOT = PROJECT_ROOT / "src"

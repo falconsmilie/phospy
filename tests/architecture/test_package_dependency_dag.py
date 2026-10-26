@@ -10,19 +10,20 @@ from collections.abc import Iterable
 from pathlib import Path
 
 import pytest
-from import_graph_support import (
+
+from tools.architecture.import_graph import (
     ImportGraph,
     ImportRecord,
     build_eager_import_graph,
     build_import_graph,
 )
-from import_graph_support import (
+from tools.architecture.import_graph import (
     imported_modules as _imported_modules,
 )
-from import_graph_support import (
+from tools.architecture.import_graph import (
     package_name as _package_name,
 )
-from logical_ownership_policy import (
+from tools.architecture.logical_ownership import (
     CAPABILITY_OWNERS,
     SHARED_ALLOWED_TARGETS,
     SHARED_OWNERS,

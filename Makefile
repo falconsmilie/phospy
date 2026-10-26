@@ -175,7 +175,7 @@ repository-hygiene-check: check-tools
 	$(PYTHON) scripts/check_repository_hygiene.py --repo-root .
 
 architecture-inventory-check: check-tools
-	$(PYTHON) tools/architecture/generate_architecture_inventory.py --repo-root . --check
+	$(PYTHON) -m tools.architecture.generate_architecture_inventory --repo-root . --check
 
 architecture-release-source-check: repository-hygiene-check lint type-check architecture-inventory-check test-unit test-contract test-parity test-performance-source-runtime validate-reference-bundles test-release-gates
 
