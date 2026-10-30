@@ -11,8 +11,8 @@ from phospy.api import (
     PhosPyInputError,
 )
 from phospy.api.advanced import DatasetSiteMatrixConfig
-from phospy.errors.references import UnsupportedOrganismError
-from phospy.errors.validation import DatasetValidationError
+from phospy.core.errors.references import UnsupportedOrganismError
+from phospy.core.errors.validation import DatasetValidationError
 from phospy.evidence.dataset_resolution.models import (
     DATASET_MULTI_SITE_POLICY_REJECT,
     DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,

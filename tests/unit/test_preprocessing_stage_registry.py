@@ -19,8 +19,8 @@ from phospy.api.advanced import (
     DatasetNormalisationConfig,
     DatasetSiteMatrixConfig,
 )
+from phospy.core.errors.build import DatasetBuildError
 from phospy.datasets.construction.preprocessing import DatasetPreprocessor
-from phospy.errors.build import DatasetBuildError
 from phospy.preprocessing.contracts import (
     DATASET_PREPROCESSING_STAGE_BATCH_CORRECTION,
     DATASET_PREPROCESSING_STAGE_COMPARISONS,

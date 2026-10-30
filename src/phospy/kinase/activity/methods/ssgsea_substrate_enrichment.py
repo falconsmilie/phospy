@@ -14,8 +14,8 @@ from phospy.activities.semantics import (
     ActivityInputMatrix,
     normalize_activity_input_matrix,
 )
-from phospy.errors.workflows import WorkflowBoundaryError
-from phospy.frames.validation import (
+from phospy.core.errors.workflows import WorkflowBoundaryError
+from phospy.core.frames.validation import (
     require_canonical_string_column,
     require_columns,
     require_dataframe,

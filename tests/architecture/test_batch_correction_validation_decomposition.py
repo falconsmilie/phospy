@@ -27,11 +27,11 @@ FOCUSED_BATCH_CORRECTION_MODULES = tuple(
 
 def test_obsolete_batch_correction_validation_routes_are_absent() -> None:
     old_routes = (
-        "src/phospy/validation/datasets/batch_correction.py",
-        "src/phospy/validation/datasets/batch_correction_controls.py",
-        "src/phospy/validation/datasets/batch_correction_design.py",
-        "src/phospy/validation/datasets/batch_correction_provenance.py",
-        "src/phospy/validation/workflows/batch_correction",
+        "src/phospy/core/validation/datasets/batch_correction.py",
+        "src/phospy/core/validation/datasets/batch_correction_controls.py",
+        "src/phospy/core/validation/datasets/batch_correction_design.py",
+        "src/phospy/core/validation/datasets/batch_correction_provenance.py",
+        "src/phospy/core/validation/workflows/batch_correction",
     )
 
     assert all(

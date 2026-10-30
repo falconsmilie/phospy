@@ -17,7 +17,7 @@ from phospy.api import (
     SignalomeWorkflow,
     SignalomeWorkflowRequest,
 )
-from phospy.errors import (
+from phospy.core.errors import (
     PhosPyInputError,
     ReferenceValidationError,
     WorkflowValidationError,

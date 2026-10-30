@@ -7,8 +7,8 @@ from dataclasses import dataclass, field
 
 import pandas as pd
 
-from phospy.errors.input import PhosPyInputError
-from phospy.frames.ownership import export_dataframe, own_dataframe
+from phospy.core.errors.input import PhosPyInputError
+from phospy.core.frames.ownership import export_dataframe, own_dataframe
 from phospy.preparation_records.batch_correction import (
     BatchCorrectionReport as _BatchCorrectionReport,
 )

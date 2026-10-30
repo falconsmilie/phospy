@@ -20,7 +20,7 @@ from phospy.api.advanced import (
     DatasetBatchCorrectionConfig,
     DatasetIntensityTransformConfig,
 )
-from phospy.errors import PhosPyInputError
+from phospy.core.errors import PhosPyInputError
 
 pytestmark = pytest.mark.integration
 

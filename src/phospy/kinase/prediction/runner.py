@@ -7,7 +7,7 @@ from typing import NoReturn, Protocol
 
 import pandas as pd
 
-from phospy.errors.workflows import WorkflowBoundaryError, WorkflowStageError
+from phospy.core.errors.workflows import WorkflowBoundaryError, WorkflowStageError
 from phospy.kinase.prediction.candidates import build_candidate_substrate_list
 from phospy.kinase.prediction.config import (
     KINASE_PREDICTION_MODE_ADAPTIVE_ENSEMBLE,

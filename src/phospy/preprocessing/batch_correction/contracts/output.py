@@ -9,8 +9,8 @@ from typing import Literal, Protocol, cast, runtime_checkable
 import numpy as np
 import pandas as pd
 
-from phospy.errors.input import PhosPyInputError
-from phospy.frames.ownership import (
+from phospy.core.errors.input import PhosPyInputError
+from phospy.core.frames.ownership import (
     export_dataframe,
     own_dataframe,
     own_optional_dataframe,

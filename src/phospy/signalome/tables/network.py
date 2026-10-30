@@ -5,12 +5,12 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from phospy.frames.table_schema import (
+from phospy.core.frames.table_schema import (
     TableSchema,
     ValidationErrorType,
     require_canonical_label_index,
 )
-from phospy.frames.validation import (
+from phospy.core.frames.validation import (
     require_canonical_string_column,
     require_columns,
     require_dataframe,

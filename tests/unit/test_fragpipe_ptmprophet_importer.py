@@ -24,11 +24,11 @@ from phospy.api.advanced import (
     DifferentialAnalysisConfig,
     EmpiricalBayesConfig,
 )
+from phospy.core.errors import PhosPyInputError
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.differential.moderation.config import (
     EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,
 )
-from phospy.errors import PhosPyInputError
 from phospy.evidence.dataset_resolution.models import (
     DATASET_MULTI_SITE_POLICY_REJECT,
     DATASET_MULTI_SITE_POLICY_SPLIT,

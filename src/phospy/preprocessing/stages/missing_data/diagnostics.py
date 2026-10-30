@@ -9,7 +9,7 @@ from typing import Protocol
 import numpy as np
 import pandas as pd
 
-from phospy.errors.provenance import ProvenanceFingerprintError
+from phospy.core.errors.provenance import ProvenanceFingerprintError
 from phospy.preprocessing.evidence.missing_data import (
     hash_imputation_mask as hash_imputation_mask,
 )

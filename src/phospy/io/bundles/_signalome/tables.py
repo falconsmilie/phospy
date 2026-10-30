@@ -6,7 +6,7 @@ import ast
 
 import pandas as pd
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.signalome.constants import (
     LEGACY_PROTEIN_GROUP_ID_COLUMN,
     PROTEIN_GROUP_ID_COLUMN,

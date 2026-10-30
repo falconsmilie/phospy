@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 
 
 def read_json(path: Path, *, label: str) -> object:

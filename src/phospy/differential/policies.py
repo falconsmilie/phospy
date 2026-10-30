@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from phospy.policies import PolicyEnum
+from phospy.core.policies import PolicyEnum
 from phospy.statistics.multiple_testing import (
     MULTIPLE_TESTING_CORRECTION_BENJAMINI_HOCHBERG,
     MULTIPLE_TESTING_CORRECTION_BENJAMINI_YEKUTIELI,

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.preprocessing.batch_correction.contracts.request import (
     INTERNAL_BATCH_CORRECTION_STAGE_ORDERS,
     SUPPORTED_INTERNAL_BATCH_CORRECTION_EXECUTED_STAGE_ORDER,

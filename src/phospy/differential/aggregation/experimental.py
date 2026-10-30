@@ -8,10 +8,10 @@ effect/inference and executable mapping semantics.
 
 from __future__ import annotations
 
+from phospy.core.errors.input import PhosPyInputError
 from phospy.differential.aggregation.models import (
     PEPTIDE_TO_SITE_AGGREGATION_SUPPORT_STATUS,
 )
-from phospy.errors.input import PhosPyInputError
 
 WITHDRAWN_POSTHOC_PEPTIDE_TO_SITE_AGGREGATION_MESSAGE = (
     "post-hoc peptide-to-site differential estimate combination has been "

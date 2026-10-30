@@ -7,7 +7,7 @@ from typing import Any, TypeVar, cast
 
 import pandas as pd
 
-from phospy.frames.validation import (
+from phospy.core.frames.validation import (
     ValidationErrorType,
     require_columns,
     require_exact_index_match,

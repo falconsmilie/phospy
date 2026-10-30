@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from phospy.errors import PhosPyInputError
+from phospy.core.errors import PhosPyInputError
 from phospy.io.readers.enrichment_sets import (
     read_enrichment_sets_csv,
     read_enrichment_sets_gmt,

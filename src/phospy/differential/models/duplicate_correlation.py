@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import cast
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.provenance.models import (
     TableFingerprint,
 )

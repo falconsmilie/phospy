@@ -8,7 +8,7 @@ from collections.abc import Mapping, Sequence
 import numpy as np
 import pandas as pd
 
-from phospy.errors.workflows import WorkflowStageError
+from phospy.core.errors.workflows import WorkflowStageError
 from phospy.signalome.assignments import _normalize_top_kinase_weights
 from phospy.signalome.config import (
     SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,

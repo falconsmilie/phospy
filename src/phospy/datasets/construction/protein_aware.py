@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
+from phospy.core.errors.validation import DatasetValidationError
 from phospy.datasets.protein_aware import (
     ProteinAwarePreparationReport,
     ProteinAwarePreparationResult,
 )
-from phospy.errors.validation import DatasetValidationError
 from phospy.preprocessing.dataset_construction import (
     ProteinAwarePreparationStageOutput,
 )

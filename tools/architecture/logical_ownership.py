@@ -20,6 +20,7 @@ OWNERS = frozenset(
         "differential",
         "enrichment",
         "kinase",
+        "namespace_containers",
         "signalome",
         "phosphosites",
         "taxonomy",
@@ -66,7 +67,7 @@ FOUNDATION_OWNERS = frozenset({"errors", "frames", "policies", "validation"})
 # Public facade tiers share the ``public_facades`` logical owner, so their
 # package-level policy boundary cannot be inferred from owner purity alone.
 # This is a namespace-resolution rule only: it grants no import permission and
-# does not make the future path live before its migration ticket.
+# grants no import permission to the live organisational namespace.
 EXPLICIT_ARCHITECTURAL_PACKAGE_UNITS = frozenset({"phospy.api.advanced"})
 
 
@@ -316,15 +317,15 @@ PUBLIC_FACADE_ALLOWED_TARGETS: Mapping[str, frozenset[str]] = {
     ),
     "errors": frozenset(
         {
-            "phospy.errors",
-            "phospy.errors.base",
-            "phospy.errors.build",
-            "phospy.errors.input",
-            "phospy.errors.provenance",
-            "phospy.errors.references",
-            "phospy.errors.transformations",
-            "phospy.errors.validation",
-            "phospy.errors.workflows",
+            "phospy.core.errors",
+            "phospy.core.errors.base",
+            "phospy.core.errors.build",
+            "phospy.core.errors.input",
+            "phospy.core.errors.provenance",
+            "phospy.core.errors.references",
+            "phospy.core.errors.transformations",
+            "phospy.core.errors.validation",
+            "phospy.core.errors.workflows",
         }
     ),
     "evidence": frozenset(
@@ -332,7 +333,7 @@ PUBLIC_FACADE_ALLOWED_TARGETS: Mapping[str, frozenset[str]] = {
             "phospy.evidence.config",
         }
     ),
-    "frames": frozenset({"phospy.frames.table_schema"}),
+    "frames": frozenset({"phospy.core.frames.table_schema"}),
     "io": frozenset(
         {
             "phospy.io.importers.contracts",
@@ -600,7 +601,7 @@ IO_ADAPTER_STEADY_STATE_TARGET_OWNERS = frozenset(
 # owner.  This makes a newly added declaration fail review instead of silently
 # inheriting the file owner.
 REVIEWED_MIXED_MODULES: Mapping[str, MixedModuleReview] = {
-    "src/phospy/errors/workflows.py": MixedModuleReview(
+    "src/phospy/core/errors/workflows.py": MixedModuleReview(
         primary_owner="errors",
         declarations=frozenset(
             {
@@ -964,7 +965,7 @@ def architectural_package_unit(
 
     The returned unit is the shortest namespace containing only the module's
     logical owner.  It therefore follows a moved owner through arbitrary
-    physical depth: both ``phospy.frames`` and ``phospy.core.frames`` resolve
+    physical depth: both ``phospy.core.frames`` and ``phospy.core.frames`` resolve
     to the Frames-owned package rather than an assumed second component.
     Public facade tiers that intentionally share one owner use the one narrow
     explicit boundary above.

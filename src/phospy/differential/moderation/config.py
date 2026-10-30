@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal, cast
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.evidence.quantification_depth import (
     SUPPORTED_QUANTIFICATION_DEPTH_KINDS as _SUPPORTED_QUANTIFICATION_DEPTH_KINDS,
 )

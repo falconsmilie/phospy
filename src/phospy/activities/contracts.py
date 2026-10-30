@@ -16,7 +16,7 @@ from phospy.activities.semantics import (
     ActivityProfileAxis,
     ActivityQuantitativeSemantics,
 )
-from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.core.errors.workflows import WorkflowBoundaryError
 from phospy.quantitative.models import (
     IntensityScaleKind,
     QuantitativeMeaning,

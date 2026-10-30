@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.core.errors.workflows import WorkflowBoundaryError
 from phospy.signalome.assignments import (
     build_module_assignments,
     select_kinase_substrates,

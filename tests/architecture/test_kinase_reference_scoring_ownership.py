@@ -13,7 +13,7 @@ import pytest
 import phospy.api as api
 import phospy.api.advanced as advanced
 import phospy.kinase.results as kinase_result_contracts
-from phospy.errors.validation import PhosPyValidationError
+from phospy.core.errors.validation import PhosPyValidationError
 from phospy.kinase.contracts import ResolvedKinaseWorkflowRequest
 from phospy.kinase.prediction.results import KinasePredictionResult
 from phospy.kinase.references.models import (
@@ -53,7 +53,7 @@ _RETIRED_ROUTES = (
     "phospy.science.references.kinase_library_models",
     "phospy.science.references.validation.kinase_library",
     "phospy.science.tables.kinase",
-    "phospy.validation.references.kinase_library",
+    "phospy.core.validation.references.kinase_library",
     "phospy.workflows.kinase.contributions",
     "phospy.workflows.kinase.kinase_library_scoring",
     "phospy.workflows.kinase.component_models",

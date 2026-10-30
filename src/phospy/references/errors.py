@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from phospy.errors.references import ReferenceResolutionError
+from phospy.core.errors.references import ReferenceResolutionError
 
 
 class ReferenceManifestError(ReferenceResolutionError):

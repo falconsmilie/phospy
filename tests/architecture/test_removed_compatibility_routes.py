@@ -14,6 +14,13 @@ import phospy.signalome.clustering.exact_python as exact_python
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
+RETIRED_CORE003_MODULES = (
+    "phospy.errors",
+    "phospy.frames",
+    "phospy.policies",
+    "phospy.validation",
+)
+
 RETIRED_SIGNALOME_MODULES = (
     "phospy.contracts.configs.signalome",
     "phospy.contracts.results.signalome",
@@ -314,6 +321,7 @@ COMPATIBILITY_ONLY_MODULES = (
     )
     + RETIRED_SIGNALOME_MODULES
     + RETIRED_HORIZONTAL_MODULES
+    + RETIRED_CORE003_MODULES
 )
 
 
@@ -326,6 +334,9 @@ def test_compatibility_only_modules_are_physically_absent(module_name: str) -> N
 def test_deleted_compatibility_package_directories_have_no_source_modules() -> None:
     for relative in (
         "api/configs",
+        "errors",
+        "frames",
+        "policies",
         "science/statistics",
         "science/signalomes",
         "science/tables/signalome",
@@ -336,6 +347,7 @@ def test_deleted_compatibility_package_directories_have_no_source_modules() -> N
         "science/transformations",
         "tables",
         "tables/signalome",
+        "validation",
         "validation/transformations",
         "workflows/enrichment",
         "workflows/kinase",

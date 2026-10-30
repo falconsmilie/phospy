@@ -7,6 +7,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import cast
 
+from phospy.core.errors.validation import ContractValidationError
 from phospy.enrichment.contracts.vocabulary import (
     ENRICHMENT_COLLECTION_KIND_GENE_SET,
     ENRICHMENT_COLLECTION_KIND_PTM_SET,
@@ -21,7 +22,6 @@ from phospy.enrichment.contracts.vocabulary import (
     EnrichmentIdentifierKind,
     MultipleTestingCorrection,
 )
-from phospy.errors.validation import ContractValidationError
 
 
 @dataclass(frozen=True, slots=True)

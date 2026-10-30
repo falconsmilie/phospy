@@ -12,6 +12,7 @@ from phospy.api.advanced import (
     DatasetIntensityTransformConfig,
     DatasetTotalProteinCorrectionConfig,
 )
+from phospy.core.errors import PhosPyInputError, UnsupportedInputFormatError
 from phospy.datasets.construction.input_resolution import (
     DatasetInputReader,
     _DatasetInputSourceValidator,
@@ -19,7 +20,6 @@ from phospy.datasets.construction.input_resolution import (
 from phospy.datasets.contracts import DatasetBuildRequest
 from phospy.datasets.validation.inputs import DatasetInputSourceValidator
 from phospy.datasets.validation.request import DatasetBuildRequestValidator
-from phospy.errors import PhosPyInputError, UnsupportedInputFormatError
 from phospy.io.importers.contracts import PhosphositeImportRequest
 from phospy.io.importers.validation import (
     PhosphositeImportRequestValidator,

@@ -6,7 +6,7 @@ import math
 from collections.abc import Mapping
 from typing import TypeAlias
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 
 JsonPrimitive: TypeAlias = None | str | bool | int | float
 JsonValue: TypeAlias = JsonPrimitive | list["JsonValue"] | dict[str, "JsonValue"]

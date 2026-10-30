@@ -5,6 +5,19 @@ from __future__ import annotations
 
 from phospy.api._inventory import ORDINARY_PUBLIC_API as _ORDINARY_PUBLIC_API
 from phospy.api.builders import ReferenceBundleBuilder
+from phospy.core.errors import (
+    ContractValidationError,
+    PhosPyError,
+    PhosPyInputError,
+    PhosPyReferenceError,
+    PhosPyValidationError,
+    PhosPyWorkflowError,
+    ReferenceCompatibilityError,
+    ReferenceResolutionError,
+    UnsupportedInputFormatError,
+    WorkflowBoundaryError,
+    WorkflowValidationError,
+)
 from phospy.datasets.builder import AnalysisReadyDatasetBuilder
 from phospy.datasets.contracts import DatasetBuildRequest
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
@@ -47,19 +60,6 @@ from phospy.enrichment.contracts.results import (
     EnrichmentWorkflowResult,
 )
 from phospy.enrichment.workflow import EnrichmentWorkflow
-from phospy.errors import (
-    ContractValidationError,
-    PhosPyError,
-    PhosPyInputError,
-    PhosPyReferenceError,
-    PhosPyValidationError,
-    PhosPyWorkflowError,
-    ReferenceCompatibilityError,
-    ReferenceResolutionError,
-    UnsupportedInputFormatError,
-    WorkflowBoundaryError,
-    WorkflowValidationError,
-)
 from phospy.io.importers.contracts import (
     PhosphositeImporter,
     PhosphositeImportRequest,

@@ -5,7 +5,7 @@ import json
 import numpy as np
 import pandas as pd
 
-from phospy.frames.table_schema import ValidationErrorType
+from phospy.core.frames.table_schema import ValidationErrorType
 
 
 def _column_series(frame: pd.DataFrame, column_name: str) -> pd.Series:

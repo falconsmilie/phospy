@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from phospy.validation.common.config_values import (
+from phospy.core.validation.common.config_values import (
     ValidationErrorType,
     require_non_empty_string,
 )

@@ -4,9 +4,9 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from phospy.errors.validation import WorkflowValidationError
-from phospy.frames.table_schema import TableSchema
-from phospy.frames.validation import (
+from phospy.core.errors.validation import WorkflowValidationError
+from phospy.core.frames.table_schema import TableSchema
+from phospy.core.frames.validation import (
     require_columns,
     require_dataframe,
     require_non_empty_string_column,

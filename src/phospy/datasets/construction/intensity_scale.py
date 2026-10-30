@@ -7,12 +7,12 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from phospy.errors.transformations import (
+from phospy.core.errors.transformations import (
     PhosPyTransformationError,
     TransformationStateEstablishmentError,
     TransformerExecutionError,
 )
-from phospy.errors.validation import TransformationValidationError
+from phospy.core.errors.validation import TransformationValidationError
 from phospy.quantitative.authority import (
     dataset_resolver_establishment_authority,
 )

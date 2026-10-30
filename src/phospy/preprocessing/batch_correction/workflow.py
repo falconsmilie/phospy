@@ -10,7 +10,7 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.preprocessing.batch_correction.contracts.output import (
     CorrectedPreprocessingOutput,
 )

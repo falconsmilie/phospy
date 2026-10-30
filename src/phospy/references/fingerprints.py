@@ -5,7 +5,7 @@ from __future__ import annotations
 from hashlib import sha256
 from pathlib import Path
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.provenance.models import (
     JsonValue,
 )

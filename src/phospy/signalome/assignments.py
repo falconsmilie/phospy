@@ -7,7 +7,7 @@ from collections.abc import Sequence
 import numpy as np
 import pandas as pd
 
-from phospy.errors.workflows import WorkflowStageError
+from phospy.core.errors.workflows import WorkflowStageError
 from phospy.signalome.constants import (
     DISPLAY_ID_COLUMN,
     GENE_SYMBOL_COLUMN,

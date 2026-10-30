@@ -11,7 +11,7 @@ from phospy.api.advanced import (
     SignalomeScientificConfig,
     SignalomeValidationConfig,
 )
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.io.bundles._signalome.diagnostics import (
     signalome_alignment_diagnostics_from_payload,
     signalome_alignment_diagnostics_to_payload,

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 
 
 def resolve_bundle_relative_path(

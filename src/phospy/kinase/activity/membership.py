@@ -9,8 +9,8 @@ from typing import Final, TypeVar
 import numpy as np
 import pandas as pd
 
-from phospy.errors.workflows import WorkflowBoundaryError
-from phospy.policies import PolicyEnum, coerce_policy_enum
+from phospy.core.errors.workflows import WorkflowBoundaryError
+from phospy.core.policies import PolicyEnum, coerce_policy_enum
 from phospy.provenance.hashing import fingerprint_table_normalized_axes
 from phospy.provenance.immutability import (
     FrozenJsonMapping,

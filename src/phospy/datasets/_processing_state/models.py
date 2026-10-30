@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from phospy.errors.input import DatasetProcessingStateError, PhosPyInputError
+from phospy.core.errors.input import DatasetProcessingStateError, PhosPyInputError
 from phospy.preparation_records.imputation import (
     IMPUTATION_OPERATION_ORDERS,
 )

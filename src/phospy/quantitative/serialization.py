@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-from phospy.errors.input import PhosPyInputError
-from phospy.errors.transformations import InvalidTransformationStateError
+from phospy.core.errors.input import PhosPyInputError
+from phospy.core.errors.transformations import InvalidTransformationStateError
 from phospy.quantitative.authority import (
     bundle_quantitative_meaning_restoration_authority,
     bundle_reconstruction_establishment_authority,

@@ -5,7 +5,7 @@ from collections.abc import Mapping
 
 import pytest
 
-from phospy.errors import PhosPyInputError
+from phospy.core.errors import PhosPyInputError
 from phospy.preprocessing.batch_correction import BatchCorrectionPlanInterpreter
 from phospy.preprocessing.batch_correction.contracts import (
     CorrectionMaskPolicy,

@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.references.sequences.repository import FastaProteinSequenceRepository
 
 

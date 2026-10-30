@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from phospy.errors import PhosPyInputError
+from phospy.core.errors import PhosPyInputError
 from phospy.io.readers.importers import _parse_intensity_column
 from phospy.io.readers.maxquant import (
     MaxQuantPhosphositeImporter,

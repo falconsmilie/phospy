@@ -6,9 +6,9 @@ from dataclasses import dataclass, field
 
 import pandas as pd
 
-from phospy.errors.validation import PhosPyValidationError
-from phospy.frames.ownership import own_dataframe
-from phospy.frames.table_schema import TableSchema
+from phospy.core.errors.validation import PhosPyValidationError
+from phospy.core.frames.ownership import own_dataframe
+from phospy.core.frames.table_schema import TableSchema
 from phospy.kinase._matrix_validation import _validate_kinase_score_like_matrix
 
 

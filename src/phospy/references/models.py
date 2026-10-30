@@ -12,9 +12,9 @@ from typing import cast
 
 import pandas as pd
 
-from phospy.errors.validation import ReferenceValidationError
-from phospy.frames.comparison import dataframe_equals
-from phospy.frames.ownership import export_dataframe, own_dataframe
+from phospy.core.errors.validation import ReferenceValidationError
+from phospy.core.frames.comparison import dataframe_equals
+from phospy.core.frames.ownership import export_dataframe, own_dataframe
 from phospy.provenance.hashing import fingerprint_table
 from phospy.provenance.models import (
     JsonValue,

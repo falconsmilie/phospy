@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
+from phospy.core.errors.input import PhosPyInputError
 from phospy.differential.aggregation.models import (
     PEPTIDE_DIFFERENTIAL_CONSISTENCY_POLICY,
     PEPTIDE_DIFFERENTIAL_CONSISTENCY_TOLERANCE_VERSION,
@@ -36,7 +37,6 @@ from phospy.differential.aggregation.models import (
 from phospy.differential.aggregation.scientific_policies import (
     build_peptide_to_site_aggregation_policy,
 )
-from phospy.errors.input import PhosPyInputError
 from phospy.statistics.multiple_testing import adjust_p_values
 
 _SINGLE_ESTIMATE_DEPENDENCE_ASSUMPTION = (

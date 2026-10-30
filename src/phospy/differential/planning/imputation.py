@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 from numpy.typing import NDArray
 
+from phospy.core.errors.workflows import WorkflowBoundaryError
 from phospy.differential.planning.models import (
     DifferentialFeatureEligibilityInputs,
     DifferentialImputationPolicyInputs,
@@ -15,7 +16,6 @@ from phospy.differential.planning.models import (
 from phospy.differential.tables import (
     DIFFERENTIAL_RESULT_STATUS_TESTED,
 )
-from phospy.errors.workflows import WorkflowBoundaryError
 
 DIFFERENTIAL_IMPUTATION_INFERENCE_STATUS_NO_TESTED_IMPUTED_VALUES = (
     "no_tested_imputed_values"

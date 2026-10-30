@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from phospy.policies import PolicyEnum
+from phospy.core.policies import PolicyEnum
 
 
 class ImputationInputScale(PolicyEnum):

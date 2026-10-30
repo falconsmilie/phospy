@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from phospy.activities.contracts import (
     MethodQuantitativeInputContract,
 )
-from phospy.errors.workflows import PhosPyWorkflowError
+from phospy.core.errors.workflows import PhosPyWorkflowError
 from phospy.kinase.scoring.config import (
     KINASE_SCORING_MODE_COMBINED_PROFILE_MOTIF,
     KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF,

@@ -6,7 +6,7 @@ from dataclasses import replace
 
 import pandas as pd
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.evidence.sequence_resolution import (
     RESOLUTION_STATUS_RESOLVED,
     PhosphositeSequenceResolver,

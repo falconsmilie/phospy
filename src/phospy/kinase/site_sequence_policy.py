@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from phospy.core.policies import coerce_policy_enum
 from phospy.kinase.scoring.config import KinaseSiteSequenceConflictPolicy
-from phospy.policies import coerce_policy_enum
 
 
 def resolve_site_sequence_conflict_policy(

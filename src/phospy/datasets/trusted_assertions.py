@@ -8,7 +8,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import cast
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.provenance.immutability import freeze_json_mapping, thaw_json_mapping
 from phospy.provenance.scalar_validation import (
     JsonValue,

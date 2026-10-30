@@ -5,6 +5,8 @@ from collections.abc import Mapping
 import pandas as pd
 import pytest
 
+from phospy.core.errors.build import DatasetBuildError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.datasets.construction.contracts import (
     InterpretedDatasetBuildRequest,
     PreprocessedDatasetBuildTables,
@@ -14,8 +16,6 @@ from phospy.datasets.construction.preprocessing import (
     DatasetPreprocessor,
     build_dataset_processing_state,
 )
-from phospy.errors.build import DatasetBuildError
-from phospy.errors.input import PhosPyInputError
 from phospy.preparation_records.report_schema import PreprocessingRowAuditRow
 from phospy.preprocessing.contracts import (
     PreprocessingPlan,

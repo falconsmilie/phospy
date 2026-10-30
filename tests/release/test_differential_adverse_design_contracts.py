@@ -18,11 +18,11 @@ from phospy.api.advanced import (
     DifferentialAnalysisConfig,
     EmpiricalBayesConfig,
 )
+from phospy.core.errors import WorkflowValidationError
 from phospy.differential.moderation.empirical_bayes import fit_empirical_bayes
 from phospy.differential.policies import (
     DIFFERENTIAL_RELIABILITY_PROFILE_EXPLORATORY_SINGLE_REPLICATE,
 )
-from phospy.errors import WorkflowValidationError
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

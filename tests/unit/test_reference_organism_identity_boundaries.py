@@ -7,6 +7,9 @@ import pandas as pd
 import pytest
 
 from phospy.api import AnalysisReadyDatasetBuilder
+from phospy.core.errors import DatasetValidationError, UnsupportedOrganismError
+from phospy.core.errors.references import ReferenceCompatibilityError
+from phospy.core.errors.validation import ReferenceValidationError
 from phospy.datasets.construction.provenance import (
     DatasetRunProvenanceAssembler,
 )
@@ -22,9 +25,6 @@ from phospy.datasets.processing_state import DatasetProcessingState
 from phospy.differential.provenance.lineage import (
     build_derived_quantitative_run_provenance,
 )
-from phospy.errors import DatasetValidationError, UnsupportedOrganismError
-from phospy.errors.references import ReferenceCompatibilityError
-from phospy.errors.validation import ReferenceValidationError
 from phospy.phosphosites.site_keys import ProteinScopedPhosphositeKey
 from phospy.provenance.environment import collect_environment_provenance
 from phospy.provenance.hashing import fingerprint_table

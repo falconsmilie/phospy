@@ -5,8 +5,8 @@ from typing import cast
 
 import pytest
 
-from phospy.errors.input import PhosPyInputError
-from phospy.errors.validation import ReferenceValidationError
+from phospy.core.errors.input import PhosPyInputError
+from phospy.core.errors.validation import ReferenceValidationError
 from phospy.preprocessing.provenance.models import PreprocessingStageProvenance
 from phospy.provenance.models.environment import EnvironmentProvenance
 from phospy.provenance.models.tables import TableFingerprint

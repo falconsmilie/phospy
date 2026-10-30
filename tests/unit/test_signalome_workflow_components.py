@@ -17,7 +17,7 @@ from phospy.api import (
     SignalomeWorkflowRequest,
     SignalomeWorkflowResult,
 )
-from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.core.errors.workflows import WorkflowBoundaryError
 from phospy.provenance.scientific_policy_models import ScientificPolicyId
 from phospy.quantitative.evidence import (
     INPUT_INTENSITY_SCALE_DECLARED_CAVEAT_CODE,

@@ -9,6 +9,7 @@ import pandas as pd
 import pytest
 
 import phospy.differential.execution.duplicate_correlation as duplicate_correlation_module
+from phospy.core.errors import PhosPyInputError
 from phospy.differential.execution.duplicate_correlation import (
     _fisher_trimmed_mean_consensus,
     estimate_duplicate_correlation_reml_consensus,
@@ -23,7 +24,6 @@ from phospy.differential.models.duplicate_correlation import (
     DuplicateCorrelationFeatureStatus,
     DuplicateCorrelationReasonCount,
 )
-from phospy.errors import PhosPyInputError
 from tests.support.duplicate_correlation_parity_scopes import (
     ESTIMATOR_AND_GLS_ONLY_FIXTURE_IDS,
     FULL_PIPELINE_FIXTURE_IDS,

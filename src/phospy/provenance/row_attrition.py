@@ -6,7 +6,7 @@ from collections.abc import Iterable
 
 import pandas as pd
 
-from phospy.errors.workflows import WorkflowStageError
+from phospy.core.errors.workflows import WorkflowStageError
 from phospy.provenance.models.tables import RowAttritionRecord, RowAttritionReport
 
 _REMOVED_ID_SAMPLE_LIMIT = 5

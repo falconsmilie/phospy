@@ -5,11 +5,11 @@ from typing import cast
 
 import pytest
 
+from phospy.core.errors.input import PhosPyInputError
 from phospy.datasets.derived_quantitative import (
     DerivedQuantitativeDataProvenance,
     DerivedSampleMapping,
 )
-from phospy.errors.input import PhosPyInputError
 from phospy.preprocessing.provenance.models import (
     PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V3,
     PreprocessingStageProvenance,

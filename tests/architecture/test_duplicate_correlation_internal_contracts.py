@@ -50,6 +50,7 @@ def test_duplicate_correlation_scientific_contracts_are_not_public_exports() -> 
 def test_duplicate_correlation_execution_design_cannot_mix_fixed_block_columns() -> (
     None
 ):
+    from phospy.core.errors import WorkflowBoundaryError
     from phospy.differential.execution.linear_model import decompose_differential_design
     from phospy.differential.models.design import ContrastMatrix, DesignMatrix
     from phospy.differential.planning.models import (
@@ -58,7 +59,6 @@ def test_duplicate_correlation_execution_design_cannot_mix_fixed_block_columns()
         DifferentialExecutionDesignInputs,
     )
     from phospy.differential.policies import PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION
-    from phospy.errors import WorkflowBoundaryError
 
     sample_order = ("A_1", "B_1", "A_2", "B_2")
     design_frame = pd.DataFrame(

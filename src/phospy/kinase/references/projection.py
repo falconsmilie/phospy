@@ -8,7 +8,7 @@ from typing import NoReturn
 
 import pandas as pd
 
-from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.core.errors.workflows import WorkflowBoundaryError
 from phospy.kinase.references.projection_contracts import (
     KINASE_REFERENCE_PROJECTION_INTERPRETER_VERSION as _INTERPRETER_VERSION,
 )

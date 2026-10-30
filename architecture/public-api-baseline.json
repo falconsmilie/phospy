@@ -405,67 +405,67 @@
         {
           "name": "PhosPyError",
           "runtime_type": "builtins.type",
-          "definition": "phospy.errors.base:PhosPyError",
+          "definition": "phospy.core.errors.base:PhosPyError",
           "kind": "callable_or_type"
         },
         {
           "name": "PhosPyInputError",
           "runtime_type": "builtins.type",
-          "definition": "phospy.errors.input:PhosPyInputError",
+          "definition": "phospy.core.errors.input:PhosPyInputError",
           "kind": "callable_or_type"
         },
         {
           "name": "UnsupportedInputFormatError",
           "runtime_type": "builtins.type",
-          "definition": "phospy.errors.input:UnsupportedInputFormatError",
+          "definition": "phospy.core.errors.input:UnsupportedInputFormatError",
           "kind": "callable_or_type"
         },
         {
           "name": "PhosPyValidationError",
           "runtime_type": "builtins.type",
-          "definition": "phospy.errors.validation:PhosPyValidationError",
+          "definition": "phospy.core.errors.validation:PhosPyValidationError",
           "kind": "callable_or_type"
         },
         {
           "name": "ContractValidationError",
           "runtime_type": "builtins.type",
-          "definition": "phospy.errors.validation:ContractValidationError",
+          "definition": "phospy.core.errors.validation:ContractValidationError",
           "kind": "callable_or_type"
         },
         {
           "name": "PhosPyReferenceError",
           "runtime_type": "builtins.type",
-          "definition": "phospy.errors.references:PhosPyReferenceError",
+          "definition": "phospy.core.errors.references:PhosPyReferenceError",
           "kind": "callable_or_type"
         },
         {
           "name": "ReferenceResolutionError",
           "runtime_type": "builtins.type",
-          "definition": "phospy.errors.references:ReferenceResolutionError",
+          "definition": "phospy.core.errors.references:ReferenceResolutionError",
           "kind": "callable_or_type"
         },
         {
           "name": "ReferenceCompatibilityError",
           "runtime_type": "builtins.type",
-          "definition": "phospy.errors.references:ReferenceCompatibilityError",
+          "definition": "phospy.core.errors.references:ReferenceCompatibilityError",
           "kind": "callable_or_type"
         },
         {
           "name": "PhosPyWorkflowError",
           "runtime_type": "builtins.type",
-          "definition": "phospy.errors.workflows:PhosPyWorkflowError",
+          "definition": "phospy.core.errors.workflows:PhosPyWorkflowError",
           "kind": "callable_or_type"
         },
         {
           "name": "WorkflowValidationError",
           "runtime_type": "builtins.type",
-          "definition": "phospy.errors.validation:WorkflowValidationError",
+          "definition": "phospy.core.errors.validation:WorkflowValidationError",
           "kind": "callable_or_type"
         },
         {
           "name": "WorkflowBoundaryError",
           "runtime_type": "builtins.type",
-          "definition": "phospy.errors.workflows:WorkflowBoundaryError",
+          "definition": "phospy.core.errors.workflows:WorkflowBoundaryError",
           "kind": "callable_or_type"
         },
         {

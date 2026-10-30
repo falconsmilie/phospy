@@ -10,8 +10,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from phospy.errors.input import PhosPyInputError
-from phospy.errors.provenance import ProvenanceFingerprintError
+from phospy.core.errors.input import PhosPyInputError
+from phospy.core.errors.provenance import ProvenanceFingerprintError
 from phospy.preprocessing.provenance.models import (
     PREPROCESSING_EXTERNAL_NONDETERMINISM_CAVEAT_CODE,
     PREPROCESSING_STAGE_DETERMINISM_PURE,

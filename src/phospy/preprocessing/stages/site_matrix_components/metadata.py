@@ -5,7 +5,7 @@ from typing import cast
 
 import pandas as pd
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.evidence.quantification_depth import (
     QUANTIFICATION_DEPTH_COLUMN,
     validate_quantification_depth_series,

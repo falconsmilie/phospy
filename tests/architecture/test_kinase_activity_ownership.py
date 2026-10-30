@@ -23,7 +23,7 @@ RETIRED_ACTIVITY_ROUTES = (
     "phospy.science.activities.methods.weighted_substrate_activity",
     "phospy.science.activities.semantics",
     "phospy.science.tables.activity",
-    "phospy.validation.workflows.activity",
+    "phospy.core.validation.workflows.activity",
     "phospy.workflows.kinase.activity_runner",
     "phospy.workflows.kinase.membership",
     "phospy.contracts.configs.kinase",

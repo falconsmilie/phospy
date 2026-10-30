@@ -8,6 +8,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TextIO, cast
 
+from phospy.core.errors.input import PhosPyInputError, UnsupportedInputFormatError
+from phospy.core.errors.validation import (
+    ContractValidationError,
+    WorkflowValidationError,
+)
 from phospy.enrichment.contracts.collections import (
     EnrichmentSet,
     EnrichmentSetCollection,
@@ -16,8 +21,6 @@ from phospy.enrichment.contracts.vocabulary import (
     EnrichmentCollectionKind,
     EnrichmentIdentifierKind,
 )
-from phospy.errors.input import PhosPyInputError, UnsupportedInputFormatError
-from phospy.errors.validation import ContractValidationError, WorkflowValidationError
 
 _CSV = "csv"
 _TSV = "tsv"

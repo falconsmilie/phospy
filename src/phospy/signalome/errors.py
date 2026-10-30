@@ -1,6 +1,6 @@
 """Signalome workflow exceptions."""
 
-from phospy.errors.validation import WorkflowValidationError
+from phospy.core.errors.validation import WorkflowValidationError
 
 
 class SignalomeScaleError(WorkflowValidationError):

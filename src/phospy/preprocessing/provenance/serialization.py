@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.preprocessing.provenance.models import (
     PREPROCESSING_STAGE_DETERMINISM_EXTERNALLY_NONDETERMINISTIC,
     PREPROCESSING_STAGE_DETERMINISM_PURE,

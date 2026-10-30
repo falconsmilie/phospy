@@ -7,6 +7,14 @@ from dataclasses import dataclass, field
 
 import pandas as pd
 
+from phospy.core.errors.validation import DatasetValidationError
+from phospy.core.frames.comparison import dataframe_equals, optional_dataframe_equals
+from phospy.core.frames.ownership import (
+    borrow_dataframe,
+    borrow_optional_dataframe,
+    export_dataframe,
+    export_optional_dataframe,
+)
 from phospy.datasets._construction.service import (
     _AnalysisReadyDatasetConstructionService,  # pyright: ignore[reportPrivateUsage] - the model and its private same-owner construction service form one sealed authority boundary
     _ValidatedAnalysisReadyTables,  # pyright: ignore[reportPrivateUsage] - the private validated-table token prevents callers from bypassing construction validation
@@ -23,14 +31,6 @@ from phospy.datasets.processing_state import (
 from phospy.datasets.protein_aware import ProteinAwarePreparationResult
 from phospy.datasets.trusted_assertions import (
     TrustedDatasetConstructionAssertions,
-)
-from phospy.errors.validation import DatasetValidationError
-from phospy.frames.comparison import dataframe_equals, optional_dataframe_equals
-from phospy.frames.ownership import (
-    borrow_dataframe,
-    borrow_optional_dataframe,
-    export_dataframe,
-    export_optional_dataframe,
 )
 from phospy.quantitative.models import IntensityScaleState
 from phospy.references.provenance.context import ReferenceContext

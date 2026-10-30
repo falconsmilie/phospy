@@ -28,6 +28,11 @@ from phospy.api.advanced import (
     MultipleTestingConfig,
     TechnicalReplicatePolicy,
 )
+from phospy.core.errors import (
+    PhosPyInputError,
+    WorkflowBoundaryError,
+    WorkflowValidationError,
+)
 from phospy.datasets.internal_view import (
     DatasetInternalView,
     ProteinAwarePreparationInternalView,
@@ -94,11 +99,6 @@ from phospy.differential.validation.dataset import (
     ValidatedExperimentalDesignContract,
 )
 from phospy.differential.validation.workflow import DifferentialAnalysisValidator
-from phospy.errors import (
-    PhosPyInputError,
-    WorkflowBoundaryError,
-    WorkflowValidationError,
-)
 from phospy.preparation_records.policies import NormalisationPolicy
 from phospy.preparation_records.protein_aware import (
     ProteinAwarePreparationEligibility,

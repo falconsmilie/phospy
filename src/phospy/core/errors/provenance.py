@@ -1,6 +1,6 @@
 """Provenance-domain exceptions."""
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 
 
 class PhosPyProvenanceError(PhosPyInputError):

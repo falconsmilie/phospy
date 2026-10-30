@@ -5,6 +5,7 @@ import json
 import pandas as pd
 import pytest
 
+from phospy.core.errors import PhosPyInputError
 from phospy.differential.diagnostics import (
     DifferentialModelDiagnostics,
 )
@@ -17,7 +18,6 @@ from phospy.differential.provenance.models import (
 from phospy.differential.validation.computation import (
     DifferentialAnalysisRequestValidator,
 )
-from phospy.errors import PhosPyInputError
 
 
 def test_differential_model_diagnostics_payload_records_required_fields() -> None:

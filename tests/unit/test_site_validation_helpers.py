@@ -3,7 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy.errors.validation import DatasetValidationError
+from phospy.core.errors.validation import DatasetValidationError
 from phospy.phosphosites.validation import (
     require_canonical_site_index,
     require_canonical_site_series,

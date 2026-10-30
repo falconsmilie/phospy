@@ -21,6 +21,7 @@ from phospy.api import (
     SampleDesignRecord,
 )
 from phospy.api.advanced import DatasetIntensityTransformConfig
+from phospy.core.errors import PhosPyInputError
 from phospy.differential.aggregation.experimental import (
     EXPERIMENTAL_INTERNAL_API,
     EXPERIMENTAL_INTERNAL_REASON,
@@ -37,7 +38,6 @@ from phospy.differential.aggregation.models import (
     PEPTIDE_TO_SITE_MAPPING_POLICY_SPLIT_EQUAL_WEIGHT,
     PeptideDifferentialEstimateTable,
 )
-from phospy.errors import PhosPyInputError
 from phospy.evidence.dataset_resolution.models import (
     DATASET_MULTI_SITE_POLICY_REJECT,
     DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,

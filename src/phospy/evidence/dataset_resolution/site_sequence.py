@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.evidence.dataset_resolution.models import (
     DATASET_MULTI_SITE_POLICY_SPLIT,
     SITE_SEQUENCE_SOURCE_MISSING,

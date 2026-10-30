@@ -8,7 +8,7 @@ from typing import cast
 
 import pandas as pd
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.evidence.quantification_depth import (
     SUPPORTED_QUANTIFICATION_DEPTH_KINDS,
     QuantificationDepthKind,

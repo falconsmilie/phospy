@@ -15,8 +15,8 @@ from phospy.api import (
     PhosphositeImportRequest,
     PhosphositeImportResult,
 )
+from phospy.core.errors import PhosPyInputError, WorkflowValidationError
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.errors import PhosPyInputError, WorkflowValidationError
 from phospy.io.readers import (
     FragPipePTMProphetImporter,
     FragPipePTMProphetImportRequest,

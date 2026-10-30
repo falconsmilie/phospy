@@ -19,18 +19,18 @@ from typing import cast
 import pandas as pd
 from scipy import stats
 
-from phospy.differential.policies import (
-    MULTIPLE_TESTING_METHOD_BENJAMINI_HOCHBERG,
-    SUPPORTED_MULTIPLE_TESTING_METHODS,
-    MultipleTestingMethod,
-)
-from phospy.errors.input import PhosPyInputError
-from phospy.frames.ownership import export_dataframe, own_dataframe
-from phospy.frames.validation import (
+from phospy.core.errors.input import PhosPyInputError
+from phospy.core.frames.ownership import export_dataframe, own_dataframe
+from phospy.core.frames.validation import (
     require_columns,
     require_dataframe,
     require_non_empty_dataframe,
     require_unique_columns,
+)
+from phospy.differential.policies import (
+    MULTIPLE_TESTING_METHOD_BENJAMINI_HOCHBERG,
+    SUPPORTED_MULTIPLE_TESTING_METHODS,
+    MultipleTestingMethod,
 )
 from phospy.provenance.scientific_policy_models import ScientificPolicyRecord
 

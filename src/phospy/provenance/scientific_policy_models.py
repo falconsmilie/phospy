@@ -6,7 +6,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import Enum
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.provenance.immutability import freeze_json_mapping, thaw_json_mapping
 
 ScientificPolicyParameter = str | int | float | bool | None

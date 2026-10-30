@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 
 FRAGPIPE_FLAG_POLICY_REMOVE = "remove"
 FRAGPIPE_FLAG_POLICY_FLAG = "flag"

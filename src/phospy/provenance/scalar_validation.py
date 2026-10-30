@@ -7,7 +7,7 @@ from collections.abc import Sequence
 from numbers import Integral
 from typing import TypeAlias
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.provenance.immutability import FrozenJsonValue
 
 JsonPrimitive = str | int | float | bool | None

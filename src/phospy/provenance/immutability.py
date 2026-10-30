@@ -6,7 +6,7 @@ import math
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from typing import TypeAlias, TypeVar, cast
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 
 JsonPrimitive: TypeAlias = str | int | float | bool | None
 _JsonErrorT = TypeVar("_JsonErrorT", bound=Exception)

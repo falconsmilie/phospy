@@ -11,6 +11,7 @@ from phospy.api import (
     AnalysisReadyPhosphoDataset,
     DatasetBuildRequest,
 )
+from phospy.core.errors.validation import TransformationValidationError
 from phospy.datasets.processing_state import (
     DatasetPreprocessingReport,
     DatasetProcessingState,
@@ -20,7 +21,6 @@ from phospy.datasets.trusted_assertions import (
     TrustedDatasetConstructionAssertions,
     TrustedDatasetConstructionEvidence,
 )
-from phospy.errors.validation import TransformationValidationError
 from phospy.preprocessing.contracts.configuration.dataset import (
     DatasetPreprocessingConfig,
 )

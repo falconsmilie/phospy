@@ -4,6 +4,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from phospy.core.errors import DatasetValidationError, PhosPyInputError
+from phospy.core.errors.validation import WorkflowValidationError
 from phospy.datasets.schemas import (
     SiteMetadataTable,
 )
@@ -14,8 +16,6 @@ from phospy.differential.results import (
     DifferentialAnalysisResult,
 )
 from phospy.differential.validation.workflow import DIFFERENTIAL_IDENTITY_CONTRACT
-from phospy.errors import DatasetValidationError, PhosPyInputError
-from phospy.errors.validation import WorkflowValidationError
 from phospy.kinase.validator import KINASE_IDENTITY_CONTRACT
 from phospy.phosphosites.result_identity import (
     enforce_result_identity_metadata_coherence,

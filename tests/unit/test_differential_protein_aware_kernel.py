@@ -8,6 +8,7 @@ import pandas as pd
 import pytest
 
 import phospy.differential.execution.protein_covariate_adjusted as kernel_module
+from phospy.core.errors import PhosPyInputError
 from phospy.differential.execution.protein_covariate_adjusted import (
     PROTEIN_AWARE_COVARIATE_COEFFICIENT_NAME,
     ProteinCovariateAdjustedDifferentialKernel,
@@ -36,7 +37,6 @@ from phospy.differential.tables import (
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_COVARIATE_INVALID,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_MODEL_FIT_INVALID,
 )
-from phospy.errors import PhosPyInputError
 from phospy.evidence.quantification_depth import (
     QUANTIFICATION_DEPTH_KIND_PEPTIDE_COUNT,
     QUANTIFICATION_DEPTH_KIND_PSM_COUNT,

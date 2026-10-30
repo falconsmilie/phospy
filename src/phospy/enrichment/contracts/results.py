@@ -8,6 +8,9 @@ from typing import cast
 
 import pandas as pd
 
+from phospy.core.errors.validation import ContractValidationError
+from phospy.core.frames.comparison import dataframe_equals
+from phospy.core.frames.ownership import export_dataframe, own_dataframe
 from phospy.enrichment.contracts.collections import (
     EnrichmentSetCollection,
     _normalise_identifier_sequence,
@@ -33,9 +36,6 @@ from phospy.enrichment.contracts.vocabulary import (
     EnrichmentIdentifierKind,
     MultipleTestingCorrection,
 )
-from phospy.errors.validation import ContractValidationError
-from phospy.frames.comparison import dataframe_equals
-from phospy.frames.ownership import export_dataframe, own_dataframe
 from phospy.provenance.immutability import freeze_json_mapping_with_error_type
 from phospy.provenance.result_caveats import ResultCaveat, validate_result_caveats
 from phospy.run_lineage.models import (

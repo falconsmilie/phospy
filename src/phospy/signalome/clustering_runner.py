@@ -6,7 +6,7 @@ from collections.abc import Callable
 
 import pandas as pd
 
-from phospy.errors.workflows import WorkflowStageError
+from phospy.core.errors.workflows import WorkflowStageError
 from phospy.signalome.clustering import (
     SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_EXACT_CLUSTER_TREE,
     SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_SINGLE_MODULE,

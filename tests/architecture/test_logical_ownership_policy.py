@@ -463,7 +463,7 @@ def test_unclassified_cycle_remains_a_policy_failure() -> None:
 
 
 def test_unregistered_declaration_in_reviewed_mixed_module_fails() -> None:
-    review = REVIEWED_MIXED_MODULES["src/phospy/errors/workflows.py"]
+    review = REVIEWED_MIXED_MODULES["src/phospy/core/errors/workflows.py"]
     problems = mixed_module_declaration_problems(
         actual_declarations=review.declarations | {"class:UnreviewedProvenance"},
         review=review,
@@ -656,7 +656,7 @@ def test_taxonomy_is_an_errors_only_leaf_and_old_organism_routes_are_unused() ->
             if path.is_relative_to(taxonomy_root):
                 if (
                     node.module.startswith("phospy.")
-                    and not node.module.startswith("phospy.errors")
+                    and not node.module.startswith("phospy.core.errors")
                     and not node.module.startswith("phospy.taxonomy")
                 ):
                     taxonomy_import_offenders.append(

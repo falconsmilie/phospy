@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pandas as pd
 
+from phospy.core.errors.input import PhosPyInputError
 from phospy.differential.models.design import DifferentialAnalysisRequest
-from phospy.errors.input import PhosPyInputError
 
 
 class DifferentialAnalysisRequestValidator:

@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 
 _AMINO_ACIDS = frozenset("ACDEFGHIKLMNPQRSTVWY")
 _PHOSPHO_RESIDUES = frozenset("STY")

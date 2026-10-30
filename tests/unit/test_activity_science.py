@@ -19,8 +19,8 @@ from phospy.activities.semantics import (
     ActivityProfileMetadata,
     ActivityQuantitativeSemantics,
 )
-from phospy.errors.validation import PhosPyValidationError
-from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.core.errors.validation import PhosPyValidationError
+from phospy.core.errors.workflows import WorkflowBoundaryError
 from phospy.kinase.activity.diagnostics import (
     KseaZScoreActivityDiagnostics,
     SsgseaSubstrateEnrichmentActivityDiagnostics,

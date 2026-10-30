@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.evidence.sequence_resolution import (
     RESOLUTION_STATUS_ACCESSION_NOT_FOUND,
     RESOLUTION_STATUS_AMBIGUOUS_ACCESSION,

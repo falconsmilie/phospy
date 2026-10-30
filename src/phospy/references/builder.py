@@ -12,7 +12,7 @@ from typing import Protocol, cast
 
 import pandas as pd
 
-from phospy.errors.references import ReferenceResolutionError
+from phospy.core.errors.references import ReferenceResolutionError
 from phospy.phosphosites.identifiers import canonicalize_site_series
 from phospy.provenance.hashing import fingerprint_table
 from phospy.references.acquisition import ReferenceSourceTableReader

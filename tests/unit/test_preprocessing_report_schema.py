@@ -15,8 +15,8 @@ from phospy.api.advanced import (
     DatasetMissingDataConfig,
     DatasetSiteMatrixConfig,
 )
+from phospy.core.errors.build import DatasetBuildError
 from phospy.datasets.processing_state import DatasetPreprocessingReport
-from phospy.errors.build import DatasetBuildError
 from phospy.preparation_records.report_schema import (
     COMPARISON_GROUP_STATS_COLUMNS,
     COMPARISON_PAIR_STATS_COLUMNS,

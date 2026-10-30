@@ -3,8 +3,8 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
+from phospy.core.errors.input import UnsupportedInputFormatError
 from phospy.datasets.construction.normalization import DatasetConventionNormalizer
-from phospy.errors.input import UnsupportedInputFormatError
 
 
 def _phospho() -> pd.DataFrame:

@@ -8,8 +8,8 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Literal, TypeAlias, cast
 
-from phospy.errors.input import PhosPyInputError
-from phospy.policies import PolicyEnum
+from phospy.core.errors.input import PhosPyInputError
+from phospy.core.policies import PolicyEnum
 
 CONTROL_SITE_STATUS_CONTROL = "control"
 CONTROL_SITE_STATUS_NON_CONTROL = "non_control"

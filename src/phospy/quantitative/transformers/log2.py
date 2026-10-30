@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.quantitative.contracts import TransformationResult
 from phospy.quantitative.models import (
     IntensityScaleEvidenceLevel,

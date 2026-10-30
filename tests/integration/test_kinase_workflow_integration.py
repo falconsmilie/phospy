@@ -26,7 +26,7 @@ from phospy.api.advanced import (
     KinaseScoringConfig,
     ReferenceContextCompatibilityPolicy,
 )
-from phospy.errors import DatasetValidationError, WorkflowBoundaryError
+from phospy.core.errors import DatasetValidationError, WorkflowBoundaryError
 from phospy.io.publishers.workflows import publish_kinase_workflow
 from phospy.kinase.activity.threshold_membership import THRESHOLD_MEMBERSHIP_OPERATOR
 from phospy.kinase.caveats import (

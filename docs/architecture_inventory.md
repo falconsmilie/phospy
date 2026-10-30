@@ -7,32 +7,30 @@ exact owner-edge policy, and the permanent classification registry.
 
 ## Counts and architecture assertions
 
-- Tracked production files: **645**.
-- Tracked Python modules: **639**.
-- Owner-map entries: **639**.
+- Tracked production files: **646**.
+- Tracked Python modules: **640**.
+- Owner-map entries: **640**.
 - Temporary architecture exceptions: **0**.
-- Retired tracked package roots (`contracts`, `science`, `tables`, `workflows`): **0**.
+- Retired tracked package roots (`contracts`, `errors`, `frames`, `policies`, `science`, `tables`, `validation`, `workflows`): **0**.
 - Unclassified structural forwarding candidates, old-path literals, compatibility behavior, and lazy loading: **0**.
 - The complete eager module graph and policy-filtered owner graph are required to be acyclic by maintained tests.
 
 ## Top-level roots
 
-| Root | Final classification |
+| Root | Current classification |
 | --- | --- |
 | `.` | `public_facade_machinery` |
 | `activities` | `passive_shared_scientific_foundation` |
 | `api` | `public_facade` |
+| `core` | `organisational_namespace` |
 | `data` | `packaged_resource_payload` |
 | `datasets` | `capability` |
 | `differential` | `capability` |
 | `enrichment` | `capability` |
-| `errors` | `shared_technical_foundation` |
 | `evidence` | `shared_scientific_foundation` |
-| `frames` | `shared_technical_foundation` |
 | `io` | `adapter` |
 | `kinase` | `capability` |
 | `phosphosites` | `shared_scientific_foundation` |
-| `policies` | `shared_technical_foundation` |
 | `preparation_records` | `passive_shared_record_foundation` |
 | `preprocessing` | `capability` |
 | `provenance` | `shared_scientific_foundation` |
@@ -42,7 +40,6 @@ exact owner-edge policy, and the permanent classification registry.
 | `signalome` | `capability` |
 | `statistics` | `shared_scientific_foundation` |
 | `taxonomy` | `shared_scientific_foundation` |
-| `validation` | `shared_technical_foundation` |
 
 ## Complete statically observed owner graph (before classifications)
 
@@ -54,7 +51,7 @@ auditable accepted dependency, not an unauthorised import.
 ### Strongly connected components
 
 - `datasets, io, kinase, signalome`
-- Single-owner components: **18**.
+- Single-owner components: **19**.
 
 ### Complete observed edges
 
@@ -198,8 +195,8 @@ removed only before policy condensation and the DAG gate.
 | Classification ID | Source path | Source owner | Target owner | Exact import | Rationale |
 | --- | --- | --- | --- | --- | --- |
 | `dataset-builder-path-reader` | `src/phospy/datasets/builder.py` | `datasets` | `io` | `phospy.datasets.builder -> phospy.io.readers.dataset_inputs.DatasetPathTableReader` | ADR-0053 D05B-1 authorises this exact Dataset builder acquisition of the IO-owned path reader while IO retains filesystem ownership. |
-| `dataset-input-source-validation` | `src/phospy/datasets/construction/input_resolution.py` | `datasets` | `validation` | `phospy.datasets.construction.input_resolution -> phospy.validation.common.input_sources.validate_dataframe_or_path` | ADR-0053 D05B-2 authorises this exact Dataset input-resolution use of the shared DataFrame-or-path validation helper. |
-| `dataset-request-source-validation` | `src/phospy/datasets/validation/inputs.py` | `datasets` | `validation` | `phospy.datasets.validation.inputs -> phospy.validation.common.input_sources.validate_dataframe_or_path` | ADR-0053 D05B-2 authorises this exact Dataset request-validation use of the shared DataFrame-or-path validation helper. |
+| `dataset-input-source-validation` | `src/phospy/datasets/construction/input_resolution.py` | `datasets` | `validation` | `phospy.datasets.construction.input_resolution -> phospy.core.validation.common.input_sources.validate_dataframe_or_path` | ADR-0053 D05B-2 authorises this exact Dataset input-resolution use of the shared DataFrame-or-path validation helper. |
+| `dataset-request-source-validation` | `src/phospy/datasets/validation/inputs.py` | `datasets` | `validation` | `phospy.datasets.validation.inputs -> phospy.core.validation.common.input_sources.validate_dataframe_or_path` | ADR-0053 D05B-2 authorises this exact Dataset request-validation use of the shared DataFrame-or-path validation helper. |
 
 ## Policy-filtered owner graph used by the DAG gate
 
@@ -210,7 +207,7 @@ for owner-level acyclicity.
 ### Strongly connected components
 
 - No multi-owner strongly connected components; the view is acyclic.
-- Single-owner components: **22**.
+- Single-owner components: **23**.
 
 ### Policy-filtered edges
 
@@ -391,16 +388,16 @@ runtime binding, and it does not attempt to model arbitrary Python behavior.
 | `src/phospy/api/__init__.py` | `supported_aggregate_facade` | ADR-0054 ordinary aggregate API; exact owner identities only. |
 | `src/phospy/api/advanced/__init__.py` | `supported_aggregate_facade` | ADR-0055 specialist aggregate API; exact owner identities only. |
 | `src/phospy/api/builders.py` | `deliberate_internal_facade` | Internal aggregate composition used by the supported API; unsupported as an external route. |
-| `src/phospy/errors/__init__.py` | `deliberate_internal_facade` | Owner-package aggregation for internal imports. |
+| `src/phospy/core/errors/__init__.py` | `deliberate_internal_facade` | Owner-package aggregation for internal imports. |
+| `src/phospy/core/frames/__init__.py` | `deliberate_internal_facade` | Owner-package aggregation for neutral frame primitives. |
+| `src/phospy/core/policies/__init__.py` | `deliberate_internal_facade` | Shared policy owner-package composition. |
 | `src/phospy/evidence/__init__.py` | `deliberate_internal_facade` | Owner-package aggregation for evidence records. |
-| `src/phospy/frames/__init__.py` | `deliberate_internal_facade` | Owner-package aggregation for neutral frame primitives. |
 | `src/phospy/io/bundles/kinase.py` | `deliberate_internal_facade` | IO-owned Kinase bundle composition. |
 | `src/phospy/io/bundles/signalome.py` | `deliberate_internal_facade` | IO-owned Signalome bundle composition. |
 | `src/phospy/io/publishers/__init__.py` | `deliberate_internal_facade` | IO publisher package composition. |
 | `src/phospy/io/readers/fragpipe/__init__.py` | `deliberate_internal_facade` | FragPipe reader package composition. |
 | `src/phospy/kinase/scoring/motif/__init__.py` | `deliberate_internal_facade` | Kinase motif implementation package composition. |
 | `src/phospy/phosphosites/__init__.py` | `deliberate_internal_facade` | Phosphosite owner-package composition. |
-| `src/phospy/policies/__init__.py` | `deliberate_internal_facade` | Shared policy owner-package composition. |
 | `src/phospy/preprocessing/batch_correction/__init__.py` | `deliberate_internal_facade` | Batch-correction capability package composition. |
 | `src/phospy/preprocessing/batch_correction/adapters/__init__.py` | `deliberate_internal_facade` | Batch-correction adapter package composition. |
 | `src/phospy/preprocessing/batch_correction/contracts/__init__.py` | `deliberate_internal_facade` | Batch-correction contract package composition. |
@@ -542,6 +539,36 @@ identifiers from live compatibility routes. Their exact sets are enforced.
 - `src/phospy/api/_inventory.py`
 - `src/phospy/api/advanced/__init__.py`
 - `src/phospy/api/builders.py`
+- `src/phospy/core/__init__.py`
+- `src/phospy/core/errors/__init__.py`
+- `src/phospy/core/errors/base.py`
+- `src/phospy/core/errors/build.py`
+- `src/phospy/core/errors/input.py`
+- `src/phospy/core/errors/provenance.py`
+- `src/phospy/core/errors/references.py`
+- `src/phospy/core/errors/transformations.py`
+- `src/phospy/core/errors/validation.py`
+- `src/phospy/core/errors/workflows.py`
+- `src/phospy/core/frames/__init__.py`
+- `src/phospy/core/frames/comparison.py`
+- `src/phospy/core/frames/missing_values.py`
+- `src/phospy/core/frames/numeric.py`
+- `src/phospy/core/frames/ownership.py`
+- `src/phospy/core/frames/pandas_typing.py`
+- `src/phospy/core/frames/table_formats.py`
+- `src/phospy/core/frames/table_schema.py`
+- `src/phospy/core/frames/validation.py`
+- `src/phospy/core/policies/__init__.py`
+- `src/phospy/core/policies/config_values.py`
+- `src/phospy/core/policies/policy_base.py`
+- `src/phospy/core/validation/__init__.py`
+- `src/phospy/core/validation/common/__init__.py`
+- `src/phospy/core/validation/common/config_values.py`
+- `src/phospy/core/validation/common/input_sources.py`
+- `src/phospy/core/validation/common/numbers.py`
+- `src/phospy/core/validation/common/paths.py`
+- `src/phospy/core/validation/frame_columns.py`
+- `src/phospy/core/validation/ownership.py`
 - `src/phospy/data/reference_bundles/rat/l6_native/ATTRIBUTION.md`
 - `src/phospy/data/reference_bundles/rat/l6_native/manifest.json`
 - `src/phospy/data/reference_bundles/rat/l6_native/motif_scores.csv`
@@ -677,15 +704,6 @@ identifiers from live compatibility routes. Their exact sets are enforced.
 - `src/phospy/enrichment/provenance.py`
 - `src/phospy/enrichment/validation.py`
 - `src/phospy/enrichment/workflow.py`
-- `src/phospy/errors/__init__.py`
-- `src/phospy/errors/base.py`
-- `src/phospy/errors/build.py`
-- `src/phospy/errors/input.py`
-- `src/phospy/errors/provenance.py`
-- `src/phospy/errors/references.py`
-- `src/phospy/errors/transformations.py`
-- `src/phospy/errors/validation.py`
-- `src/phospy/errors/workflows.py`
 - `src/phospy/evidence/__init__.py`
 - `src/phospy/evidence/caveats.py`
 - `src/phospy/evidence/config.py`
@@ -706,15 +724,6 @@ identifiers from live compatibility routes. Their exact sets are enforced.
 - `src/phospy/evidence/sequence_resolution.py`
 - `src/phospy/evidence/serialization/historical_peptide.py`
 - `src/phospy/evidence/site_metadata.py`
-- `src/phospy/frames/__init__.py`
-- `src/phospy/frames/comparison.py`
-- `src/phospy/frames/missing_values.py`
-- `src/phospy/frames/numeric.py`
-- `src/phospy/frames/ownership.py`
-- `src/phospy/frames/pandas_typing.py`
-- `src/phospy/frames/table_formats.py`
-- `src/phospy/frames/table_schema.py`
-- `src/phospy/frames/validation.py`
 - `src/phospy/io/__init__.py`
 - `src/phospy/io/bundles/__init__.py`
 - `src/phospy/io/bundles/_kinase/__init__.py`
@@ -875,9 +884,6 @@ identifiers from live compatibility routes. Their exact sets are enforced.
 - `src/phospy/phosphosites/site_keys.py`
 - `src/phospy/phosphosites/validation.py`
 - `src/phospy/phosphosites/workflow_identity.py`
-- `src/phospy/policies/__init__.py`
-- `src/phospy/policies/config_values.py`
-- `src/phospy/policies/policy_base.py`
 - `src/phospy/preparation_records/__init__.py`
 - `src/phospy/preparation_records/batch_correction.py`
 - `src/phospy/preparation_records/group_evidence.py`
@@ -1170,14 +1176,6 @@ identifiers from live compatibility routes. Their exact sets are enforced.
 - `src/phospy/statistics/multiple_testing.py`
 - `src/phospy/taxonomy/__init__.py`
 - `src/phospy/taxonomy/organisms.py`
-- `src/phospy/validation/__init__.py`
-- `src/phospy/validation/common/__init__.py`
-- `src/phospy/validation/common/config_values.py`
-- `src/phospy/validation/common/input_sources.py`
-- `src/phospy/validation/common/numbers.py`
-- `src/phospy/validation/common/paths.py`
-- `src/phospy/validation/frame_columns.py`
-- `src/phospy/validation/ownership.py`
 
 ## Complete Python module ownership inventory
 
@@ -1192,6 +1190,36 @@ identifiers from live compatibility routes. Their exact sets are enforced.
 | `src/phospy/api/_inventory.py` | `phospy.api._inventory` | `public_facades` | Supported aggregate inventory |
 | `src/phospy/api/advanced/__init__.py` | `phospy.api.advanced` | `public_facades` | Supported specialist aggregate adapter |
 | `src/phospy/api/builders.py` | `phospy.api.builders` | `public_facades` | Internal API composition route; unsupported for direct consumer import |
+| `src/phospy/core/__init__.py` | `phospy.core` | `namespace_containers` | Inert organisational namespace initializer |
+| `src/phospy/core/errors/__init__.py` | `phospy.core.errors` | `errors` | Shared exception taxonomy |
+| `src/phospy/core/errors/base.py` | `phospy.core.errors.base` | `errors` | Shared exception taxonomy |
+| `src/phospy/core/errors/build.py` | `phospy.core.errors.build` | `errors` | Shared exception taxonomy |
+| `src/phospy/core/errors/input.py` | `phospy.core.errors.input` | `errors` | Shared exception taxonomy |
+| `src/phospy/core/errors/provenance.py` | `phospy.core.errors.provenance` | `errors` | Shared exception taxonomy |
+| `src/phospy/core/errors/references.py` | `phospy.core.errors.references` | `errors` | Shared exception taxonomy |
+| `src/phospy/core/errors/transformations.py` | `phospy.core.errors.transformations` | `errors` | Shared exception taxonomy |
+| `src/phospy/core/errors/validation.py` | `phospy.core.errors.validation` | `errors` | Shared exception taxonomy |
+| `src/phospy/core/errors/workflows.py` | `phospy.core.errors.workflows` | `errors` | Shared exception taxonomy |
+| `src/phospy/core/frames/__init__.py` | `phospy.core.frames` | `frames` | Generic dataframe ownership or schema mechanics |
+| `src/phospy/core/frames/comparison.py` | `phospy.core.frames.comparison` | `frames` | Generic dataframe ownership or schema mechanics |
+| `src/phospy/core/frames/missing_values.py` | `phospy.core.frames.missing_values` | `frames` | Generic dataframe ownership or schema mechanics |
+| `src/phospy/core/frames/numeric.py` | `phospy.core.frames.numeric` | `frames` | Generic dataframe ownership or schema mechanics |
+| `src/phospy/core/frames/ownership.py` | `phospy.core.frames.ownership` | `frames` | Generic dataframe ownership or schema mechanics |
+| `src/phospy/core/frames/pandas_typing.py` | `phospy.core.frames.pandas_typing` | `frames` | Generic dataframe ownership or schema mechanics |
+| `src/phospy/core/frames/table_formats.py` | `phospy.core.frames.table_formats` | `frames` | Generic dataframe ownership or schema mechanics |
+| `src/phospy/core/frames/table_schema.py` | `phospy.core.frames.table_schema` | `frames` | Generic dataframe ownership or schema mechanics |
+| `src/phospy/core/frames/validation.py` | `phospy.core.frames.validation` | `frames` | Generic dataframe ownership or schema mechanics |
+| `src/phospy/core/policies/__init__.py` | `phospy.core.policies` | `policies` | Generic parsing and scalar policy |
+| `src/phospy/core/policies/config_values.py` | `phospy.core.policies.config_values` | `policies` | Generic parsing and scalar policy |
+| `src/phospy/core/policies/policy_base.py` | `phospy.core.policies.policy_base` | `policies` | Generic parsing and scalar policy |
+| `src/phospy/core/validation/__init__.py` | `phospy.core.validation` | `validation` | Reusable validation mechanics |
+| `src/phospy/core/validation/common/__init__.py` | `phospy.core.validation.common` | `validation` | Reusable validation mechanics |
+| `src/phospy/core/validation/common/config_values.py` | `phospy.core.validation.common.config_values` | `validation` | Reusable validation mechanics |
+| `src/phospy/core/validation/common/input_sources.py` | `phospy.core.validation.common.input_sources` | `validation` | Policy-free DataFrame-or-path input validation mechanics |
+| `src/phospy/core/validation/common/numbers.py` | `phospy.core.validation.common.numbers` | `validation` | Reusable validation mechanics |
+| `src/phospy/core/validation/common/paths.py` | `phospy.core.validation.common.paths` | `validation` | Reusable validation mechanics |
+| `src/phospy/core/validation/frame_columns.py` | `phospy.core.validation.frame_columns` | `validation` | Reusable validation mechanics |
+| `src/phospy/core/validation/ownership.py` | `phospy.core.validation.ownership` | `validation` | Generic validation governance |
 | `src/phospy/datasets/__init__.py` | `phospy.datasets` | `datasets` | Dataset model construction invariant or durable attached record |
 | `src/phospy/datasets/_construction/__init__.py` | `phospy.datasets._construction` | `datasets` | Dataset model construction invariant or durable attached record |
 | `src/phospy/datasets/_construction/fingerprints.py` | `phospy.datasets._construction.fingerprints` | `datasets` | Dataset model construction invariant or durable attached record |
@@ -1321,15 +1349,6 @@ identifiers from live compatibility routes. Their exact sets are enforced.
 | `src/phospy/enrichment/provenance.py` | `phospy.enrichment.provenance` | `enrichment` | Complete Enrichment capability lifecycle |
 | `src/phospy/enrichment/validation.py` | `phospy.enrichment.validation` | `enrichment` | Complete Enrichment capability lifecycle |
 | `src/phospy/enrichment/workflow.py` | `phospy.enrichment.workflow` | `enrichment` | Complete Enrichment capability lifecycle |
-| `src/phospy/errors/__init__.py` | `phospy.errors` | `errors` | Shared exception taxonomy |
-| `src/phospy/errors/base.py` | `phospy.errors.base` | `errors` | Shared exception taxonomy |
-| `src/phospy/errors/build.py` | `phospy.errors.build` | `errors` | Shared exception taxonomy |
-| `src/phospy/errors/input.py` | `phospy.errors.input` | `errors` | Shared exception taxonomy |
-| `src/phospy/errors/provenance.py` | `phospy.errors.provenance` | `errors` | Shared exception taxonomy |
-| `src/phospy/errors/references.py` | `phospy.errors.references` | `errors` | Shared exception taxonomy |
-| `src/phospy/errors/transformations.py` | `phospy.errors.transformations` | `errors` | Shared exception taxonomy |
-| `src/phospy/errors/validation.py` | `phospy.errors.validation` | `errors` | Shared exception taxonomy |
-| `src/phospy/errors/workflows.py` | `phospy.errors.workflows` | `errors` | Shared exception taxonomy |
 | `src/phospy/evidence/__init__.py` | `phospy.evidence` | `evidence` | Evidence policy, records, allocation, or structural resolution |
 | `src/phospy/evidence/caveats.py` | `phospy.evidence.caveats` | `evidence` | Evidence policy, records, allocation, or structural resolution |
 | `src/phospy/evidence/config.py` | `phospy.evidence.config` | `evidence` | Evidence policy, records, allocation, or structural resolution |
@@ -1350,15 +1369,6 @@ identifiers from live compatibility routes. Their exact sets are enforced.
 | `src/phospy/evidence/sequence_resolution.py` | `phospy.evidence.sequence_resolution` | `evidence` | Evidence policy, records, allocation, or structural resolution |
 | `src/phospy/evidence/serialization/historical_peptide.py` | `phospy.evidence.serialization.historical_peptide` | `evidence` | Historical peptide evidence compatibility codec |
 | `src/phospy/evidence/site_metadata.py` | `phospy.evidence.site_metadata` | `evidence` | Evidence policy, records, allocation, or structural resolution |
-| `src/phospy/frames/__init__.py` | `phospy.frames` | `frames` | Generic dataframe ownership or schema mechanics |
-| `src/phospy/frames/comparison.py` | `phospy.frames.comparison` | `frames` | Generic dataframe ownership or schema mechanics |
-| `src/phospy/frames/missing_values.py` | `phospy.frames.missing_values` | `frames` | Generic dataframe ownership or schema mechanics |
-| `src/phospy/frames/numeric.py` | `phospy.frames.numeric` | `frames` | Generic dataframe ownership or schema mechanics |
-| `src/phospy/frames/ownership.py` | `phospy.frames.ownership` | `frames` | Generic dataframe ownership or schema mechanics |
-| `src/phospy/frames/pandas_typing.py` | `phospy.frames.pandas_typing` | `frames` | Generic dataframe ownership or schema mechanics |
-| `src/phospy/frames/table_formats.py` | `phospy.frames.table_formats` | `frames` | Generic dataframe ownership or schema mechanics |
-| `src/phospy/frames/table_schema.py` | `phospy.frames.table_schema` | `frames` | Generic dataframe ownership or schema mechanics |
-| `src/phospy/frames/validation.py` | `phospy.frames.validation` | `frames` | Generic dataframe ownership or schema mechanics |
 | `src/phospy/io/__init__.py` | `phospy.io` | `io` | Reader, persistence, or publisher adapter |
 | `src/phospy/io/bundles/__init__.py` | `phospy.io.bundles` | `io` | Reader, persistence, or publisher adapter |
 | `src/phospy/io/bundles/_kinase/__init__.py` | `phospy.io.bundles._kinase` | `io` | Reader, persistence, or publisher adapter |
@@ -1519,9 +1529,6 @@ identifiers from live compatibility routes. Their exact sets are enforced.
 | `src/phospy/phosphosites/site_keys.py` | `phospy.phosphosites.site_keys` | `phosphosites` | Shared phosphosite identity or supplied-window rule |
 | `src/phospy/phosphosites/validation.py` | `phospy.phosphosites.validation` | `phosphosites` | Shared phosphosite identity or supplied-window rule |
 | `src/phospy/phosphosites/workflow_identity.py` | `phospy.phosphosites.workflow_identity` | `phosphosites` | Shared phosphosite identity or supplied-window rule |
-| `src/phospy/policies/__init__.py` | `phospy.policies` | `policies` | Generic parsing and scalar policy |
-| `src/phospy/policies/config_values.py` | `phospy.policies.config_values` | `policies` | Generic parsing and scalar policy |
-| `src/phospy/policies/policy_base.py` | `phospy.policies.policy_base` | `policies` | Generic parsing and scalar policy |
 | `src/phospy/preparation_records/__init__.py` | `phospy.preparation_records` | `preparation_records` | Passive preparation record or structural validation |
 | `src/phospy/preparation_records/batch_correction.py` | `phospy.preparation_records.batch_correction` | `preparation_records` | Passive preparation record or structural validation |
 | `src/phospy/preparation_records/group_evidence.py` | `phospy.preparation_records.group_evidence` | `preparation_records` | Passive preparation record or structural validation |
@@ -1814,11 +1821,3 @@ identifiers from live compatibility routes. Their exact sets are enforced.
 | `src/phospy/statistics/multiple_testing.py` | `phospy.statistics.multiple_testing` | `statistics` | Reusable statistical kernel or generic correction value |
 | `src/phospy/taxonomy/__init__.py` | `phospy.taxonomy` | `taxonomy` | Typed organism vocabulary and normalisation |
 | `src/phospy/taxonomy/organisms.py` | `phospy.taxonomy.organisms` | `taxonomy` | Typed organism vocabulary and normalisation |
-| `src/phospy/validation/__init__.py` | `phospy.validation` | `validation` | Reusable validation mechanics |
-| `src/phospy/validation/common/__init__.py` | `phospy.validation.common` | `validation` | Reusable validation mechanics |
-| `src/phospy/validation/common/config_values.py` | `phospy.validation.common.config_values` | `validation` | Reusable validation mechanics |
-| `src/phospy/validation/common/input_sources.py` | `phospy.validation.common.input_sources` | `validation` | Policy-free DataFrame-or-path input validation mechanics |
-| `src/phospy/validation/common/numbers.py` | `phospy.validation.common.numbers` | `validation` | Reusable validation mechanics |
-| `src/phospy/validation/common/paths.py` | `phospy.validation.common.paths` | `validation` | Reusable validation mechanics |
-| `src/phospy/validation/frame_columns.py` | `phospy.validation.frame_columns` | `validation` | Reusable validation mechanics |
-| `src/phospy/validation/ownership.py` | `phospy.validation.ownership` | `validation` | Generic validation governance |

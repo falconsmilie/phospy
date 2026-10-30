@@ -7,8 +7,8 @@ from typing import Any, cast
 
 import pandas as pd
 
-from phospy.errors.input import PhosPyInputError, UnsupportedInputFormatError
-from phospy.frames.table_formats import (
+from phospy.core.errors.input import PhosPyInputError, UnsupportedInputFormatError
+from phospy.core.frames.table_formats import (
     supported_table_input_formats,
     table_format_from_path,
 )

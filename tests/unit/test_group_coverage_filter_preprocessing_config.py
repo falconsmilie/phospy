@@ -8,7 +8,7 @@ from phospy.api import (
 from phospy.api.advanced import (
     DatasetGroupCoverageFilterConfig,
 )
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.preprocessing.contracts import PreprocessingPlan
 
 

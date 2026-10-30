@@ -7,7 +7,7 @@ from phospy.api.advanced import (
     KinaseReliabilityProfile,
     LocalisationRequirement,
 )
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.io.bundles.kinase import KinaseWorkflowConfigSnapshot
 
 

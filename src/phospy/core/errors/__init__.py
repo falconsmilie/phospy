@@ -1,29 +1,29 @@
 """Public exception taxonomy exports."""
 
-from phospy.errors.base import PhosPyError
-from phospy.errors.build import DatasetBuildError, PhosPyBuildError
-from phospy.errors.input import (
+from phospy.core.errors.base import PhosPyError
+from phospy.core.errors.build import DatasetBuildError, PhosPyBuildError
+from phospy.core.errors.input import (
     DatasetProcessingStateError,
     PhosPyInputError,
     UnsupportedInputFormatError,
 )
-from phospy.errors.provenance import (
+from phospy.core.errors.provenance import (
     PhosPyProvenanceError,
     ProvenanceFingerprintError,
 )
-from phospy.errors.references import (
+from phospy.core.errors.references import (
     PhosPyReferenceError,
     ReferenceCompatibilityError,
     ReferenceResolutionError,
     UnsupportedOrganismError,
 )
-from phospy.errors.transformations import (
+from phospy.core.errors.transformations import (
     InvalidTransformationStateError,
     PhosPyTransformationError,
     TransformationStateEstablishmentError,
     TransformerExecutionError,
 )
-from phospy.errors.validation import (
+from phospy.core.errors.validation import (
     ContractValidationError,
     DatasetValidationError,
     PhosPyValidationError,
@@ -32,7 +32,7 @@ from phospy.errors.validation import (
     TransformationValidationError,
     WorkflowValidationError,
 )
-from phospy.errors.workflows import (
+from phospy.core.errors.workflows import (
     PhosPyWorkflowError,
     WorkflowBoundaryError,
     WorkflowStageError,

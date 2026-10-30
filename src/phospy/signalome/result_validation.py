@@ -8,9 +8,9 @@ from types import MappingProxyType
 
 import pandas as pd
 
+from phospy.core.errors.workflows import WorkflowStageError
 from phospy.datasets.internal_view import DatasetInternalView
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.errors.workflows import WorkflowStageError
 from phospy.phosphosites.validation import require_site_key_series
 from phospy.signalome.constants import (
     DISPLAY_ID_COLUMN,

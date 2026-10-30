@@ -10,8 +10,8 @@ from typing import TypeGuard, cast
 
 import pandas as pd
 
-from phospy.errors.input import PhosPyInputError
-from phospy.errors.validation import PhosPyValidationError
+from phospy.core.errors.input import PhosPyInputError
+from phospy.core.errors.validation import PhosPyValidationError
 from phospy.io.bundles._shared.primitives import (
     require_int,
     require_mapping,

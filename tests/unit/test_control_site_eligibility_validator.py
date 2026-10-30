@@ -3,7 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy.errors import PhosPyInputError
+from phospy.core.errors import PhosPyInputError
 from phospy.preprocessing.control_sites.contracts import (
     ControlSiteAnnotation,
     ControlSiteSet,

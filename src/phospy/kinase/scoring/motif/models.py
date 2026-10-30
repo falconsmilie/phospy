@@ -8,7 +8,7 @@ from typing import Literal
 import numpy as np
 import pandas as pd
 
-from phospy.frames.ownership import (
+from phospy.core.frames.ownership import (
     export_dataframe,
     export_optional_dataframe,
     export_series,

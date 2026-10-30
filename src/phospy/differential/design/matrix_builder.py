@@ -10,6 +10,7 @@ from typing import cast
 
 import pandas as pd
 
+from phospy.core.errors.validation import WorkflowValidationError
 from phospy.differential.design.models import (
     FIXED_EFFECT_COVARIATE_KIND_BATCH,
     FIXED_EFFECT_COVARIATE_KIND_CATEGORICAL,
@@ -23,7 +24,6 @@ from phospy.differential.design.models import (
     PairedDesignPolicy,
     SampleDesignRecord,
 )
-from phospy.errors.validation import WorkflowValidationError
 
 CategoricalLevelSpec = Mapping[str, Sequence[str | int | float]]
 

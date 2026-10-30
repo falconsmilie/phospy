@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import PurePosixPath
 from typing import NoReturn
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.io.bundles._shared.integrity import (
     require_file_entry,
     require_optional_table_entry,

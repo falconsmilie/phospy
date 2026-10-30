@@ -18,7 +18,7 @@
       "disposition": "deliberate_internal_facade",
       "rationale": "Internal aggregate composition used by the supported API; unsupported as an external route."
     },
-    "src/phospy/errors/__init__.py": {
+    "src/phospy/core/errors/__init__.py": {
       "disposition": "deliberate_internal_facade",
       "rationale": "Owner-package aggregation for internal imports."
     },
@@ -26,7 +26,7 @@
       "disposition": "deliberate_internal_facade",
       "rationale": "Owner-package aggregation for evidence records."
     },
-    "src/phospy/frames/__init__.py": {
+    "src/phospy/core/frames/__init__.py": {
       "disposition": "deliberate_internal_facade",
       "rationale": "Owner-package aggregation for neutral frame primitives."
     },
@@ -54,7 +54,7 @@
       "disposition": "deliberate_internal_facade",
       "rationale": "Phosphosite owner-package composition."
     },
-    "src/phospy/policies/__init__.py": {
+    "src/phospy/core/policies/__init__.py": {
       "disposition": "deliberate_internal_facade",
       "rationale": "Shared policy owner-package composition."
     },

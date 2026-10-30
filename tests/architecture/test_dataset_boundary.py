@@ -61,8 +61,8 @@ _OLD_DATASET_MODULES = (
     "phospy.science.datasets.builders.total_matrix_normalizer",
     "phospy.science.datasets.builders.transformation_resolver",
     "phospy.science.datasets.builders.transformation_state",
-    "phospy.validation.datasets.builder_request",
-    "phospy.validation.datasets.inputs",
+    "phospy.core.validation.datasets.builder_request",
+    "phospy.core.validation.datasets.inputs",
     "phospy.workflows.result_caveat_helpers",
 )
 
@@ -147,12 +147,12 @@ def test_preparation_records_are_passive_closed_leaves_with_exact_declarations()
         or record.source_module.startswith("phospy.preparation_records.")
     }
     assert actual_targets == {
-        "phospy.errors.input",
-        "phospy.errors.validation",
-        "phospy.frames.comparison",
-        "phospy.frames.ownership",
-        "phospy.frames.validation",
-        "phospy.policies",
+        "phospy.core.errors.input",
+        "phospy.core.errors.validation",
+        "phospy.core.frames.comparison",
+        "phospy.core.frames.ownership",
+        "phospy.core.frames.validation",
+        "phospy.core.policies",
         "phospy.provenance.hashing",
     }
 

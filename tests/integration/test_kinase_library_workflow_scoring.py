@@ -13,8 +13,8 @@ from phospy.api.advanced import (
     KinaseScoringConfig,
     ReferenceContextCompatibilityPolicy,
 )
+from phospy.core.errors import WorkflowBoundaryError, WorkflowValidationError
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.errors import WorkflowBoundaryError, WorkflowValidationError
 from phospy.kinase.public import KinaseWorkflow
 from phospy.kinase.references.models import (
     KinaseLibraryMatrix,

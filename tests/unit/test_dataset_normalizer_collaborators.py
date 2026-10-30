@@ -3,6 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
+from phospy.core.errors.input import UnsupportedInputFormatError
 from phospy.datasets.construction.normalization_reporting import (
     DatasetConventionNormalisationReporter,
 )
@@ -18,7 +19,6 @@ from phospy.datasets.construction.site_metadata import (
 from phospy.datasets.construction.total_matrix import (
     TotalProteinMatrixNormalizer,
 )
-from phospy.errors.input import UnsupportedInputFormatError
 
 
 def test_site_metadata_column_alias_resolver_maps_supported_aliases() -> None:

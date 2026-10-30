@@ -7,6 +7,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any, cast
 
+from phospy.core.errors.input import PhosPyInputError
 from phospy.differential.models.duplicate_correlation import (
     DuplicateCorrelationWorkflowProvenance,
 )
@@ -18,7 +19,6 @@ from phospy.differential.moderation.config import (
 from phospy.differential.quantification_depth import (
     QUANTIFICATION_DEPTH_TREND_TRANSFORMATION,
 )
-from phospy.errors.input import PhosPyInputError
 from phospy.evidence.quantification_depth import SUPPORTED_QUANTIFICATION_DEPTH_KINDS
 from phospy.provenance.immutability import freeze_json_mapping
 from phospy.provenance.models import (

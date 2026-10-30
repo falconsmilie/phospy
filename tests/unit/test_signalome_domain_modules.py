@@ -3,7 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy.errors import WorkflowStageError
+from phospy.core.errors import WorkflowStageError
 from phospy.signalome.config import (
     SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP,
     SIGNALOME_KINASE_NETWORK_POLICY_SIGNED,

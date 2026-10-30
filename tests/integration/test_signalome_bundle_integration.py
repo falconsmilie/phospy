@@ -26,7 +26,7 @@ from phospy.api.advanced import (
     KinaseScoringConfig,
     ReferenceContextCompatibilityPolicy,
 )
-from phospy.errors import (
+from phospy.core.errors import (
     ContractValidationError,
     PhosPyInputError,
     PhosPyValidationError,

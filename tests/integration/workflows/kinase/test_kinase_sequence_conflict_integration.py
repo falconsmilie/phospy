@@ -17,8 +17,8 @@ from phospy.api.advanced import (
     KinaseScoringConfig,
     ReferenceContextCompatibilityPolicy,
 )
+from phospy.core.errors.workflows import WorkflowBoundaryError
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.kinase.contracts import ResolvedKinaseWorkflowRequest
 from phospy.kinase.scoring.config import (
     KINASE_SITE_SEQUENCE_CONFLICT_POLICY_ERROR,

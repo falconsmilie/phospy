@@ -13,8 +13,8 @@ from phospy.api.advanced import (
     DatasetMissingDataConfig,
     DatasetTotalProteinCorrectionConfig,
 )
-from phospy.errors import DatasetValidationError, PhosPyInputError
-from phospy.errors.transformations import TransformationStateEstablishmentError
+from phospy.core.errors import DatasetValidationError, PhosPyInputError
+from phospy.core.errors.transformations import TransformationStateEstablishmentError
 from phospy.quantitative.models import IntensityScaleEstablishmentSource
 
 pytestmark = pytest.mark.integration

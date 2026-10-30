@@ -9,7 +9,7 @@ import pytest
 import phospy.differential.planning.replicates as replicate_models
 import phospy.io.readers.enrichment_sets as enrichment_readers
 from phospy.activities.semantics import ActivityInputMatrix
-from phospy.errors import WorkflowBoundaryError
+from phospy.core.errors import WorkflowBoundaryError
 from phospy.kinase.activity.inputs import (
     KinaseActivityInputs,
     PredMatOverlapSummary,

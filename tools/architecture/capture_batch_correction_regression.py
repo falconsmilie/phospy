@@ -18,7 +18,7 @@ from phospy.api.advanced import (
     TemporaryImputationMethod,
     TemporaryImputationPolicy,
 )
-from phospy.errors import PhosPyInputError
+from phospy.core.errors import PhosPyInputError
 from phospy.preparation_records.batch_correction import (
     BATCH_CORRECTION_CONFOUNDING_NOT_APPLICABLE,
     BATCH_CORRECTION_STATUS_DISABLED,

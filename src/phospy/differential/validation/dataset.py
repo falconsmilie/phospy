@@ -7,6 +7,7 @@ from typing import cast
 
 import pandas as pd
 
+from phospy.core.errors.validation import WorkflowValidationError
 from phospy.datasets.internal_view import DatasetInternalView
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.differential.config import (
@@ -37,7 +38,6 @@ from phospy.differential.validation.design import (
     FixedBlockDesignValidator,
     ResolvedDifferentialDesignMatrixValidator,
 )
-from phospy.errors.validation import WorkflowValidationError
 from phospy.quantitative.models import (
     IntensityScaleEstablishmentMode,
     IntensityScaleKind,

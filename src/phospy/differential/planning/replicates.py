@@ -9,6 +9,7 @@ from typing import cast
 
 import pandas as pd
 
+from phospy.core.errors.validation import WorkflowValidationError
 from phospy.datasets.derived_quantitative import (
     TECHNICAL_REPLICATE_AGGREGATION_DERIVATION_TYPE,
     TECHNICAL_REPLICATE_AGGREGATOR_IMPLEMENTATION,
@@ -24,7 +25,6 @@ from phospy.differential.policies import TechnicalReplicatePolicy
 from phospy.differential.provenance.lineage import (
     build_derived_quantitative_run_provenance,
 )
-from phospy.errors.validation import WorkflowValidationError
 from phospy.provenance.environment import collect_environment_provenance
 from phospy.provenance.hashing import fingerprint_optional_table_strict
 from phospy.provenance.models import (

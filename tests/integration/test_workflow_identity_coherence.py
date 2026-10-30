@@ -8,7 +8,7 @@ from phospy.api import (
     KinaseWorkflow,
     SignalomeWorkflow,
 )
-from phospy.errors import WorkflowValidationError
+from phospy.core.errors import WorkflowValidationError
 from phospy.signalome.constants import (
     DISPLAY_ID_COLUMN,
     EXPANDED_SIGNALOME_ROW_KIND_COLUMN,

@@ -5,7 +5,7 @@ from dataclasses import replace
 import pandas as pd
 import pytest
 
-from phospy.errors import PhosPyInputError
+from phospy.core.errors import PhosPyInputError
 from phospy.preprocessing.batch_correction.provenance.validation import (
     validate_applied_native_sps_ruv_correction_provenance,
 )

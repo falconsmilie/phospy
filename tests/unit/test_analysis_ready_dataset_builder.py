@@ -6,7 +6,7 @@ import pandas as pd
 import pytest
 
 from phospy.api import AnalysisReadyDatasetBuilder, DatasetBuildRequest, Organism
-from phospy.errors import DatasetValidationError, PhosPyInputError
+from phospy.core.errors import DatasetValidationError, PhosPyInputError
 
 _CENTRED_Y_SEQUENCE = "AAAAAAAAAAAAAAAYAAAAAAAAAAAAAAA"
 _CENTRED_T_SEQUENCE = "AAAAAAAAAAAAAAATAAAAAAAAAAAAAAA"

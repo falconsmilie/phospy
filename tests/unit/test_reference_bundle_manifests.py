@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from phospy.errors.references import (
+from phospy.core.errors.references import (
     ReferenceCompatibilityError,
     ReferenceResolutionError,
     UnsupportedOrganismError,

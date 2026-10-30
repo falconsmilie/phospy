@@ -5,17 +5,17 @@ import pytest
 from hypothesis import assume, given, settings
 from hypothesis import strategies as st
 
+from phospy.core.errors.validation import (
+    DatasetValidationError,
+    PhosPyValidationError,
+    ReferenceValidationError,
+    WorkflowValidationError,
+)
 from phospy.datasets.schemas import (
     PhosphoIntensityMatrix,
     SampleMetadataTable,
     SiteMetadataTable,
     TotalProteinMatrix,
-)
-from phospy.errors.validation import (
-    DatasetValidationError,
-    PhosPyValidationError,
-    ReferenceValidationError,
-    WorkflowValidationError,
 )
 from phospy.kinase.activity.tables import ActivityMatrix, ActivityTargetTable
 from phospy.kinase.prediction.tables import KinasePredictionMatrix

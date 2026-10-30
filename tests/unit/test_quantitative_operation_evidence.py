@@ -12,11 +12,11 @@ from phospy.api import (
 from phospy.api.advanced import (
     SpsRuvBatchCorrectionConfig,
 )
+from phospy.core.errors.build import DatasetBuildError
+from phospy.core.errors.transformations import InvalidTransformationStateError
 from phospy.datasets.construction.state_assembly import (
     DatasetProcessingStateBuilder,
 )
-from phospy.errors.build import DatasetBuildError
-from phospy.errors.transformations import InvalidTransformationStateError
 from phospy.preparation_records.batch_correction import (
     BatchCorrectionDiagnostics,
     BatchCorrectionPolicy,

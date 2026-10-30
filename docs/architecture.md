@@ -6,7 +6,10 @@ and `signalome`. Shared scientific roots own reusable meaning and data contracts
 `activities`, `evidence`, `phosphosites`, `quantitative`, `references`,
 `statistics`, `taxonomy`, and `provenance`. `preparation_records` owns passive
 preparation records, while `run_lineage` composes provenance across capabilities.
-`errors`, `frames`, `policies`, and `validation` are technical foundations.
+The technical foundations `errors`, `frames`, `policies`, and `validation` now
+live as distinct logical owners beneath the inert organisational `core`
+namespace. The remaining shared scientific and composition owners stay at the
+package root until their later migration tickets.
 
 Dependencies point from capabilities toward shared foundations and published
 contracts. The `io` root is an inward adapter and can depend only on reviewed
@@ -58,7 +61,7 @@ former broad capability-to-shared/foundation rule.
 | `_run_declared_scale_sanity_diagnostics` | `phospy.quantitative.declared_scale_diagnostics.run_declared_scale_sanity_diagnostics` | Dataset intensity-scale resolution and SPS reference declarations | Shared declared-scale sanity diagnostics. |
 | `phospy.provenance.models._shared` and its private scalar guards | `phospy.provenance.scalar_validation` | Dataset assertions, preprocessing provenance/batch contracts, and Kinase reference provenance | JSON value typing and field-qualified scalar guards. |
 | `phospy.provenance.serialization._payload` | `phospy.provenance.serialization.payload` | Preprocessing provenance serialization | Historical provenance payload validation/coercion. |
-| `phospy.frames.ownership._borrow_dataframe` and `_borrow_optional_dataframe` | Existing `borrow_dataframe` and `borrow_optional_dataframe` owner contract | Kinase scoring and prediction results | Immutable internal dataframe snapshots without public mutable borrowing. |
+| `phospy.core.frames.ownership._borrow_dataframe` and `_borrow_optional_dataframe` | Existing `borrow_dataframe` and `borrow_optional_dataframe` owner contract | Kinase scoring and prediction results | Immutable internal dataframe snapshots without public mutable borrowing. |
 
 These modules are not exported by `phospy.api` or `phospy.api.advanced`;
 direct owner-module imports remain unsupported for external callers.
@@ -85,16 +88,18 @@ decisions are [ADR-0053](adr/adr_0053_domain_first_capability_architecture.md) a
 [ADR-0054](adr/adr_0054_public_api_reset_and_compatibility_removal.md).
 
 [ADR-0055](adr/adr_0055_nested_owner_namespaces_and_api_consolidation.md)
-governs the current API consolidation and the next directory refinement. The
+governs the current API consolidation and directory refinement. The
 specialist facade and private inventory now live beneath `phospy.api`, and the
 three former root conveniences remain available through `phospy.api` only.
-Later migration tickets will move the reusable owners into separate children
-of the inert `phospy.core` namespace. Until each owner package moves atomically,
-the live owner routes and maintained API baseline above remain authoritative.
+The inert `phospy.core` namespace now contains the separately governed
+`errors`, `frames`, `policies`, and `validation` owners. Later migration tickets
+will move the remaining reusable owners into separate children of that
+namespace. Until each owner package moves atomically, the live owner routes and
+maintained API baseline above remain authoritative.
 
 Architecture enforcement resolves owner-pure package units from the owner map,
-so nested siblings such as future `phospy.core.frames` and
-`phospy.core.quantitative` remain distinct. Physical top-level roots are
+so the live `phospy.core.frames` owner and a later
+`phospy.core.quantitative` owner remain distinct. Physical top-level roots are
 reported separately and do not define owner permissions or owner-level cycles.
 
 Reusable graph analysis, ownership, final-policy, and inventory rendering code

@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from phospy.core.errors.input import PhosPyInputError
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.errors.input import PhosPyInputError
 from phospy.io.bundles._shared.processing_state import processing_state_to_payload
 from phospy.io.bundles._shared.transactions import write_output_tree_atomically
 from phospy.io.bundles._signalome.diagnostics import (

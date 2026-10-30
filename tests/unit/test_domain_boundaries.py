@@ -19,13 +19,7 @@ from phospy.api.advanced import (
     DatasetMissingDataConfig,
     DatasetSiteMatrixConfig,
 )
-from phospy.datasets.internal_view import DatasetInternalView
-from phospy.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.datasets.trusted_assertions import (
-    TrustedDatasetConstructionAssertions,
-    TrustedDatasetConstructionEvidence,
-)
-from phospy.errors import (
+from phospy.core.errors import (
     DatasetValidationError,
     PhosPyInputError,
     PhosPyValidationError,
@@ -35,6 +29,12 @@ from phospy.errors import (
     TransformationValidationError,
     UnsupportedInputFormatError,
     UnsupportedOrganismError,
+)
+from phospy.datasets.internal_view import DatasetInternalView
+from phospy.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.datasets.trusted_assertions import (
+    TrustedDatasetConstructionAssertions,
+    TrustedDatasetConstructionEvidence,
 )
 from phospy.quantitative.models import (
     MatrixIntensityScaleState,
@@ -84,7 +84,7 @@ _FORBIDDEN_ACCESSION_CASE_NORMALISATION = re.compile(
 _WORKFLOW_BORROW_METHOD_PATTERN = re.compile(r"\._borrow_[A-Za-z0-9_]*\s*\(")
 _WORKFLOW_BORROW_GUARD_DIRS = (
     "src/phospy/workflows",
-    "src/phospy/validation/workflows",
+    "src/phospy/core/validation/workflows",
 )
 _DATASET_INTERNAL_VIEW_FRAME_PROPERTIES = {
     "comparisons",

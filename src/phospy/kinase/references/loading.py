@@ -9,8 +9,8 @@ from typing import Protocol, cast
 
 import pandas as pd
 
-from phospy.errors.references import ReferenceResolutionError
-from phospy.errors.validation import ReferenceValidationError
+from phospy.core.errors.references import ReferenceResolutionError
+from phospy.core.errors.validation import ReferenceValidationError
 from phospy.kinase.references.models import (
     KinaseLibraryMatrix,
     KinaseLibraryPath,

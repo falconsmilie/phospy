@@ -34,8 +34,8 @@ from phospy.api.advanced import (
     SpsReferenceDataset,
     SpsRuvBatchCorrectionConfig,
 )
+from phospy.core.errors import PhosPyInputError
 from phospy.datasets.construction.interpreter import DatasetBuildRequestInterpreter
-from phospy.errors import PhosPyInputError
 from phospy.preprocessing.batch_correction.contracts import (
     BatchCorrectionDiagnostics,
     BatchCorrectionPolicy,

@@ -8,7 +8,7 @@ from typing import Any, TypeVar
 
 import pandas as pd
 
-from phospy.errors.base import PhosPyError
+from phospy.core.errors.base import PhosPyError
 from phospy.phosphosites.contracts import (
     PhosphositeIdentityContract,
     SequenceContextContract,

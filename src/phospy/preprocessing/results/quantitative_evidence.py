@@ -7,7 +7,7 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, NoReturn, cast
 
-from phospy.errors.build import DatasetBuildError
+from phospy.core.errors.build import DatasetBuildError
 from phospy.provenance.models import (
     BatchCorrectionProvenance,
     TableFingerprint,

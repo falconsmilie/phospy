@@ -11,6 +11,7 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 
+from phospy.core.errors.validation import WorkflowValidationError
 from phospy.datasets.internal_view import DatasetInternalView
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.differential.config import (
@@ -36,7 +37,6 @@ from phospy.differential.execution.linear_model import (
 from phospy.differential.models.duplicate_correlation import (
     DUPLICATE_CORRELATION_MINIMUM_RESIDUAL_DEGREES_OF_FREEDOM,
 )
-from phospy.errors.validation import WorkflowValidationError
 
 
 @dataclass(frozen=True, slots=True)

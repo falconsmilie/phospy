@@ -18,8 +18,8 @@ from phospy.api.advanced import (
     DatasetMissingDataConfig,
     SpsRuvBatchCorrectionConfig,
 )
+from phospy.core.errors import PhosPyInputError
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.errors import PhosPyInputError
 from phospy.preprocessing.batch_correction import (
     REPLICATE_METADATA_ROLE,
     BatchCorrectionWorkflow,

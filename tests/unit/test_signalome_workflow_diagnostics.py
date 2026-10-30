@@ -24,12 +24,12 @@ from phospy.api.advanced import (
     SignalomeConfig,
     SignalomeValidationConfig,
 )
-from phospy.datasets.internal_view import DatasetInternalView
-from phospy.errors import (
+from phospy.core.errors import (
     ContractValidationError,
     WorkflowBoundaryError,
 )
-from phospy.errors.workflows import WorkflowStageError
+from phospy.core.errors.workflows import WorkflowStageError
+from phospy.datasets.internal_view import DatasetInternalView
 from phospy.signalome.clustering import (
     MAX_APPROX_CORRELATION_SAMPLES_PER_CLUSTER,
     SIGNALOME_CANDIDATE_SCORING_APPLIES_TO,

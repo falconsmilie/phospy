@@ -6,7 +6,7 @@ from collections.abc import Callable
 
 import pandas as pd
 
-from phospy.errors.workflows import WorkflowStageError
+from phospy.core.errors.workflows import WorkflowStageError
 from phospy.signalome.assignments import (
     build_module_assignments,
     select_kinase_substrates,

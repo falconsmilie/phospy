@@ -5,7 +5,7 @@ from collections.abc import Iterator, Mapping
 import numpy as np
 import pytest
 
-from phospy.errors import PhosPyInputError
+from phospy.core.errors import PhosPyInputError
 from phospy.io.importers.contracts import (
     IMPORTER_QUALITY_STATUS_NOT_APPLICABLE,
     IMPORTER_QUALITY_STATUS_NOT_REPORTED,

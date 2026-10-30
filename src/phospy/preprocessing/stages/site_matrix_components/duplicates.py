@@ -5,7 +5,7 @@ from typing import cast
 
 import pandas as pd
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.phosphosites.identifiers import canonicalize_site_series
 from phospy.phosphosites.validation import (
     require_no_mixed_site_key_isoform_scope,

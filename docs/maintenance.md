@@ -193,18 +193,19 @@ Pyright is the configured type checker. The checked scope is listed in
 - `src/phospy/activities`
 - `src/phospy/api/advanced`
 - `src/phospy/api`
+- `src/phospy/core/__init__.py`
 - `src/phospy/datasets`
 - `src/phospy/differential`
 - `src/phospy/enrichment`
 - `src/phospy/evidence`
-- `src/phospy/errors`
-- `src/phospy/frames`
+- `src/phospy/core/errors`
+- `src/phospy/core/frames`
 - `src/phospy/io`
 - `src/phospy/kinase`
 - `src/phospy/phosphosites`
 - `src/phospy/preparation_records`
 - `src/phospy/preprocessing`
-- `src/phospy/policies`
+- `src/phospy/core/policies`
 - `src/phospy/provenance`
 - `src/phospy/quantitative`
 - `src/phospy/references`
@@ -212,7 +213,7 @@ Pyright is the configured type checker. The checked scope is listed in
 - `src/phospy/signalome`
 - `src/phospy/statistics`
 - `src/phospy/taxonomy`
-- `src/phospy/validation`
+- `src/phospy/core/validation`
 
 Strict checking is enabled for selected stable scientific/core modules listed
 under `[tool.pyright].strict`. This strict list currently includes
@@ -357,7 +358,7 @@ accepted record or composition owner such as `phospy.preparation_records` or
 re-export those owner-defined objects only by exact identity.
 
 Capability-specific validation belongs with its capability. Root
-`phospy.validation` owns reusable generic mechanics only. Workflow interpreters
+`phospy.core.validation` owns reusable generic mechanics only. Workflow interpreters
 own contextual translation from public DTOs into distinct resolved execution
 models, and computational kernels consume those resolved models rather than
 public request or configuration DTOs. The architecture guard for configuration

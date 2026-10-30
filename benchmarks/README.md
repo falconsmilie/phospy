@@ -18,7 +18,7 @@ This directory contains rewrite-native benchmark scripts that track active code 
   - Targets `phospy.science.datasets.preprocessing.stages.missing_data` and `phospy.science.datasets.preprocessing.stages.normalisation`.
 - `measure_dataframe_ownership_copy_policy.py`
   - Measures internal DataFrame borrow copy counts, mutation leaks, and runtime for NumPy-backed and extension-array-backed frames.
-  - Targets `phospy.frames.ownership._borrow_dataframe`.
+  - Targets `phospy.core.frames.ownership._borrow_dataframe`.
 - `measure_repeated_workflow_dataset_snapshot_reuse.py`
   - Measures repeated differential and kinase workflow runtime, tracemalloc peak memory, full-frame deep-copy counts, and dataset internal snapshot construction counts for the same unchanged dataset.
   - Targets `DifferentialAnalysisWorkflow.run`, `KinaseWorkflow.run`, and dataset-owned internal snapshot reuse.

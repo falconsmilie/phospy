@@ -25,7 +25,7 @@ from phospy.api.advanced import (
     SpsSelectionBoundaryCounts,
     SpsSiteStabilityRecord,
 )
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.phosphosites.site_keys import decode_site_key
 from phospy.preprocessing.control_sites import (
     discovery_provenance as sps_provenance_module,

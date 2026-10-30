@@ -4,6 +4,7 @@ from dataclasses import replace
 
 import pytest
 
+from phospy.core.errors.input import PhosPyInputError
 from phospy.datasets.processing_state import (
     ComparisonState,
     DatasetProcessingState,
@@ -19,7 +20,6 @@ from phospy.datasets.processing_state import (
     TotalProteinCorrectionDiagnostics,
     TotalProteinCorrectionState,
 )
-from phospy.errors.input import PhosPyInputError
 from phospy.io.bundles._shared.processing_state import (
     processing_state_from_payload,
     processing_state_to_payload,

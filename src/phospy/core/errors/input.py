@@ -1,6 +1,6 @@
 """Input-boundary exceptions."""
 
-from phospy.errors.base import PhosPyError
+from phospy.core.errors.base import PhosPyError
 
 
 class PhosPyInputError(PhosPyError):

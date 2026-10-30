@@ -12,9 +12,9 @@ from phospy.api.advanced import (
     DatasetMissingDataConfig,
     DatasetSiteMatrixConfig,
 )
+from phospy.core.errors.validation import DatasetValidationError
 from phospy.datasets.construction.preprocessing import DatasetPreprocessor
 from phospy.datasets.processing_state import DatasetPreprocessingReport
-from phospy.errors.validation import DatasetValidationError
 from phospy.preparation_records.report_schema import ROW_AUDIT_COLUMNS
 from phospy.preprocessing.contracts import PreprocessingPlan
 from tests.support.site_keys import site_key_index_from_display_ids

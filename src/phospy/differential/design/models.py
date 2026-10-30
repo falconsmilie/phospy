@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import Literal, cast
 
-from phospy.errors.validation import ContractValidationError
+from phospy.core.errors.validation import ContractValidationError
 
 PairedDesignPolicy = Literal["reject", "fixed_block", "duplicate_correlation"]
 PAIRED_DESIGN_POLICY_REJECT: PairedDesignPolicy = "reject"

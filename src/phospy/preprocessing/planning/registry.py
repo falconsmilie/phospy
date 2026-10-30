@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 
-from phospy.errors.build import DatasetBuildError
+from phospy.core.errors.build import DatasetBuildError
 from phospy.preprocessing.contracts import (
     PreprocessingPlan,
     PreprocessingStage,

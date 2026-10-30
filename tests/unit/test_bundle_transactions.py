@@ -7,7 +7,7 @@ from typing import Any
 
 import pytest
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.io.bundles._shared import transactions
 from phospy.io.bundles._shared.transactions import write_bundle_atomically
 

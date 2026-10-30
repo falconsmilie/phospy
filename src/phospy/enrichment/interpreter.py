@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import cast
 
+from phospy.core.errors.workflows import WorkflowBoundaryError
 from phospy.enrichment.contracts.vocabulary import ENRICHMENT_COLLECTION_KIND_GENE_SET
 from phospy.enrichment.ora import (
     ORA_STATISTICAL_TEST_HYPERGEOMETRIC,
@@ -15,7 +16,6 @@ from phospy.enrichment.planning import (
     InterpretedEnrichmentWorkflowRequest,
     ValidatedEnrichmentWorkflowRequest,
 )
-from phospy.errors.workflows import WorkflowBoundaryError
 
 
 class EnrichmentWorkflowInterpreter:

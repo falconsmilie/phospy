@@ -22,7 +22,7 @@ from phospy.api.advanced import (
     ProfileSelfInclusionPolicy,
     ReferenceContextCompatibilityPolicy,
 )
-from phospy.errors.validation import WorkflowValidationError
+from phospy.core.errors.validation import WorkflowValidationError
 from phospy.kinase.activity.methods.ssgsea_substrate_enrichment import (
     SSGSEA_SIGNIFICANCE_STATUS_AVAILABLE,
     SSGSEA_SIGNIFICANCE_STATUS_UNAVAILABLE_NO_PERMUTATIONS,

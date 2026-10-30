@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import cast
 
+from phospy.core.errors.workflows import WorkflowBoundaryError
 from phospy.enrichment.assembly import EnrichmentResultAssembler
 from phospy.enrichment.contracts.results import EnrichmentWorkflowResult
 from phospy.enrichment.filtering import EnrichmentSetExecutionPreparer
@@ -13,7 +14,6 @@ from phospy.enrichment.planning import (
     OraEngineContract,
 )
 from phospy.enrichment.provenance import EnrichmentRunProvenanceAssembler
-from phospy.errors.workflows import WorkflowBoundaryError
 
 
 class EnrichmentWorkflowExecutor:

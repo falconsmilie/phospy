@@ -512,14 +512,14 @@ def test_pyright_docs_match_current_include_and_strict_scope() -> None:
         "src/phospy/differential",
         "src/phospy/enrichment",
         "src/phospy/evidence",
-        "src/phospy/errors",
-        "src/phospy/frames",
+        "src/phospy/core/errors",
+        "src/phospy/core/frames",
         "src/phospy/io",
         "src/phospy/kinase",
         "src/phospy/phosphosites",
         "src/phospy/preparation_records",
         "src/phospy/preprocessing",
-        "src/phospy/policies",
+        "src/phospy/core/policies",
         "src/phospy/provenance",
         "src/phospy/quantitative",
         "src/phospy/references",
@@ -527,7 +527,7 @@ def test_pyright_docs_match_current_include_and_strict_scope() -> None:
         "src/phospy/signalome",
         "src/phospy/statistics",
         "src/phospy/taxonomy",
-        "src/phospy/validation",
+        "src/phospy/core/validation",
     )
     strict_dataset_model = "src/phospy/datasets/models.py"
 

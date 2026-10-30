@@ -5,7 +5,7 @@ from copy import deepcopy
 
 import pytest
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.io.bundles._kinase.constants import (
     KINASE_BUNDLE_KIND,
     KINASE_BUNDLE_MANIFEST_VERSION,

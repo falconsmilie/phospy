@@ -20,12 +20,12 @@ from phospy.api.advanced import (
     DatasetIntensityTransformConfig,
     DifferentialAnalysisConfig,
 )
+from phospy.core.errors import WorkflowValidationError
 from phospy.differential.tables import (
     DIFFERENTIAL_RESULT_STATUS_COLUMN,
     DIFFERENTIAL_RESULT_STATUS_TESTED,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_ALL_CONSTANT,
 )
-from phospy.errors import WorkflowValidationError
 from phospy.phosphosites.site_keys import (
     build_protein_scoped_site_key,
     encode_site_key,

@@ -9,6 +9,8 @@ from typing import TYPE_CHECKING, NoReturn, Protocol, cast
 
 import pandas as pd
 
+from phospy.core.errors.input import PhosPyInputError
+from phospy.core.errors.workflows import WorkflowBoundaryError
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.datasets.processing_state import DatasetPreprocessingReport
 from phospy.differential.config import DifferentialAnalysisConfig
@@ -51,8 +53,6 @@ from phospy.differential.provenance.models import (
 from phospy.differential.results import (
     DifferentialAnalysisResult,
 )
-from phospy.errors.input import PhosPyInputError
-from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.provenance.immutability import freeze_json_mapping
 from phospy.provenance.result_caveats import ResultCaveat
 

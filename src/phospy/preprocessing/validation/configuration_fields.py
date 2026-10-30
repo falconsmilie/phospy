@@ -7,8 +7,8 @@ from collections.abc import Collection, Sequence
 
 import pandas as pd
 
-from phospy.errors.input import PhosPyInputError
-from phospy.policies.config_values import (
+from phospy.core.errors.input import PhosPyInputError
+from phospy.core.policies.config_values import (
     require_instance,
     require_local_filesystem_path,
     require_non_empty_string,

@@ -20,13 +20,13 @@ from phospy.api.advanced import (
     DatasetProteinAwarePreparationConfig,
     DatasetTotalProteinCorrectionConfig,
 )
+from phospy.core.errors import DatasetValidationError, PhosPyInputError
 from phospy.datasets.internal_view import DatasetInternalView
 from phospy.datasets.processing_state import DatasetPreprocessingReport
 from phospy.datasets.protein_aware import (
     ProteinAwarePreparationReport,
     ProteinAwarePreparationResult,
 )
-from phospy.errors import DatasetValidationError, PhosPyInputError
 from phospy.preparation_records.policies import (
     TotalProteinCorrectionPolicy,
 )

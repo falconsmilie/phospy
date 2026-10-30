@@ -5,6 +5,7 @@ from types import MappingProxyType
 import pandas as pd
 import pytest
 
+from phospy.core.errors import WorkflowValidationError
 from phospy.differential.design.matrix_builder import DesignMatrixBuilder
 from phospy.differential.design.models import (
     PAIRED_DESIGN_POLICY_FIXED_BLOCK,
@@ -15,7 +16,6 @@ from phospy.differential.design.models import (
     ExperimentalDesign,
     SampleDesignRecord,
 )
-from phospy.errors import WorkflowValidationError
 
 
 def _expected_frame(

@@ -13,10 +13,10 @@ from phospy.api import (
     SignalomeWorkflowRequest,
 )
 from phospy.api.advanced import ReferenceContextCompatibilityPolicy
+from phospy.core.errors import PhosPyInputError, WorkflowValidationError
+from phospy.core.errors.workflows import WorkflowBoundaryError
 from phospy.datasets.construction.interpreter import DatasetBuildRequestInterpreter
 from phospy.datasets.internal_view import DatasetInternalView
-from phospy.errors import PhosPyInputError, WorkflowValidationError
-from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.references.models import ReferenceBundle
 from phospy.signalome.constants import (
     SIGNALOME_INTERPRETER_SITE_ALIGNMENT_SEAM,

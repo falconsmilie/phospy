@@ -14,7 +14,7 @@ from phospy.api.advanced import (
     DatasetTotalProteinCorrectionConfig,
     DatasetTotalProteinCorrectionIdentityConfig,
 )
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.preparation_records.policies import (
     MissingDataPolicy,
     NormalisationPolicy,

@@ -6,7 +6,7 @@ from dataclasses import replace
 
 import pandas as pd
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.phosphosites.dataset_identity import (
     enforce_display_id_column,
     enforce_site_key_column,

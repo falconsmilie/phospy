@@ -17,8 +17,8 @@ from phospy.api import (
 from phospy.api.advanced import (
     ReferenceContextCompatibilityPolicy,
 )
+from phospy.core.errors.validation import WorkflowValidationError
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.errors.validation import WorkflowValidationError
 from phospy.provenance.models import EnvironmentProvenance
 from phospy.references.context_compatibility import (
     REFERENCE_CONTEXT_UNKNOWN_CAVEAT_CODE,

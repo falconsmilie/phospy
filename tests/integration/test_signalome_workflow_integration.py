@@ -27,7 +27,7 @@ from phospy.api.advanced import (
     KinaseScoringConfig,
     ReferenceContextCompatibilityPolicy,
 )
-from phospy.errors import WorkflowBoundaryError, WorkflowValidationError
+from phospy.core.errors import WorkflowBoundaryError, WorkflowValidationError
 from phospy.signalome.config import SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL
 from phospy.signalome.constants import (
     EXPANDED_SIGNALOME_ROW_KIND_COLUMN,

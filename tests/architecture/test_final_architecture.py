@@ -151,9 +151,9 @@ def test_final_tracked_source_inventory_is_complete_and_classified() -> None:
     tracked = _git_paths("src/phospy")
     owners = load_module_owners(OWNER_MAP)
 
-    assert len(tracked) == 645
-    assert sum(path.endswith(".py") for path in tracked) == 639
-    assert len(owners) == 639
+    assert len(tracked) == 646
+    assert sum(path.endswith(".py") for path in tracked) == 640
+    assert len(owners) == 640
     assert (
         tracked_source_inventory_problems(
             tracked_paths=tracked,
@@ -166,16 +166,67 @@ def test_final_tracked_source_inventory_is_complete_and_classified() -> None:
 
 def test_retired_package_roots_are_absent_from_git_and_pyright() -> None:
     tracked = _git_paths("src/phospy")
-    retired = {"contracts", "science", "tables", "workflows"}
-    assert (
-        not {path.split("/")[2] for path in tracked if len(path.split("/")) > 3}
-        & retired
-    )
+    production_roots = {
+        path.split("/")[2] for path in tracked if len(path.split("/")) > 3
+    }
+    retired = {
+        "contracts",
+        "errors",
+        "frames",
+        "policies",
+        "science",
+        "tables",
+        "validation",
+        "workflows",
+    }
+    expected_intermediate_roots = {
+        "activities",
+        "api",
+        "core",
+        "data",
+        "datasets",
+        "differential",
+        "enrichment",
+        "evidence",
+        "io",
+        "kinase",
+        "phosphosites",
+        "preparation_records",
+        "preprocessing",
+        "provenance",
+        "quantitative",
+        "references",
+        "run_lineage",
+        "signalome",
+        "statistics",
+        "taxonomy",
+    }
+    assert not production_roots & retired
+    assert production_roots == expected_intermediate_roots
 
     configuration = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     includes = configuration["tool"]["pyright"]["include"]
-    assert "src/phospy/tables" not in includes
+    assert {
+        "src/phospy/errors",
+        "src/phospy/frames",
+        "src/phospy/policies",
+        "src/phospy/tables",
+        "src/phospy/validation",
+    }.isdisjoint(includes)
+    assert "src/phospy/core/__init__.py" in includes
     assert all((ROOT / include).exists() for include in includes)
+
+
+def test_core_namespace_initializer_is_inert_and_narrowly_owned() -> None:
+    initializer = PACKAGE_ROOT / "core/__init__.py"
+    tree = ast.parse(initializer.read_text(encoding="utf-8"), filename=str(initializer))
+    assert tree.body == []
+
+    entries = load_module_owners(OWNER_MAP)
+    core_entries = [entry for entry in entries if entry.module == "phospy.core"]
+    assert len(core_entries) == 1
+    assert core_entries[0].source_path == "src/phospy/core/__init__.py"
+    assert core_entries[0].owner == "namespace_containers"
 
 
 def test_final_state_has_no_temporary_exception_mechanism() -> None:
@@ -287,14 +338,14 @@ def test_structural_forwarding_detection_ignores_docstring_wording_and_case() ->
     for prefix in bodies:
         assert is_structural_forwarding_candidate(
             prefix
-            + "from phospy.frames.validation import require_dataframe\n"
+            + "from phospy.core.frames.validation import require_dataframe\n"
             + "__all__ = ['require_dataframe']\n"
         )
 
 
 def test_structural_forwarding_detection_covers_direct_imported_name_aliases() -> None:
     source = """
-from phospy.frames.validation import require_dataframe as _require_dataframe
+from phospy.core.frames.validation import require_dataframe as _require_dataframe
 
 require_dataframe = _require_dataframe
 __all__ = ["require_dataframe"]
@@ -305,7 +356,7 @@ __all__ = ["require_dataframe"]
 
 def test_structural_forwarding_detection_rejects_behavioral_modules() -> None:
     source = """
-from phospy.frames.validation import require_dataframe
+from phospy.core.frames.validation import require_dataframe
 
 def validate(value):
     return require_dataframe(value)
@@ -351,9 +402,9 @@ def test_owner_map_has_permanent_schema_and_rationales() -> None:
 def test_final_architecture_inventory_is_complete_and_current() -> None:
     text = FINAL_INVENTORY.read_text(encoding="utf-8")
     assert text == render_inventory(ROOT)
-    assert "Tracked production files: **645**" in text
-    assert "Tracked Python modules: **639**" in text
-    assert "Owner-map entries: **639**" in text
+    assert "Tracked production files: **646**" in text
+    assert "Tracked Python modules: **640**" in text
+    assert "Owner-map entries: **640**" in text
     assert "Complete statically observed owner graph (before classifications)" in text
     assert "`datasets, io, kinase, signalome`" in text
     assert "Policy-filtered owner graph used by the DAG gate" in text

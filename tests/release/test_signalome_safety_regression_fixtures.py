@@ -10,7 +10,7 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phospy.errors.validation import ContractValidationError
+from phospy.core.errors.validation import ContractValidationError
 from phospy.io.bundles.signalome import SignalomeWorkflowConfigSnapshot
 from phospy.signalome.clustering import cluster_sites_with_diagnostics
 from phospy.signalome.clustering.tree_building import (

@@ -8,6 +8,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from phospy.core.errors import DatasetProcessingStateError, DatasetValidationError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.datasets.processing_state import (
     JsonValue,
     MissingDataDiagnostics,
@@ -20,8 +22,6 @@ from phospy.datasets.processing_state import (
     TotalProteinCorrectionDiagnosticsV1,
     TotalProteinCorrectionState,
 )
-from phospy.errors import DatasetProcessingStateError, DatasetValidationError
-from phospy.errors.input import PhosPyInputError
 from phospy.preparation_records.policies import (
     MissingDataPolicy,
     NormalisationPolicy,

@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from phospy.errors.input import UnsupportedInputFormatError
+from phospy.core.errors.input import UnsupportedInputFormatError
 from phospy.phosphosites.identifiers import (
     canonicalize_site_components_series,
     canonicalize_site_index,

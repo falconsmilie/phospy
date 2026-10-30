@@ -8,6 +8,7 @@ from phospy.api import (
     EnrichmentWorkflowRequest,
     GeneSetCollection,
 )
+from phospy.core.errors import WorkflowBoundaryError
 from phospy.enrichment.contracts.vocabulary import (
     ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
 )
@@ -20,7 +21,6 @@ from phospy.enrichment.planning import (
 )
 from phospy.enrichment.validation import EnrichmentWorkflowValidator
 from phospy.enrichment.workflow import EnrichmentWorkflow
-from phospy.errors import WorkflowBoundaryError
 
 
 def _gene_collection() -> GeneSetCollection:

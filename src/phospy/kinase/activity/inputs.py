@@ -11,9 +11,9 @@ from phospy.activities.semantics import (
     ActivityInputSemantics,
     ActivityProfileMetadata,
 )
-from phospy.errors.validation import PhosPyValidationError
-from phospy.errors.workflows import WorkflowBoundaryError
-from phospy.frames.comparison import dataframe_equals
+from phospy.core.errors.validation import PhosPyValidationError
+from phospy.core.errors.workflows import WorkflowBoundaryError
+from phospy.core.frames.comparison import dataframe_equals
 from phospy.kinase.activity.membership import ActivityMembershipSelection
 from phospy.kinase.activity.tables import ActivityMatrix
 

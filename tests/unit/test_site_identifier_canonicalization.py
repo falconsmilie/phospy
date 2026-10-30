@@ -9,7 +9,7 @@ from phospy.api import (
     Organism,
     ReferenceBundle,
 )
-from phospy.errors import (
+from phospy.core.errors import (
     DatasetValidationError,
     PhosPyInputError,
     ReferenceValidationError,

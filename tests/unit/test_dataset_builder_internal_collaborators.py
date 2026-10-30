@@ -6,6 +6,7 @@ import pandas as pd
 import pytest
 
 from phospy.api import AnalysisReadyDatasetBuilder, DatasetBuildRequest
+from phospy.core.errors.input import PhosPyInputError
 from phospy.datasets.construction.contracts import (
     InterpretedDatasetBuildRequest,
     PreprocessedDatasetBuildTables,
@@ -29,7 +30,6 @@ from phospy.datasets.construction.site_identity import (
 from phospy.datasets.construction.site_sequence_validation import (
     AnalysisReadySiteSequenceValidator,
 )
-from phospy.errors.input import PhosPyInputError
 from phospy.evidence.dataset_resolution import (
     PeptideEvidenceResolutionSummary,
 )

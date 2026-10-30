@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
+from phospy.core.errors.input import PhosPyInputError
 from phospy.differential.diagnostics import (
     EmpiricalBayesPriorDiagnostics,
     MeanVarianceTrendDiagnostics,
@@ -48,7 +49,6 @@ from phospy.differential.quantification_depth import (
     QUANTIFICATION_DEPTH_TREND_TRANSFORMATION,
     log2_quantification_depth_series,
 )
-from phospy.errors.input import PhosPyInputError
 from phospy.evidence.quantification_depth import validate_quantification_depth_series
 from phospy.statistics.multiple_testing import adjust_p_values
 

@@ -11,6 +11,25 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 
+from phospy.core.errors.input import PhosPyInputError
+from phospy.core.frames.comparison import (
+    dataframe_equals,
+    series_equals,
+)
+from phospy.core.frames.ownership import (
+    export_dataframe,
+    export_series,
+    own_dataframe,
+    own_series,
+)
+from phospy.core.frames.validation import (
+    require_columns,
+    require_dataframe,
+    require_non_empty_dataframe,
+    require_string_index,
+    require_unique_columns,
+    require_unique_index,
+)
 from phospy.differential.moderation.config import (
     EMPIRICAL_BAYES_TREND_COVARIATE_MEAN_INTENSITY,
     EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,
@@ -31,26 +50,7 @@ from phospy.differential.tables import (
     DIFFERENTIAL_RESULT_WITHHELD_STATUSES,
     validate_result_status_reason_contract,
 )
-from phospy.errors.input import PhosPyInputError
 from phospy.evidence.quantification_depth import SUPPORTED_QUANTIFICATION_DEPTH_KINDS
-from phospy.frames.comparison import (
-    dataframe_equals,
-    series_equals,
-)
-from phospy.frames.ownership import (
-    export_dataframe,
-    export_series,
-    own_dataframe,
-    own_series,
-)
-from phospy.frames.validation import (
-    require_columns,
-    require_dataframe,
-    require_non_empty_dataframe,
-    require_string_index,
-    require_unique_columns,
-    require_unique_index,
-)
 
 PROTEIN_AWARE_DIFFERENTIAL_CLAIM_STATUS_EXPERIMENTAL = "experimental"
 PROTEIN_AWARE_DIFFERENTIAL_MODEL_TYPE = "protein_covariate_adjusted_moderated_ols"

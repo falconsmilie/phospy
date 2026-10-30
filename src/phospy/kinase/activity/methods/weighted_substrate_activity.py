@@ -8,7 +8,7 @@ from typing import cast
 import numpy as np
 import pandas as pd
 
-from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.core.errors.workflows import WorkflowBoundaryError
 from phospy.kinase.activity.contracts import (
     simplified_weighted_substrate_activity_input_contract,
 )

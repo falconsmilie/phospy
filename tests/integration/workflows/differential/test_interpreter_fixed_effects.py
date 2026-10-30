@@ -20,6 +20,12 @@ from phospy.api import (
     SampleDesignRecord,
 )
 from phospy.api.advanced import DifferentialAnalysisConfig
+from phospy.core.errors import (
+    DatasetValidationError,
+    PhosPyInputError,
+    WorkflowValidationError,
+)
+from phospy.core.errors.workflows import WorkflowBoundaryError
 from phospy.differential.caveats import (
     DIFFERENTIAL_DUPLICATE_CORRELATION_CONSENSUS_CAVEAT_CODE,
 )
@@ -35,12 +41,6 @@ from phospy.differential.policies import (
     PAIRED_DESIGN_POLICY_REJECT,
 )
 from phospy.differential.results import DifferentialAnalysisResult
-from phospy.errors import (
-    DatasetValidationError,
-    PhosPyInputError,
-    WorkflowValidationError,
-)
-from phospy.errors.workflows import WorkflowBoundaryError
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

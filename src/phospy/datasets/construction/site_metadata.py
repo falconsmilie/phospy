@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import pandas as pd
 
+from phospy.core.errors.input import UnsupportedInputFormatError
 from phospy.datasets.construction.normalization_reporting import (
     DatasetConventionNormalisationReporter,
 )
-from phospy.errors.input import UnsupportedInputFormatError
 from phospy.phosphosites.identifiers import (
     SiteIdentifierNormalisationRecord,
     canonicalize_site_components_series,

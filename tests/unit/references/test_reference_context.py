@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from phospy.errors.validation import ReferenceValidationError
+from phospy.core.errors.validation import ReferenceValidationError
 from phospy.references.models import (
     RedistributionStatus,
     ReferenceContext,

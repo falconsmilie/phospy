@@ -9,7 +9,7 @@ from typing import NoReturn, cast
 import numpy as np
 import pandas as pd
 
-from phospy.errors.validation import TransformationValidationError
+from phospy.core.errors.validation import TransformationValidationError
 from phospy.quantitative.models import (
     IntensityScaleKind,
     IntensityScaleState,

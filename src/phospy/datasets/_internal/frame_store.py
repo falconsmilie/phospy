@@ -6,7 +6,7 @@ from threading import Lock
 
 import pandas as pd
 
-from phospy.frames.ownership import (
+from phospy.core.frames.ownership import (
     ImmutableDataFrameSnapshot,
     immutable_dataframe_snapshot,
     immutable_optional_dataframe_snapshot,

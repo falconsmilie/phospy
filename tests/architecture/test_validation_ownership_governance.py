@@ -32,15 +32,15 @@ class ConcreteSymbolOwner:
 
 
 FRAME_SEARCH_ROOTS = (
-    PACKAGE_ROOT / "frames",
-    PACKAGE_ROOT / "validation" / "common",
+    PACKAGE_ROOT / "core" / "frames",
+    PACKAGE_ROOT / "core" / "validation" / "common",
     PACKAGE_ROOT / "phosphosites",
     PACKAGE_ROOT / "workflows",
 )
 SITE_IDENTITY_SEARCH_ROOTS = (
     PACKAGE_ROOT / "phosphosites",
     PACKAGE_ROOT / "references",
-    PACKAGE_ROOT / "validation",
+    PACKAGE_ROOT / "core" / "validation",
     PACKAGE_ROOT / "workflows",
 )
 
@@ -48,7 +48,7 @@ CONCRETE_VALIDATION_SYMBOL_OWNERS = (
     *(
         ConcreteSymbolOwner(
             symbol_name=symbol_name,
-            owner_path=PACKAGE_ROOT / "frames" / "validation.py",
+            owner_path=PACKAGE_ROOT / "core" / "frames" / "validation.py",
             search_roots=FRAME_SEARCH_ROOTS,
         )
         for symbol_name in (
@@ -191,8 +191,10 @@ def test_concrete_validation_symbols_have_single_owner_definition() -> None:
 
 
 def test_dataframe_validation_primitives_use_the_direct_owner_route() -> None:
-    assert (PACKAGE_ROOT / "frames" / "validation.py").is_file()
-    assert not (PACKAGE_ROOT / "validation" / "common" / "dataframes.py").exists()
+    assert (PACKAGE_ROOT / "core" / "frames" / "validation.py").is_file()
+    assert not (
+        PACKAGE_ROOT / "core" / "validation" / "common" / "dataframes.py"
+    ).exists()
 
 
 def test_stale_ownership_map_module_path_fixture_rejects_missing_module() -> None:
@@ -200,7 +202,7 @@ def test_stale_ownership_map_module_path_fixture_rejects_missing_module() -> Non
         """
 | Invariant | Owner | Enforcement point | Should not live in | Tests |
 | --- | --- | --- | --- | --- |
-| Fake invariant | `phospy.science.sites.missing_owner.Fake` | `phospy.frames.validation.require_dataframe` | Workflow validators | `tests/architecture/test_validation_ownership_governance.py` |
+| Fake invariant | `phospy.science.sites.missing_owner.Fake` | `phospy.core.frames.validation.require_dataframe` | Workflow validators | `tests/architecture/test_validation_ownership_governance.py` |
 """
     )
 
@@ -232,10 +234,13 @@ def test_validation_ownership_map_has_unique_reviewable_rows() -> None:
 def test_validation_ownership_map_assigns_frame_and_science_owners() -> None:
     rows = {row.invariant: row for row in _ownership_rows()}
 
-    assert _first_code_span(rows["DataFrame shape"].owner) == "phospy.frames.validation"
+    assert (
+        _first_code_span(rows["DataFrame shape"].owner)
+        == "phospy.core.frames.validation"
+    )
     assert (
         _first_code_span(rows["Unique site/sample labels"].owner)
-        == "phospy.frames.validation"
+        == "phospy.core.frames.validation"
     )
     assert (
         _first_code_span(
@@ -314,7 +319,7 @@ def test_ownership_map_records_sps_discovery_composition() -> None:
         "SpsDiscoveryRequestValidator" in row.owner
     )
     assert "phospy.phosphosites.validation.require_site_key_index" in row.owner
-    assert "phospy.frames.validation.require_numeric_dataframe" in row.owner
+    assert "phospy.core.frames.validation.require_numeric_dataframe" in row.owner
     assert (
         "phospy.preprocessing.control_sites.workflow.SpsDiscoveryWorkflow"
         in row.enforcement_point

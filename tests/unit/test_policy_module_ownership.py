@@ -4,12 +4,12 @@ import importlib
 
 import pytest
 
+from phospy.core.errors.input import PhosPyInputError
+from phospy.core.policies import PolicyEnum
 from phospy.differential.policies import TechnicalReplicatePolicy
-from phospy.errors.input import PhosPyInputError
 from phospy.kinase.policies import ThresholdMode
 from phospy.kinase.result_boundary import DownstreamScoreSource
 from phospy.kinase.scoring.policies import ProfileSelfInclusionPolicy
-from phospy.policies import PolicyEnum
 from phospy.preparation_records.policies import (
     MissingDataPolicy,
     TotalProteinCorrectionPolicy,
@@ -38,7 +38,7 @@ def test_scoring_policies_have_their_direct_owner_identity() -> None:
 
 
 def test_policy_base_is_owned_by_policies_infrastructure_module() -> None:
-    assert PolicyEnum.__module__ == "phospy.policies.policy_base"
+    assert PolicyEnum.__module__ == "phospy.core.policies.policy_base"
 
 
 def test_root_policy_models_module_is_removed() -> None:

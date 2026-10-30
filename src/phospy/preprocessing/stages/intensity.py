@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.preprocessing.contracts import (
     DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
     PreprocessingPlan,

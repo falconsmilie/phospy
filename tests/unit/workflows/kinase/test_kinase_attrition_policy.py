@@ -20,10 +20,10 @@ from phospy.api.advanced import (
     KinaseScoringConfig,
     ReferenceContextCompatibilityPolicy,
 )
+from phospy.core.errors.input import PhosPyInputError
+from phospy.core.errors.workflows import WorkflowBoundaryError
 from phospy.datasets.internal_view import DatasetInternalView
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.errors.input import PhosPyInputError
-from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.kinase.caveats import (
     KINASE_ATTRITION_POLICY_CAVEAT_CODE,
     KINASE_ATTRITION_WARNING_MODE_CAVEAT_CODE,

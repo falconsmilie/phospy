@@ -3,8 +3,8 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
+from phospy.core.errors import PhosPyInputError
 from phospy.datasets.construction.preprocessing import DatasetPreprocessor
-from phospy.errors import PhosPyInputError
 from phospy.preprocessing.batch_correction.validation.design import (
     BatchCorrectionAdequacyValidator,
     BatchDesignMetadataValidator,

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from phospy.core.errors.input import PhosPyInputError
 from phospy.datasets.construction.contracts import (
     DatasetBuildRequestProtocol,
     InterpretedDatasetBuildRequest,
@@ -16,7 +17,6 @@ from phospy.datasets.construction.planning import (
     DatasetBuildSiteSequenceResolver,
 )
 from phospy.datasets.construction.sequence_derivation import SiteSequenceDeriver
-from phospy.errors.input import PhosPyInputError
 from phospy.evidence.dataset_resolution.resolver import (
     PeptideEvidenceDatasetResolver,
 )

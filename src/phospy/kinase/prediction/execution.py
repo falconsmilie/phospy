@@ -9,7 +9,7 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from phospy.errors.workflows import WorkflowStageError
+from phospy.core.errors.workflows import WorkflowStageError
 from phospy.kinase.prediction.config import KinaseAdaptivePolicy
 from phospy.kinase.prediction.policies import (
     PredictionSamplingPolicy,

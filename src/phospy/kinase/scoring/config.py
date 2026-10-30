@@ -6,16 +6,16 @@ import math
 from dataclasses import dataclass, field
 from typing import Literal, cast
 
-from phospy.errors.validation import ContractValidationError
-from phospy.evidence.config import LocalisationRequirement
-from phospy.kinase.scoring.policies import ProfileSelfInclusionPolicy
-from phospy.policies import PolicyEnum
-from phospy.policies.config_values import (
+from phospy.core.errors.validation import ContractValidationError
+from phospy.core.policies import PolicyEnum
+from phospy.core.policies.config_values import (
     coerce_policy_enum,
 )
-from phospy.policies.config_values import (
+from phospy.core.policies.config_values import (
     require_int_at_least as _require_int_at_least,
 )
+from phospy.evidence.config import LocalisationRequirement
+from phospy.kinase.scoring.policies import ProfileSelfInclusionPolicy
 from phospy.references.config import (
     REFERENCE_CONTEXT_COMPATIBILITY_POLICY_REQUIRE_KNOWN_MATCH,
     ReferenceContextCompatibilityPolicy,

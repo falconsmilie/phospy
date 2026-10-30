@@ -8,7 +8,7 @@ from string import hexdigits
 
 import pandas as pd
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.io.bundles._shared.paths import resolve_bundle_relative_path
 from phospy.io.bundles._shared.primitives import (
     require_int,

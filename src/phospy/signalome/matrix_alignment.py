@@ -6,8 +6,8 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from phospy.errors.validation import WorkflowValidationError
-from phospy.frames.validation import (
+from phospy.core.errors.validation import WorkflowValidationError
+from phospy.core.frames.validation import (
     require_aligned_dataframe_shape,
     require_no_duplicate_labels,
     require_non_empty_index_intersection,

@@ -11,11 +11,8 @@ import pandas as pd
 from phospy.activities.contracts import (
     ResolvedMethodQuantitativeInputContract,
 )
-from phospy.datasets.internal_view import DatasetInternalView
-from phospy.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.errors.workflows import WorkflowBoundaryError
-from phospy.evidence.config import LocalisationRequirement
-from phospy.frames.validation import (
+from phospy.core.errors.workflows import WorkflowBoundaryError
+from phospy.core.frames.validation import (
     require_canonical_string_column,
     require_columns,
     require_dataframe,
@@ -26,6 +23,10 @@ from phospy.frames.validation import (
     require_unique_index,
     require_unique_row_pairs,
 )
+from phospy.core.policies import coerce_policy_enum
+from phospy.datasets.internal_view import DatasetInternalView
+from phospy.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.evidence.config import LocalisationRequirement
 from phospy.kinase.activity.config import ResolvedKinaseActivityExecutionConfig
 from phospy.kinase.attrition_metrics import (
     KinaseAttritionMetrics,
@@ -74,7 +75,6 @@ from phospy.phosphosites.validation import (
     require_site_key_index,
     require_site_key_series,
 )
-from phospy.policies import coerce_policy_enum
 from phospy.provenance.models import (
     RowAttritionRecord,
 )

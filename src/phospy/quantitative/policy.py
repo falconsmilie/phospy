@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Final, cast
 
-from phospy.errors.transformations import InvalidTransformationStateError
+from phospy.core.errors.transformations import InvalidTransformationStateError
 
 IDENTITY_INTENSITY_SCALE_ESTABLISHER: Final[str] = (
     "phospy.science.transformations.transformers.identity"

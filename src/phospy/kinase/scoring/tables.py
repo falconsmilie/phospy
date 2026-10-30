@@ -8,10 +8,10 @@ from numbers import Real
 
 import pandas as pd
 
-from phospy.errors.validation import PhosPyValidationError
-from phospy.frames.ownership import own_dataframe
-from phospy.frames.table_schema import TableSchema
-from phospy.frames.validation import (
+from phospy.core.errors.validation import PhosPyValidationError
+from phospy.core.frames.ownership import own_dataframe
+from phospy.core.frames.table_schema import TableSchema
+from phospy.core.frames.validation import (
     require_dataframe,
     require_unique_columns,
 )

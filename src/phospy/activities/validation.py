@@ -8,7 +8,7 @@ from phospy.activities.contracts import (
     MethodQuantitativeInputContract,
     ResolvedMethodQuantitativeInputContract,
 )
-from phospy.errors.validation import (
+from phospy.core.errors.validation import (
     TransformationValidationError,
     WorkflowValidationError,
 )

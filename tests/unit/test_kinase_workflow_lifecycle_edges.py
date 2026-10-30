@@ -4,8 +4,8 @@ from types import SimpleNamespace
 
 import pytest
 
+from phospy.core.errors.workflows import PhosPyWorkflowError
 from phospy.datasets.processing_state import DatasetPreprocessingReport
-from phospy.errors.workflows import PhosPyWorkflowError
 from phospy.kinase.eligibility import KinaseEligibilityReportComposer
 from phospy.kinase.provenance import KinaseProvenanceBuilder
 from phospy.preparation_records.report_schema import PreprocessingOperationRow

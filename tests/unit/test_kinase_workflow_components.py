@@ -22,8 +22,8 @@ from phospy.api.advanced import (
     KinaseWorkflowSiteAttritionSummary,
     ReferenceContextCompatibilityPolicy,
 )
+from phospy.core.errors.workflows import WorkflowBoundaryError
 from phospy.datasets.internal_view import DatasetInternalView
-from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.kinase.activity.config import (
     KINASE_ACTIVITY_METHOD_KSEA_ZSCORE,
     KINASE_ACTIVITY_METHOD_SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY,

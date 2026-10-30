@@ -6,7 +6,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Final, cast
 
-from phospy.errors.transformations import InvalidTransformationStateError
+from phospy.core.errors.transformations import InvalidTransformationStateError
 from phospy.quantitative.authority import (
     EstablishmentAuthority,
     QuantitativeMeaningTransitionAuthority,

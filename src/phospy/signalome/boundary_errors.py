@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import NoReturn
 
-from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.core.errors.workflows import WorkflowBoundaryError
 from phospy.signalome.constants import (
     SIGNALOME_WORKFLOW_BOUNDARY_MESSAGE_PREFIX,
 )

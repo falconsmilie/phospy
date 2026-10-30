@@ -20,9 +20,9 @@ from phospy.api.advanced import (
     KinaseScoringConfig,
     ReferenceContextCompatibilityPolicy,
 )
+from phospy.core.errors import WorkflowValidationError
+from phospy.core.errors.transformations import InvalidTransformationStateError
 from phospy.differential.validation.workflow import DifferentialAnalysisValidator
-from phospy.errors import WorkflowValidationError
-from phospy.errors.transformations import InvalidTransformationStateError
 from phospy.kinase.validator import KinaseWorkflowValidator
 from phospy.quantitative.authority import (
     bundle_quantitative_meaning_restoration_authority,

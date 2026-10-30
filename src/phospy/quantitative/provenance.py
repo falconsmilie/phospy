@@ -6,7 +6,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import cast
 
-from phospy.errors.transformations import InvalidTransformationStateError
+from phospy.core.errors.transformations import InvalidTransformationStateError
 from phospy.provenance.immutability import (
     freeze_json_mapping_with_error_type,
     thaw_json_mapping,

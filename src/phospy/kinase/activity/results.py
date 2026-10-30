@@ -10,13 +10,13 @@ from phospy.activities.semantics import (
     ActivityInputSemantics,
     ActivityProfileMetadata,
 )
-from phospy.errors.workflows import WorkflowBoundaryError
-from phospy.frames.comparison import (
+from phospy.core.errors.workflows import WorkflowBoundaryError
+from phospy.core.frames.comparison import (
     dataframe_equals,
     optional_dataframe_equals,
     series_equals,
 )
-from phospy.frames.ownership import (
+from phospy.core.frames.ownership import (
     export_dataframe,
     export_optional_dataframe,
     export_series,

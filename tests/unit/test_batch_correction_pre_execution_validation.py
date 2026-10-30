@@ -7,7 +7,7 @@ from typing import cast
 import pandas as pd
 import pytest
 
-from phospy.errors import PhosPyInputError
+from phospy.core.errors import PhosPyInputError
 from phospy.preprocessing.batch_correction import (
     BatchCorrectionWorkflow,
     BatchCorrectionWorkflowRequest,

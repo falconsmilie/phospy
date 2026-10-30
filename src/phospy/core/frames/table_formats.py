@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from phospy.errors.input import UnsupportedInputFormatError
+from phospy.core.errors.input import UnsupportedInputFormatError
 
 TABLE_FORMAT_CSV = "csv"
 TABLE_FORMAT_TSV = "tsv"

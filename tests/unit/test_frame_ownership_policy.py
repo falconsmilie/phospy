@@ -47,19 +47,8 @@ from phospy.api.advanced import (
     KinaseScoringConfig,
     ReferenceContextCompatibilityPolicy,
 )
-from phospy.datasets.construction.executor import DatasetBuildExecutor
-from phospy.datasets.construction.interpreter import DatasetBuildRequestInterpreter
-from phospy.datasets.internal_view import DatasetInternalView
-from phospy.datasets.processing_state import DatasetPreprocessingReport
-from phospy.datasets.schemas import (
-    PhosphoIntensityMatrix,
-)
-from phospy.differential.diagnostics import (
-    EmpiricalBayesPriorDiagnostics,
-    QuantificationDepthTrendDiagnostics,
-)
-from phospy.errors.validation import DatasetValidationError, PhosPyValidationError
-from phospy.frames.ownership import (
+from phospy.core.errors.validation import DatasetValidationError, PhosPyValidationError
+from phospy.core.frames.ownership import (
     _borrow_dataframe,
     _borrow_series,
     export_dataframe,
@@ -71,8 +60,19 @@ from phospy.frames.ownership import (
     own_optional_series,
     own_series,
 )
-from phospy.frames.table_schema import (
+from phospy.core.frames.table_schema import (
     TableSchema,
+)
+from phospy.datasets.construction.executor import DatasetBuildExecutor
+from phospy.datasets.construction.interpreter import DatasetBuildRequestInterpreter
+from phospy.datasets.internal_view import DatasetInternalView
+from phospy.datasets.processing_state import DatasetPreprocessingReport
+from phospy.datasets.schemas import (
+    PhosphoIntensityMatrix,
+)
+from phospy.differential.diagnostics import (
+    EmpiricalBayesPriorDiagnostics,
+    QuantificationDepthTrendDiagnostics,
 )
 from phospy.kinase.activity.inputs import KinaseActivityInputs, PredMatOverlapSummary
 from phospy.kinase.activity.results import KinaseActivityResult
@@ -3128,7 +3128,7 @@ def test_owned_construction_frames_can_be_mutated_after_owned_transfer() -> None
 
 def test_internal_borrowed_accessors_are_not_public_api_exports() -> None:
     import phospy
-    import phospy.frames.ownership as frame_ownership
+    import phospy.core.frames.ownership as frame_ownership
 
     assert not any("borrow" in name for name in phospy.__all__)
     assert not any("borrow" in name for name in frame_ownership.__all__)
@@ -3138,16 +3138,16 @@ def test_internal_borrowed_accessors_are_not_public_api_exports() -> None:
 
 
 def test_frame_ownership_helpers_are_owned_by_frames_ownership_module() -> None:
-    assert own_dataframe.__module__ == "phospy.frames.ownership"
-    assert own_optional_dataframe.__module__ == "phospy.frames.ownership"
-    assert export_dataframe.__module__ == "phospy.frames.ownership"
-    assert export_optional_dataframe.__module__ == "phospy.frames.ownership"
-    assert own_series.__module__ == "phospy.frames.ownership"
-    assert own_optional_series.__module__ == "phospy.frames.ownership"
-    assert export_series.__module__ == "phospy.frames.ownership"
-    assert export_optional_series.__module__ == "phospy.frames.ownership"
-    assert _borrow_dataframe.__module__ == "phospy.frames.ownership"
-    assert _borrow_series.__module__ == "phospy.frames.ownership"
+    assert own_dataframe.__module__ == "phospy.core.frames.ownership"
+    assert own_optional_dataframe.__module__ == "phospy.core.frames.ownership"
+    assert export_dataframe.__module__ == "phospy.core.frames.ownership"
+    assert export_optional_dataframe.__module__ == "phospy.core.frames.ownership"
+    assert own_series.__module__ == "phospy.core.frames.ownership"
+    assert own_optional_series.__module__ == "phospy.core.frames.ownership"
+    assert export_series.__module__ == "phospy.core.frames.ownership"
+    assert export_optional_series.__module__ == "phospy.core.frames.ownership"
+    assert _borrow_dataframe.__module__ == "phospy.core.frames.ownership"
+    assert _borrow_series.__module__ == "phospy.core.frames.ownership"
 
 
 def test_root_frame_ownership_module_is_removed() -> None:

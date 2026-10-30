@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from phospy.core.errors.validation import DatasetValidationError
 from phospy.datasets._construction.validation import (
     analysis_ready_matrix_missing_value_count,
 )
@@ -20,7 +21,6 @@ from phospy.datasets.processing_state import (
 from phospy.datasets.schemas import (
     SiteMetadataTable,
 )
-from phospy.errors.validation import DatasetValidationError
 from phospy.evidence.site_metadata import (
     assess_localisation_probability_column,
 )

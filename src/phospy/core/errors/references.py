@@ -1,6 +1,6 @@
 """Reference-domain exceptions."""
 
-from phospy.errors.base import PhosPyError
+from phospy.core.errors.base import PhosPyError
 
 
 class PhosPyReferenceError(PhosPyError):

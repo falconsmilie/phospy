@@ -7,7 +7,7 @@ from typing import Protocol
 
 import pandas as pd
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.preparation_records.batch_correction import BatchCorrectionReport
 from phospy.preprocessing.batch_correction.adapters.preprocessing import (
     SpsRuvStyleBatchCorrectionWorkflowRunner,

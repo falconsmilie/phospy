@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from phospy.errors.base import PhosPyError
+from phospy.core.errors.base import PhosPyError
 
 
 class PhosPyValidationError(PhosPyError):

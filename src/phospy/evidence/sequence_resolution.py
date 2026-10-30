@@ -6,7 +6,7 @@ import re
 from dataclasses import dataclass
 from typing import Protocol
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 
 RESOLUTION_STATUS_RESOLVED = "resolved"
 RESOLUTION_STATUS_MISSING_ACCESSION = "missing_accession"

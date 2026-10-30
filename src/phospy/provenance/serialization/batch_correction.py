@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.provenance.models.batch_correction import (
     BATCH_CORRECTION_PROVENANCE_SCHEMA_VERSION_V1,
     BatchCorrectionProvenance,

@@ -6,9 +6,9 @@ from dataclasses import dataclass, field
 
 import pandas as pd
 
-from phospy.errors.validation import PhosPyValidationError
-from phospy.frames.comparison import dataframe_equals, optional_dataframe_equals
-from phospy.frames.ownership import (
+from phospy.core.errors.validation import PhosPyValidationError
+from phospy.core.frames.comparison import dataframe_equals, optional_dataframe_equals
+from phospy.core.frames.ownership import (
     borrow_dataframe,
     borrow_optional_dataframe,
     export_dataframe,

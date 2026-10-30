@@ -9,7 +9,7 @@ from collections.abc import Callable
 from enum import Enum
 from pathlib import Path
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 
 
 class _BundleTransactionState(str, Enum):

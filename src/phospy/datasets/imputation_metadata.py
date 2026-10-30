@@ -9,10 +9,14 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 
-from phospy.errors.validation import DatasetValidationError
-from phospy.frames.comparison import dataframe_equals
-from phospy.frames.ownership import borrow_dataframe, export_dataframe, own_dataframe
-from phospy.frames.validation import (
+from phospy.core.errors.validation import DatasetValidationError
+from phospy.core.frames.comparison import dataframe_equals
+from phospy.core.frames.ownership import (
+    borrow_dataframe,
+    export_dataframe,
+    own_dataframe,
+)
+from phospy.core.frames.validation import (
     require_dataframe,
     require_exact_index_match,
 )

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from phospy.errors.transformations import InvalidTransformationStateError
+from phospy.core.errors.transformations import InvalidTransformationStateError
 
 
 @dataclass(frozen=True, slots=True, eq=False)

@@ -7,8 +7,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Final, cast
 
-from phospy.errors.input import PhosPyInputError
-from phospy.errors.transformations import InvalidTransformationStateError
+from phospy.core.errors.input import PhosPyInputError
+from phospy.core.errors.transformations import InvalidTransformationStateError
 from phospy.quantitative.models import (
     IntensityScaleKind,
     IntensityScaleState,

@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from phospy.errors.workflows import WorkflowStageError
+from phospy.core.errors.workflows import WorkflowStageError
 from phospy.provenance.models import (
     RowAttritionRecord,
     RowAttritionReport,

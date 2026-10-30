@@ -11,13 +11,13 @@ import pandas as pd
 import pytest
 
 from phospy.api import Organism
+from phospy.core.errors import DatasetValidationError, PhosPyInputError
 from phospy.datasets._construction import service as construction_service
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.datasets.trusted_assertions import (
     TrustedDatasetConstructionAssertions,
     TrustedDatasetConstructionEvidence,
 )
-from phospy.errors import DatasetValidationError, PhosPyInputError
 from phospy.provenance import (
     TableFingerprint,
 )

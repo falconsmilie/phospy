@@ -15,6 +15,7 @@ import phospy.phosphosites.contracts as identity_contracts
 from phospy.activities.validation import (
     MethodQuantitativeInputValidator,
 )
+from phospy.core.errors.validation import DatasetValidationError
 from phospy.datasets.construction.executor import DatasetBuildExecutor
 from phospy.datasets.schemas import (
     SiteMetadataTable,
@@ -24,7 +25,6 @@ from phospy.differential.validation.dataset import (
 )
 from phospy.differential.validation.workflow import DifferentialAnalysisValidator
 from phospy.enrichment.validation import EnrichmentWorkflowValidator
-from phospy.errors.validation import DatasetValidationError
 from phospy.kinase.resolved_validator import (
     ResolvedKinaseEligibilityValidator,
 )
@@ -97,7 +97,7 @@ REQUEST_DTO_CONTRACT_PATHS = (
     SIGNALOME_REQUEST_CONTRACTS_PATH,
 )
 DATASET_VALIDATION_PREFIX = "phospy.datasets.validation"
-VALIDATION_PREFIX = "phospy.validation"
+VALIDATION_PREFIX = "phospy.core.validation"
 PRIVATE_IMPLEMENTATION_CLASS_SUFFIXES = ("Validator", "Interpreter", "Executor")
 IDENTITY_CONTRACT_CLASS_DEFINITION_OWNERS = {
     "PhosphositeIdentityContract": (

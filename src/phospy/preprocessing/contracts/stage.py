@@ -6,7 +6,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, cast
 
-from phospy.errors.build import DatasetBuildError
+from phospy.core.errors.build import DatasetBuildError
 from phospy.preprocessing.contracts.plan import PreprocessingPlan
 from phospy.preprocessing.contracts.state import (
     PREPROCESSING_STATE_TABLE_KEYS,

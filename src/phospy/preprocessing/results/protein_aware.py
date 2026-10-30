@@ -8,9 +8,9 @@ from dataclasses import dataclass, field
 import pandas as pd
 
 import phospy.preparation_records.protein_aware as _protein_records
-from phospy.errors.validation import DatasetValidationError
-from phospy.frames.ownership import export_dataframe, own_dataframe
-from phospy.frames.validation import (
+from phospy.core.errors.validation import DatasetValidationError
+from phospy.core.frames.ownership import export_dataframe, own_dataframe
+from phospy.core.frames.validation import (
     require_columns,
     require_exact_index_match,
     require_numeric_dataframe,

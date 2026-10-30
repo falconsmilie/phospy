@@ -24,6 +24,7 @@ from phospy.api.advanced import (
     DatasetSiteSequenceResolutionConfig,
     DatasetTotalProteinCorrectionConfig,
 )
+from phospy.core.errors.input import PhosPyInputError
 from phospy.datasets.construction.contracts import (
     DatasetPreprocessorContract,
     InterpretedDatasetBuildRequest,
@@ -38,7 +39,6 @@ from phospy.datasets.construction.preprocessing import (
     DatasetPreprocessor,
     build_dataset_processing_state,
 )
-from phospy.errors.input import PhosPyInputError
 from phospy.phosphosites.site_keys import (
     build_protein_scoped_site_key,
     encode_site_key,

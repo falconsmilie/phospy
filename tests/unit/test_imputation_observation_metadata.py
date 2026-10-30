@@ -11,8 +11,8 @@ from phospy.api import (
     Organism,
 )
 from phospy.api.advanced import DatasetMissingDataConfig
+from phospy.core.errors.validation import DatasetValidationError
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.errors.validation import DatasetValidationError
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

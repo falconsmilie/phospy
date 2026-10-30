@@ -139,17 +139,15 @@ TOP_LEVEL_ROOT_CLASSIFICATIONS: Mapping[str, str] = {
     ".": "public_facade_machinery",
     "activities": "passive_shared_scientific_foundation",
     "api": "public_facade",
+    "core": "organisational_namespace",
     "data": "packaged_resource_payload",
     "datasets": "capability",
     "differential": "capability",
     "enrichment": "capability",
-    "errors": "shared_technical_foundation",
     "evidence": "shared_scientific_foundation",
-    "frames": "shared_technical_foundation",
     "io": "adapter",
     "kinase": "capability",
     "phosphosites": "shared_scientific_foundation",
-    "policies": "shared_technical_foundation",
     "preparation_records": "passive_shared_record_foundation",
     "preprocessing": "capability",
     "provenance": "shared_scientific_foundation",
@@ -159,10 +157,20 @@ TOP_LEVEL_ROOT_CLASSIFICATIONS: Mapping[str, str] = {
     "signalome": "capability",
     "statistics": "shared_scientific_foundation",
     "taxonomy": "shared_scientific_foundation",
-    "validation": "shared_technical_foundation",
 }
 
-RETIRED_TOP_LEVEL_ROOTS = frozenset({"contracts", "science", "tables", "workflows"})
+RETIRED_TOP_LEVEL_ROOTS = frozenset(
+    {
+        "contracts",
+        "errors",
+        "frames",
+        "policies",
+        "science",
+        "tables",
+        "validation",
+        "workflows",
+    }
+)
 
 PERMANENT_SPECIAL_MODULES: Mapping[str, str] = {
     "src/phospy/api/_inventory.py": (

@@ -42,7 +42,7 @@ _FUTURE_SOURCE_REFS_BY_ADR: dict[str, frozenset[str]] = {
         {
             "src/phospy/science/normalisation/",
             "src/phospy/workflows/batch_correction/",
-            "src/phospy/validation/workflows/batch_correction/",
+            "src/phospy/core/validation/workflows/batch_correction/",
         }
     ),
 }
@@ -68,7 +68,7 @@ _RETIRED_SOURCE_REFS_BY_ADR: dict[str, frozenset[str]] = {
         {"src/phospy/api/requests.py", "src/phospy/api/configs/differential.py"}
     ),
     "adr_0007_validation_domain_architecture.md": frozenset(
-        {"src/phospy/validation/datasets/group_coverage_filter.py"}
+        {"src/phospy/core/validation/datasets/group_coverage_filter.py"}
     ),
 }
 

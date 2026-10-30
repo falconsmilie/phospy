@@ -9,6 +9,7 @@ from typing import Any, NoReturn, cast
 import numpy as np
 import pandas as pd
 
+from phospy.core.errors.workflows import WorkflowBoundaryError
 from phospy.differential.caveats import (
     build_protein_aware_result_caveats,
     finalize_differential_result_caveats,
@@ -80,7 +81,6 @@ from phospy.differential.tables import (
     DIFFERENTIAL_RESULT_STATUS_TESTED,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_CONTRAST_NON_ESTIMABLE,
 )
-from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.preparation_records.batch_correction import (
     BatchCorrectionReport,
 )

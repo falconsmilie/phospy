@@ -9,17 +9,17 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pandas as pd
 
-from phospy.errors.validation import PhosPyValidationError
-from phospy.frames.comparison import dataframe_equals, optional_dataframe_equals
-from phospy.frames.ownership import (
+from phospy.core.errors.validation import PhosPyValidationError
+from phospy.core.frames.comparison import dataframe_equals, optional_dataframe_equals
+from phospy.core.frames.ownership import (
     borrow_dataframe,
     borrow_optional_dataframe,
     export_dataframe,
     export_optional_dataframe,
     own_optional_dataframe,
 )
-from phospy.frames.table_schema import require_canonical_label_index
-from phospy.frames.validation import (
+from phospy.core.frames.table_schema import require_canonical_label_index
+from phospy.core.frames.validation import (
     require_dataframe,
     require_exact_index_match,
     require_finite_numeric_dataframe,
@@ -27,6 +27,7 @@ from phospy.frames.validation import (
     require_unique_columns,
     require_unique_index,
 )
+from phospy.core.policies import coerce_policy_enum
 from phospy.kinase.scoring.config import (
     KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED,
     KINASE_SCORING_MODES,
@@ -46,7 +47,6 @@ from phospy.kinase.scoring.tables import (
     KinaseProfileScoreDiagnosticTable,
 )
 from phospy.phosphosites.validation import require_site_key_index
-from phospy.policies import coerce_policy_enum
 from phospy.provenance.immutability import freeze_json_mapping_with_error_type
 
 if TYPE_CHECKING:

@@ -8,7 +8,7 @@ from typing import cast
 
 import pandas as pd
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.preparation_records.batch_correction import (
     BATCH_CORRECTION_CONFOUNDING_NOT_APPLICABLE,
     BATCH_CORRECTION_DESIGN_PRESERVATION_PRESERVE_CONDITION_EFFECTS,

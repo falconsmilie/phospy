@@ -11,13 +11,13 @@ import pandas as pd
 from phospy.activities.validation import (
     MethodQuantitativeInputValidator,
 )
+from phospy.core.errors.validation import WorkflowValidationError
+from phospy.core.frames.validation import require_dataframe
 from phospy.datasets.internal_view import DatasetInternalView
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.errors.validation import WorkflowValidationError
 from phospy.evidence.site_metadata import (
     enforce_localisation_requirement,
 )
-from phospy.frames.validation import require_dataframe
 from phospy.kinase.activity.config import KinaseActivityConfig
 from phospy.kinase.activity.contracts import (
     kinase_activity_method_quantitative_input_contract,

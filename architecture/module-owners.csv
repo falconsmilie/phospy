@@ -8,6 +8,7 @@ src/phospy/api/__init__.py,phospy.api,public_facades,Supported or compatibility 
 src/phospy/api/_inventory.py,phospy.api._inventory,public_facades,Supported aggregate inventory
 src/phospy/api/advanced/__init__.py,phospy.api.advanced,public_facades,Supported specialist aggregate adapter
 src/phospy/api/builders.py,phospy.api.builders,public_facades,Internal API composition route; unsupported for direct consumer import
+src/phospy/core/__init__.py,phospy.core,namespace_containers,Inert organisational namespace initializer
 src/phospy/datasets/__init__.py,phospy.datasets,datasets,Dataset model construction invariant or durable attached record
 src/phospy/datasets/_construction/__init__.py,phospy.datasets._construction,datasets,Dataset model construction invariant or durable attached record
 src/phospy/datasets/_construction/fingerprints.py,phospy.datasets._construction.fingerprints,datasets,Dataset model construction invariant or durable attached record
@@ -137,15 +138,15 @@ src/phospy/enrichment/planning.py,phospy.enrichment.planning,enrichment,Complete
 src/phospy/enrichment/provenance.py,phospy.enrichment.provenance,enrichment,Complete Enrichment capability lifecycle
 src/phospy/enrichment/validation.py,phospy.enrichment.validation,enrichment,Complete Enrichment capability lifecycle
 src/phospy/enrichment/workflow.py,phospy.enrichment.workflow,enrichment,Complete Enrichment capability lifecycle
-src/phospy/errors/__init__.py,phospy.errors,errors,Shared exception taxonomy
-src/phospy/errors/base.py,phospy.errors.base,errors,Shared exception taxonomy
-src/phospy/errors/build.py,phospy.errors.build,errors,Shared exception taxonomy
-src/phospy/errors/input.py,phospy.errors.input,errors,Shared exception taxonomy
-src/phospy/errors/provenance.py,phospy.errors.provenance,errors,Shared exception taxonomy
-src/phospy/errors/references.py,phospy.errors.references,errors,Shared exception taxonomy
-src/phospy/errors/transformations.py,phospy.errors.transformations,errors,Shared exception taxonomy
-src/phospy/errors/validation.py,phospy.errors.validation,errors,Shared exception taxonomy
-src/phospy/errors/workflows.py,phospy.errors.workflows,errors,Shared exception taxonomy
+src/phospy/core/errors/__init__.py,phospy.core.errors,errors,Shared exception taxonomy
+src/phospy/core/errors/base.py,phospy.core.errors.base,errors,Shared exception taxonomy
+src/phospy/core/errors/build.py,phospy.core.errors.build,errors,Shared exception taxonomy
+src/phospy/core/errors/input.py,phospy.core.errors.input,errors,Shared exception taxonomy
+src/phospy/core/errors/provenance.py,phospy.core.errors.provenance,errors,Shared exception taxonomy
+src/phospy/core/errors/references.py,phospy.core.errors.references,errors,Shared exception taxonomy
+src/phospy/core/errors/transformations.py,phospy.core.errors.transformations,errors,Shared exception taxonomy
+src/phospy/core/errors/validation.py,phospy.core.errors.validation,errors,Shared exception taxonomy
+src/phospy/core/errors/workflows.py,phospy.core.errors.workflows,errors,Shared exception taxonomy
 src/phospy/evidence/__init__.py,phospy.evidence,evidence,"Evidence policy, records, allocation, or structural resolution"
 src/phospy/evidence/caveats.py,phospy.evidence.caveats,evidence,"Evidence policy, records, allocation, or structural resolution"
 src/phospy/evidence/config.py,phospy.evidence.config,evidence,"Evidence policy, records, allocation, or structural resolution"
@@ -166,15 +167,15 @@ src/phospy/evidence/quantification_depth.py,phospy.evidence.quantification_depth
 src/phospy/evidence/sequence_resolution.py,phospy.evidence.sequence_resolution,evidence,"Evidence policy, records, allocation, or structural resolution"
 src/phospy/evidence/serialization/historical_peptide.py,phospy.evidence.serialization.historical_peptide,evidence,Historical peptide evidence compatibility codec
 src/phospy/evidence/site_metadata.py,phospy.evidence.site_metadata,evidence,"Evidence policy, records, allocation, or structural resolution"
-src/phospy/frames/__init__.py,phospy.frames,frames,Generic dataframe ownership or schema mechanics
-src/phospy/frames/comparison.py,phospy.frames.comparison,frames,Generic dataframe ownership or schema mechanics
-src/phospy/frames/missing_values.py,phospy.frames.missing_values,frames,Generic dataframe ownership or schema mechanics
-src/phospy/frames/numeric.py,phospy.frames.numeric,frames,Generic dataframe ownership or schema mechanics
-src/phospy/frames/ownership.py,phospy.frames.ownership,frames,Generic dataframe ownership or schema mechanics
-src/phospy/frames/pandas_typing.py,phospy.frames.pandas_typing,frames,Generic dataframe ownership or schema mechanics
-src/phospy/frames/table_formats.py,phospy.frames.table_formats,frames,Generic dataframe ownership or schema mechanics
-src/phospy/frames/table_schema.py,phospy.frames.table_schema,frames,Generic dataframe ownership or schema mechanics
-src/phospy/frames/validation.py,phospy.frames.validation,frames,Generic dataframe ownership or schema mechanics
+src/phospy/core/frames/__init__.py,phospy.core.frames,frames,Generic dataframe ownership or schema mechanics
+src/phospy/core/frames/comparison.py,phospy.core.frames.comparison,frames,Generic dataframe ownership or schema mechanics
+src/phospy/core/frames/missing_values.py,phospy.core.frames.missing_values,frames,Generic dataframe ownership or schema mechanics
+src/phospy/core/frames/numeric.py,phospy.core.frames.numeric,frames,Generic dataframe ownership or schema mechanics
+src/phospy/core/frames/ownership.py,phospy.core.frames.ownership,frames,Generic dataframe ownership or schema mechanics
+src/phospy/core/frames/pandas_typing.py,phospy.core.frames.pandas_typing,frames,Generic dataframe ownership or schema mechanics
+src/phospy/core/frames/table_formats.py,phospy.core.frames.table_formats,frames,Generic dataframe ownership or schema mechanics
+src/phospy/core/frames/table_schema.py,phospy.core.frames.table_schema,frames,Generic dataframe ownership or schema mechanics
+src/phospy/core/frames/validation.py,phospy.core.frames.validation,frames,Generic dataframe ownership or schema mechanics
 src/phospy/io/__init__.py,phospy.io,io,"Reader, persistence, or publisher adapter"
 src/phospy/io/bundles/__init__.py,phospy.io.bundles,io,"Reader, persistence, or publisher adapter"
 src/phospy/io/bundles/_kinase/__init__.py,phospy.io.bundles._kinase,io,"Reader, persistence, or publisher adapter"
@@ -335,9 +336,9 @@ src/phospy/phosphosites/sequence_context.py,phospy.phosphosites.sequence_context
 src/phospy/phosphosites/site_keys.py,phospy.phosphosites.site_keys,phosphosites,Shared phosphosite identity or supplied-window rule
 src/phospy/phosphosites/validation.py,phospy.phosphosites.validation,phosphosites,Shared phosphosite identity or supplied-window rule
 src/phospy/phosphosites/workflow_identity.py,phospy.phosphosites.workflow_identity,phosphosites,Shared phosphosite identity or supplied-window rule
-src/phospy/policies/__init__.py,phospy.policies,policies,Generic parsing and scalar policy
-src/phospy/policies/config_values.py,phospy.policies.config_values,policies,Generic parsing and scalar policy
-src/phospy/policies/policy_base.py,phospy.policies.policy_base,policies,Generic parsing and scalar policy
+src/phospy/core/policies/__init__.py,phospy.core.policies,policies,Generic parsing and scalar policy
+src/phospy/core/policies/config_values.py,phospy.core.policies.config_values,policies,Generic parsing and scalar policy
+src/phospy/core/policies/policy_base.py,phospy.core.policies.policy_base,policies,Generic parsing and scalar policy
 src/phospy/preparation_records/__init__.py,phospy.preparation_records,preparation_records,Passive preparation record or structural validation
 src/phospy/preparation_records/batch_correction.py,phospy.preparation_records.batch_correction,preparation_records,Passive preparation record or structural validation
 src/phospy/preparation_records/group_evidence.py,phospy.preparation_records.group_evidence,preparation_records,Passive preparation record or structural validation
@@ -630,11 +631,11 @@ src/phospy/statistics/__init__.py,phospy.statistics,statistics,Reusable statisti
 src/phospy/statistics/multiple_testing.py,phospy.statistics.multiple_testing,statistics,Reusable statistical kernel or generic correction value
 src/phospy/taxonomy/__init__.py,phospy.taxonomy,taxonomy,Typed organism vocabulary and normalisation
 src/phospy/taxonomy/organisms.py,phospy.taxonomy.organisms,taxonomy,Typed organism vocabulary and normalisation
-src/phospy/validation/__init__.py,phospy.validation,validation,Reusable validation mechanics
-src/phospy/validation/common/__init__.py,phospy.validation.common,validation,Reusable validation mechanics
-src/phospy/validation/common/config_values.py,phospy.validation.common.config_values,validation,Reusable validation mechanics
-src/phospy/validation/common/input_sources.py,phospy.validation.common.input_sources,validation,Policy-free DataFrame-or-path input validation mechanics
-src/phospy/validation/common/numbers.py,phospy.validation.common.numbers,validation,Reusable validation mechanics
-src/phospy/validation/common/paths.py,phospy.validation.common.paths,validation,Reusable validation mechanics
-src/phospy/validation/frame_columns.py,phospy.validation.frame_columns,validation,Reusable validation mechanics
-src/phospy/validation/ownership.py,phospy.validation.ownership,validation,Generic validation governance
+src/phospy/core/validation/__init__.py,phospy.core.validation,validation,Reusable validation mechanics
+src/phospy/core/validation/common/__init__.py,phospy.core.validation.common,validation,Reusable validation mechanics
+src/phospy/core/validation/common/config_values.py,phospy.core.validation.common.config_values,validation,Reusable validation mechanics
+src/phospy/core/validation/common/input_sources.py,phospy.core.validation.common.input_sources,validation,Policy-free DataFrame-or-path input validation mechanics
+src/phospy/core/validation/common/numbers.py,phospy.core.validation.common.numbers,validation,Reusable validation mechanics
+src/phospy/core/validation/common/paths.py,phospy.core.validation.common.paths,validation,Reusable validation mechanics
+src/phospy/core/validation/frame_columns.py,phospy.core.validation.frame_columns,validation,Reusable validation mechanics
+src/phospy/core/validation/ownership.py,phospy.core.validation.ownership,validation,Generic validation governance

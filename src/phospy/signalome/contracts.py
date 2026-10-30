@@ -7,9 +7,9 @@ from typing import Protocol
 
 import pandas as pd
 
+from phospy.core.errors.workflows import WorkflowBoundaryError
 from phospy.datasets.internal_view import DatasetInternalView
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.evidence.config import LocalisationRequirement
 from phospy.kinase.prediction.tables import KinasePredictionMatrix
 from phospy.kinase.result_boundary import (

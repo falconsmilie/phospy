@@ -6,15 +6,11 @@ from dataclasses import dataclass, field
 
 import pandas as pd
 
-from phospy.errors.validation import DatasetValidationError
-from phospy.evidence.localisation import (
-    validate_localisation_confidence_column,
-    validate_localisation_probability_column,
-)
-from phospy.frames.table_schema import (
+from phospy.core.errors.validation import DatasetValidationError
+from phospy.core.frames.table_schema import (
     TableSchema,
 )
-from phospy.frames.validation import (
+from phospy.core.frames.validation import (
     require_dataframe,
     require_exact_index_match,
     require_finite_numeric_dataframe,
@@ -22,6 +18,10 @@ from phospy.frames.validation import (
     require_numeric_dataframe,
     require_unique_columns,
     require_unique_index,
+)
+from phospy.evidence.localisation import (
+    validate_localisation_confidence_column,
+    validate_localisation_probability_column,
 )
 from phospy.phosphosites.contracts import (
     ANALYSIS_READY_DATASET_BASE_IDENTITY_CONTRACT,

@@ -7,7 +7,7 @@ import pytest
 
 import phospy
 import phospy.api as public_api
-import phospy.errors as public_errors
+import phospy.core.errors as public_errors
 from phospy.api import (
     AnalysisReadyDatasetBuilder,
     AnalysisReadyPhosphoDataset,
@@ -24,12 +24,12 @@ from phospy.api import (
     UnsupportedInputFormatError,
 )
 from phospy.api.advanced import DatasetSiteMatrixConfig
-from phospy.datasets.validation.request import DatasetBuildRequestValidator
-from phospy.errors import (
+from phospy.core.errors import (
     ContractValidationError,
     DatasetValidationError,
     ReferenceValidationError,
 )
+from phospy.datasets.validation.request import DatasetBuildRequestValidator
 from phospy.io.readers.tables import read_table
 from phospy.signalome.constants import (
     DISPLAY_ID_COLUMN,

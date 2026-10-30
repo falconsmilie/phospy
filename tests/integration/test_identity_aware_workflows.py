@@ -29,8 +29,8 @@ from phospy.api.advanced import (
     KinaseScoringConfig,
     ReferenceContextCompatibilityPolicy,
 )
+from phospy.core.errors import WorkflowValidationError
 from phospy.differential.validation.workflow import DifferentialAnalysisValidator
-from phospy.errors import WorkflowValidationError
 from phospy.kinase.validator import KinaseWorkflowValidator
 from phospy.references.models import ReferenceBundle
 from phospy.signalome.validator import SignalomeWorkflowValidator

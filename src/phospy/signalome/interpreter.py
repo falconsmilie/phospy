@@ -6,8 +6,8 @@ from typing import cast
 
 import pandas as pd
 
-from phospy.errors.workflows import WorkflowBoundaryError
-from phospy.frames.pandas_typing import (
+from phospy.core.errors.workflows import WorkflowBoundaryError
+from phospy.core.frames.pandas_typing import (
     dataframe_column,
     dataframe_copy,
     dataframe_loc,

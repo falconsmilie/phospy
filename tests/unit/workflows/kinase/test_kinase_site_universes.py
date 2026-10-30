@@ -8,8 +8,8 @@ from phospy.api import (
     Organism,
     ReferenceBundle,
 )
+from phospy.core.errors.workflows import WorkflowBoundaryError
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.kinase.activity.config import ResolvedKinaseActivityExecutionConfig
 from phospy.kinase.activity.contracts import (
     ACTIVITY_SITE_UNIVERSE_KSEA_BACKGROUND,

@@ -14,7 +14,7 @@ from typing import Any, NoReturn, cast
 import numpy as np
 import pandas as pd
 
-from phospy.errors.provenance import ProvenanceFingerprintError
+from phospy.core.errors.provenance import ProvenanceFingerprintError
 from phospy.provenance.immutability import thaw_json_value
 from phospy.provenance.models import (
     JsonValue,

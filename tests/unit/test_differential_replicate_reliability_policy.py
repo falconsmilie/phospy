@@ -19,6 +19,7 @@ from phospy.api.advanced import (
     DifferentialAnalysisConfig,
     TechnicalReplicatePolicy,
 )
+from phospy.core.errors import WorkflowValidationError
 from phospy.differential.caveats import (
     DIFFERENTIAL_EXPLORATORY_SINGLE_REPLICATE_CAVEAT_CODE,
 )
@@ -26,7 +27,6 @@ from phospy.differential.policies import (
     DIFFERENTIAL_RELIABILITY_PROFILE_EXPLORATORY_SINGLE_REPLICATE,
     PAIRED_DESIGN_POLICY_FIXED_BLOCK,
 )
-from phospy.errors import WorkflowValidationError
 from phospy.provenance.result_caveats import result_caveats_from_payloads
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,

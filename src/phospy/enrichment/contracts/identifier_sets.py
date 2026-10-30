@@ -8,8 +8,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import TypeVar, cast
 
-from phospy.errors.input import PhosPyInputError
-from phospy.errors.validation import ContractValidationError
+from phospy.core.errors.input import PhosPyInputError
+from phospy.core.errors.validation import ContractValidationError
 from phospy.provenance.models import (
     TableFingerprint,
 )

@@ -9,7 +9,7 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.preprocessing.batch_correction.execution import (
     RUV_III_ALGORITHM_ID,
     RUV_III_METHOD,

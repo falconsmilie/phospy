@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 
 import pandas as pd
 
+from phospy.core.errors.validation import DatasetValidationError
 from phospy.datasets._construction.fingerprints import (
     _fingerprints_for_analysis_ready_tables,
     _require_trusted_provenance_table_fingerprints,
@@ -65,7 +66,6 @@ from phospy.datasets.schemas import (
 from phospy.datasets.trusted_assertions import (
     TrustedDatasetConstructionAssertions,
 )
-from phospy.errors.validation import DatasetValidationError
 from phospy.quantitative.models import IntensityScaleState
 from phospy.run_lineage.models import (
     RunProvenance,

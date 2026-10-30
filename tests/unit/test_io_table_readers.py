@@ -11,7 +11,7 @@ from phospy.api import (
     AnalysisReadyDatasetBuilder,
     DatasetBuildRequest,
 )
-from phospy.errors import PhosPyInputError
+from phospy.core.errors import PhosPyInputError
 from phospy.io.readers.tables import (
     read_contrast_matrix,
     read_design_matrix,

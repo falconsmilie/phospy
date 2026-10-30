@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import pandas as pd
 
-from phospy.errors.validation import PhosPyValidationError
-from phospy.frames.numeric import require_numeric_unit_interval
-from phospy.frames.table_schema import require_canonical_label_index
-from phospy.frames.validation import (
+from phospy.core.errors.validation import PhosPyValidationError
+from phospy.core.frames.numeric import require_numeric_unit_interval
+from phospy.core.frames.table_schema import require_canonical_label_index
+from phospy.core.frames.validation import (
     require_dataframe,
     require_finite_numeric_dataframe,
     require_numeric_dataframe,

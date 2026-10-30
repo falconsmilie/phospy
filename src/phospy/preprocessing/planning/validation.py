@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 from typing import Any
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.preprocessing.batch_correction.contracts.configuration import (
     DATASET_BATCH_CORRECTION_METHOD_NONE,
 )

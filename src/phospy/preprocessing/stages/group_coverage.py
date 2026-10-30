@@ -9,7 +9,7 @@ from typing import TypedDict
 import numpy as np
 import pandas as pd
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.preparation_records.report_schema import PreprocessingRowAuditRow
 from phospy.preprocessing.contracts import (
     DATASET_PREPROCESSING_STAGE_GROUP_COVERAGE_FILTER,

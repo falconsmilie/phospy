@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import replace
 
-from phospy.errors.build import DatasetBuildError
+from phospy.core.errors.build import DatasetBuildError
 from phospy.preprocessing.contracts import (
     PreprocessingPlan,
     PreprocessingReportRow,

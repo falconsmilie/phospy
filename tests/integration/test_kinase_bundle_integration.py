@@ -38,7 +38,7 @@ from phospy.api.advanced import (
     KinaseScoringConfig,
     ReferenceContextCompatibilityPolicy,
 )
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.io.bundles.kinase import (
     KINASE_BUNDLE_MANIFEST_VERSION,
     KinaseWorkflowConfigSnapshot,

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.preprocessing.contracts import DuplicateSiteResolutionResult
 from phospy.preprocessing.contracts.policies import (
     SiteMatrixMissingDataPolicy,

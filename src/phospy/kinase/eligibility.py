@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from phospy.errors.workflows import PhosPyWorkflowError
+from phospy.core.errors.workflows import PhosPyWorkflowError
 from phospy.kinase.contracts import (
     ResolvedKinaseExecutionConfig,
     ResolvedKinaseWorkflowRequest,

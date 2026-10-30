@@ -7,6 +7,8 @@ from dataclasses import dataclass
 
 import pandas as pd
 
+from phospy.core.errors.build import DatasetBuildError
+from phospy.core.errors.transformations import TransformationStateEstablishmentError
 from phospy.datasets.construction.contracts import (
     DatasetIntensityScaleResolverContract,
     InterpretedDatasetBuildRequest,
@@ -16,8 +18,6 @@ from phospy.datasets.construction.preprocessing import (
     build_dataset_processing_state,
 )
 from phospy.datasets.processing_state import DatasetProcessingState
-from phospy.errors.build import DatasetBuildError
-from phospy.errors.transformations import TransformationStateEstablishmentError
 from phospy.preprocessing.contracts import (
     DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
     PreprocessingPlan,

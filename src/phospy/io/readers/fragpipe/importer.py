@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.io.importers.contracts import (
     PhosphositeImportRequest,
     PhosphositeImportResult,

@@ -11,8 +11,8 @@ from phospy.api.advanced import (
     KinaseScoringConfig,
     ReferenceContextCompatibilityPolicy,
 )
+from phospy.core.errors.validation import WorkflowValidationError
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.errors.validation import WorkflowValidationError
 from phospy.references.context_compatibility import (
     REFERENCE_CONTEXT_UNKNOWN_CAVEAT_CODE,
 )

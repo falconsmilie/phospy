@@ -6,7 +6,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import cast
 
-from phospy.errors.validation import (
+from phospy.core.errors.validation import (
     TransformationValidationError,
     WorkflowValidationError,
 )

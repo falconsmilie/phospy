@@ -25,6 +25,12 @@ from phospy.api.advanced import (
     MultipleTestingConfig,
     MultipleTestingMethod,
 )
+from phospy.core.errors import (
+    ContractValidationError,
+    PhosPyInputError,
+    WorkflowValidationError,
+)
+from phospy.core.errors.workflows import WorkflowBoundaryError
 from phospy.datasets.construction.intensity_scale import (
     DatasetIntensityScaleResolver,
 )
@@ -60,12 +66,6 @@ from phospy.differential.tables import (
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_ALL_CONSTANT,
 )
 from phospy.differential.validation.workflow import DifferentialAnalysisValidator
-from phospy.errors import (
-    ContractValidationError,
-    PhosPyInputError,
-    WorkflowValidationError,
-)
-from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.evidence.quantification_depth import (
     QUANTIFICATION_DEPTH_KIND_PEPTIDE_COUNT,
     QUANTIFICATION_DEPTH_KIND_PSM_COUNT,

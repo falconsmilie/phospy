@@ -5,9 +5,9 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import cast
 
+from phospy.core.errors.input import PhosPyInputError
 from phospy.datasets.contracts import DatasetBuildRequest
 from phospy.datasets.validation.inputs import DatasetInputSourceValidator
-from phospy.errors.input import PhosPyInputError
 from phospy.evidence.dataset_resolution.models import (
     DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED,
     SUPPORTED_DATASET_MULTI_SITE_POLICIES,

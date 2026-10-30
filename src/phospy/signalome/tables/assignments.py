@@ -5,8 +5,8 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from phospy.frames.table_schema import TableSchema, ValidationErrorType
-from phospy.frames.validation import (
+from phospy.core.frames.table_schema import TableSchema, ValidationErrorType
+from phospy.core.frames.validation import (
     require_columns,
     require_dataframe,
     require_non_empty_string_column,

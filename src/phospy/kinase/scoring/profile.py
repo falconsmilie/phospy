@@ -7,7 +7,7 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from phospy.errors.workflows import WorkflowStageError
+from phospy.core.errors.workflows import WorkflowStageError
 from phospy.kinase.scoring.config import (
     KINASE_PROFILE_MISSING_VALUE_STRATEGIES,
     KINASE_PROFILE_MISSING_VALUE_STRATEGY_MEDIAN_SKIPNA,

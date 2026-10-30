@@ -15,6 +15,7 @@ from phospy.api import (
     SampleDesignRecord,
 )
 from phospy.api.advanced import DifferentialAnalysisConfig
+from phospy.core.errors import WorkflowBoundaryError
 from phospy.differential.design.models import PAIRED_DESIGN_POLICY_REJECT
 from phospy.differential.execution.fitting import DifferentialModelFitter
 from phospy.differential.execution.linear_model import decompose_differential_design
@@ -58,7 +59,6 @@ from phospy.enrichment.planning import (
     InterpretedEnrichmentWorkflowRequest,
 )
 from phospy.enrichment.provenance import EnrichmentRunProvenanceAssembler
-from phospy.errors import WorkflowBoundaryError
 from tests.support.site_keys import protein_site_key_index, site_key_context_columns
 
 ROOT = Path(__file__).resolve().parents[2]

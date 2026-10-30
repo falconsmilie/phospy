@@ -6,7 +6,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Final, NoReturn, cast
 
-from phospy.errors.build import DatasetBuildError
+from phospy.core.errors.build import DatasetBuildError
 from phospy.preprocessing.contracts import (
     DATASET_PREPROCESSING_STAGE_MISSING_DATA,
     DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,

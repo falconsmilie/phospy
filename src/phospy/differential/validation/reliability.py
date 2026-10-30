@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import cast
 
+from phospy.core.errors.validation import WorkflowValidationError
 from phospy.differential.config import (
     DIFFERENTIAL_EXPLORATORY_MINIMUM_CONDITION_REPLICATES,
     DIFFERENTIAL_PRODUCTION_MINIMUM_CONDITION_REPLICATES,
@@ -13,7 +14,6 @@ from phospy.differential.config import (
     DifferentialAnalysisConfig,
     DifferentialReliabilityProfile,
 )
-from phospy.errors.validation import WorkflowValidationError
 
 
 def validate_differential_reliability_config(

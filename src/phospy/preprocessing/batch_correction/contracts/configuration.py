@@ -5,8 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-from phospy.errors.input import PhosPyInputError
-from phospy.policies.config_values import (
+from phospy.core.errors.input import PhosPyInputError
+from phospy.core.policies.config_values import (
     require_int_at_least,
     require_non_empty_string,
     require_supported_literal,

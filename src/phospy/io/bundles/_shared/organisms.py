@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.io.bundles._shared.primitives import require_str
 from phospy.taxonomy.organisms import Organism
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy.errors import PhosPyInputError
+from phospy.core.errors import PhosPyInputError
 from phospy.evidence import (
     MULTI_SITE_POLICY_ERROR,
     MULTI_SITE_POLICY_EXCLUDE_FROM_SEQUENCE_SCORING,

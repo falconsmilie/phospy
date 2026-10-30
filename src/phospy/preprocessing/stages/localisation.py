@@ -7,7 +7,7 @@ from numbers import Real
 
 import pandas as pd
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.evidence.localisation import (
     assess_localisation_probability_column,
 )

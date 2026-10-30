@@ -7,10 +7,10 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
+from phospy.core.errors import PhosPyInputError
+from phospy.core.errors.validation import DatasetValidationError
 from phospy.datasets.builder import AnalysisReadyDatasetBuilder
 from phospy.datasets.contracts import DatasetBuildRequest
-from phospy.errors import PhosPyInputError
-from phospy.errors.validation import DatasetValidationError
 from phospy.preparation_records.batch_correction import (
     BatchCorrectionDiagnostics,
     BatchCorrectionPolicy,

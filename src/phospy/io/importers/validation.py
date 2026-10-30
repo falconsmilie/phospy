@@ -7,13 +7,13 @@ from typing import cast
 
 import pandas as pd
 
-from phospy.errors.input import PhosPyInputError, UnsupportedInputFormatError
+from phospy.core.errors.input import PhosPyInputError, UnsupportedInputFormatError
+from phospy.core.frames.validation import require_unique_columns
+from phospy.core.validation.common.input_sources import validate_dataframe_or_path
 from phospy.evidence.localisation import (
     SUPPORTED_LOCALISATION_CONFIDENCE_SCALES,
 )
-from phospy.frames.validation import require_unique_columns
 from phospy.io.importers.contracts import PhosphositeImportRequest
-from phospy.validation.common.input_sources import validate_dataframe_or_path
 
 
 class _PhosphositeImportSourceValidator:

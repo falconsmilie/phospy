@@ -16,9 +16,9 @@ from phospy.api.advanced import (
     KinaseScoringConfig,
     ReferenceContextCompatibilityPolicy,
 )
+from phospy.core.errors.workflows import WorkflowBoundaryError
 from phospy.datasets.internal_view import DatasetInternalView
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.kinase.contracts import (
     ResolvedKinaseExecutionConfig,
     ValidatedKinaseWorkflowRequest,

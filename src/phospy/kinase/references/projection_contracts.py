@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 
-from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.core.errors.workflows import WorkflowBoundaryError
 
 KINASE_REFERENCE_PROJECTION_INTERPRETER_VERSION = (
     "phospy.workflows.kinase.reference_projector.v1"

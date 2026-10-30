@@ -6,7 +6,7 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phospy.errors import WorkflowStageError
+from phospy.core.errors import WorkflowStageError
 from phospy.signalome.config import (
     SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,
     SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP,

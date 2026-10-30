@@ -14,9 +14,9 @@ from typing import TypeAlias
 
 import pandas as pd
 
-from phospy.errors.input import PhosPyInputError
-from phospy.policies import PolicyEnum
-from phospy.policies.config_values import (
+from phospy.core.errors.input import PhosPyInputError
+from phospy.core.policies import PolicyEnum
+from phospy.core.policies.config_values import (
     require_non_empty_string,
     require_optional_int_at_least,
 )

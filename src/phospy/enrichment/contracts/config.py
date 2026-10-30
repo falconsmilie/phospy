@@ -6,6 +6,7 @@ import math
 from dataclasses import dataclass
 from typing import cast
 
+from phospy.core.errors.validation import ContractValidationError
 from phospy.enrichment.contracts.vocabulary import (
     ENRICHMENT_IDENTIFIER_KIND_DISPLAY_ID,
     ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
@@ -31,7 +32,6 @@ from phospy.enrichment.contracts.vocabulary import (
     EnrichmentOutsideBackgroundPolicy,
     MultipleTestingCorrection,
 )
-from phospy.errors.validation import ContractValidationError
 
 ENRICHMENT_PUBLISHING_DEFAULT_MIN_SET_SIZE = 5
 ENRICHMENT_PUBLISHING_DEFAULT_MAX_SET_SIZE = 500

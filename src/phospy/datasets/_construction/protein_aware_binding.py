@@ -7,6 +7,13 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 
+from phospy.core.errors.base import PhosPyError
+from phospy.core.errors.validation import DatasetValidationError
+from phospy.core.frames.comparison import dataframe_equals
+from phospy.core.frames.validation import (
+    format_label_examples,
+    require_exact_index_match,
+)
 from phospy.datasets._construction.fingerprints import (
     _require_fingerprint_sets_match,
 )
@@ -15,10 +22,6 @@ from phospy.datasets.protein_aware import (
     ProteinAwarePreparationReport,
     ProteinAwarePreparationResult,
 )
-from phospy.errors.base import PhosPyError
-from phospy.errors.validation import DatasetValidationError
-from phospy.frames.comparison import dataframe_equals
-from phospy.frames.validation import format_label_examples, require_exact_index_match
 from phospy.preparation_records.protein_aware import (
     DATASET_PROTEIN_AWARE_PREPARATION_POLICY_PREPARE_MODEL_INPUTS,
 )

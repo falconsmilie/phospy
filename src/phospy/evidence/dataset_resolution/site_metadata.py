@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.evidence.dataset_resolution.allocation import AllocatedEvidence
 from phospy.evidence.dataset_resolution.models import (
     DATASET_PEPTIDE_LOCALISATION_COMPATIBILITY_ALIAS_COLUMN,

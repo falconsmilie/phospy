@@ -10,7 +10,7 @@ from typing import cast
 
 import pandas as pd
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.evidence.multi_site import parse_phospho_site_tokens
 from phospy.evidence.quantification_depth import (
     QUANTIFICATION_DEPTH_COLUMN,

@@ -12,15 +12,15 @@ from phospy.api.advanced import (
     KinasePredictionConfig,
     KinaseScoringConfig,
 )
-from phospy.datasets.construction.input_resolution import DatasetInputReader
-from phospy.datasets.internal_view import DatasetInternalView
-from phospy.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.errors import (
+from phospy.core.errors import (
     PhosPyInputError,
     PhosPyWorkflowError,
     ReferenceCompatibilityError,
     ReferenceResolutionError,
 )
+from phospy.datasets.construction.input_resolution import DatasetInputReader
+from phospy.datasets.internal_view import DatasetInternalView
+from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.kinase.interpreter import KinaseWorkflowInterpreter
 from phospy.kinase.references.projection import (
     KinaseReferenceProjectionSummary,

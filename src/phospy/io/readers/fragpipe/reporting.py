@@ -7,7 +7,7 @@ from dataclasses import replace
 
 import pandas as pd
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.evidence.quantification_depth import QUANTIFICATION_DEPTH_COLUMN
 from phospy.io.importers.contracts import (
     IMPORTER_QUALITY_STATUS_NOT_APPLICABLE,

@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.preprocessing.batch_correction.contracts.output import (
     _CALLER_ATTESTED_EXTERNAL_CORRECTION_ORIGIN,
     _CALLER_ATTESTED_EXTERNAL_CORRECTION_VERIFICATION,

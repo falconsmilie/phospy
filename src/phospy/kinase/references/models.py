@@ -14,8 +14,8 @@ from typing import cast
 
 import pandas as pd
 
-from phospy.errors.validation import ReferenceValidationError
-from phospy.frames.ownership import export_dataframe, own_dataframe
+from phospy.core.errors.validation import ReferenceValidationError
+from phospy.core.frames.ownership import export_dataframe, own_dataframe
 from phospy.kinase.references.provenance import KinaseLibraryResourceProvenance
 from phospy.kinase.scoring.motif.models import AMINO_ACIDS
 from phospy.references.models import (

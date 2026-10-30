@@ -7,7 +7,7 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phospy.errors import WorkflowStageError
+from phospy.core.errors import WorkflowStageError
 from phospy.kinase.prediction.outputs import build_prediction_outputs
 from phospy.kinase.scoring.config import (
     KINASE_PROFILE_MISSING_VALUE_STRATEGY_MEDIAN_SKIPNA,

@@ -22,6 +22,8 @@ from phospy.api.advanced import (
     DifferentialAnalysisConfig,
     DifferentialProteinAwareModelConfig,
 )
+from phospy.core.errors.input import PhosPyInputError
+from phospy.core.errors.workflows import WorkflowBoundaryError
 from phospy.datasets.processing_state import DatasetPreprocessingReport
 from phospy.datasets.protein_aware import (
     ProteinAwarePreparationReport,
@@ -94,8 +96,6 @@ from phospy.differential.tables import (
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_PREPARATION_INELIGIBLE,
 )
 from phospy.differential.validation.workflow import DifferentialAnalysisValidator
-from phospy.errors.input import PhosPyInputError
-from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.preparation_records.protein_aware import (
     ProteinAwarePreparationEligibility,
     ProteinAwareSampleAlignmentDiagnostics,

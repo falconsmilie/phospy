@@ -9,6 +9,22 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 
+from phospy.core.errors.input import PhosPyInputError
+from phospy.core.frames.comparison import dataframe_equals, optional_series_equals
+from phospy.core.frames.ownership import (
+    export_dataframe,
+    own_dataframe,
+    own_optional_series,
+)
+from phospy.core.frames.validation import (
+    require_dataframe,
+    require_exact_index_match,
+    require_finite_numeric_dataframe,
+    require_non_empty_dataframe,
+    require_numeric_dataframe,
+    require_unique_columns,
+    require_unique_index,
+)
 from phospy.differential.execution.linear_model import (
     DifferentialDesignDecomposition,
     DifferentialDesignDecompositionError,
@@ -20,22 +36,6 @@ from phospy.differential.moderation.config import (
 )
 from phospy.differential.quantification_depth import (
     log2_quantification_depth_series,
-)
-from phospy.errors.input import PhosPyInputError
-from phospy.frames.comparison import dataframe_equals, optional_series_equals
-from phospy.frames.ownership import (
-    export_dataframe,
-    own_dataframe,
-    own_optional_series,
-)
-from phospy.frames.validation import (
-    require_dataframe,
-    require_exact_index_match,
-    require_finite_numeric_dataframe,
-    require_non_empty_dataframe,
-    require_numeric_dataframe,
-    require_unique_columns,
-    require_unique_index,
 )
 from phospy.statistics.multiple_testing import (
     MULTIPLE_TESTING_CORRECTION_BENJAMINI_HOCHBERG,

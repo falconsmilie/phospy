@@ -8,7 +8,7 @@ from phospy.api.advanced import (
     filter_differential_results,
     rank_differential_results,
 )
-from phospy.errors import PhosPyInputError
+from phospy.core.errors import PhosPyInputError
 
 
 def _result_table() -> pd.DataFrame:

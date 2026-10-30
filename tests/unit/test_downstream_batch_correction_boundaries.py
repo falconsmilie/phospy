@@ -34,13 +34,13 @@ from phospy.api.advanced import (
     KinaseScoringConfig,
     SignalomeConfig,
 )
+from phospy.core.errors import PhosPyInputError
 from phospy.datasets.processing_state import (
     DatasetPreprocessingReport,
     RuvReadinessState,
 )
 from phospy.differential.planning.interpreter import DifferentialAnalysisInterpreter
 from phospy.differential.validation.workflow import DifferentialAnalysisValidator
-from phospy.errors import PhosPyInputError
 from phospy.preparation_records.batch_correction import (
     BatchCorrectionDiagnostics,
     BatchCorrectionPolicy,

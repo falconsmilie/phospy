@@ -10,7 +10,7 @@ from typing import Any
 import pandas as pd
 
 import phospy.preparation_records.protein_aware as _protein_records
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 
 _INDEX_KEY = "__index__"
 _DEFAULT_PROTEIN_IDENTIFIER_COLUMNS = (

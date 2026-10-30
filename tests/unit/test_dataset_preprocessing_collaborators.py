@@ -10,6 +10,8 @@ from phospy.api import (
 from phospy.api.advanced import (
     DatasetMissingDataConfig,
 )
+from phospy.core.errors.build import DatasetBuildError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.datasets.construction.intensity_scale import (
     DatasetIntensityScaleResolver,
 )
@@ -20,8 +22,6 @@ from phospy.datasets.construction.preprocessing import (
 from phospy.datasets.construction.state_assembly import (
     DatasetProcessingStateBuilder,
 )
-from phospy.errors.build import DatasetBuildError
-from phospy.errors.input import PhosPyInputError
 from phospy.preprocessing.contracts import (
     DATASET_PREPROCESSING_STAGE_MISSING_DATA,
     DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,

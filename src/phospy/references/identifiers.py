@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from phospy.errors.validation import ReferenceValidationError
+from phospy.core.errors.validation import ReferenceValidationError
 from phospy.phosphosites.identifiers import canonicalize_site_identifier
 from phospy.references.provenance.identifiers import (
     REFERENCE_IDENTIFIER_NORMALISATION_SCHEMA_VERSION,

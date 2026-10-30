@@ -4,7 +4,7 @@ from collections.abc import Iterable
 from enum import Enum
 from typing import TypeVar
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 
 _PolicyEnumT = TypeVar("_PolicyEnumT", bound="PolicyEnum")
 _EnumT = TypeVar("_EnumT", bound=Enum)

@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from phospy.errors.build import DatasetBuildError
+from phospy.core.errors.build import DatasetBuildError
 from phospy.preparation_records.report_schema import (
     ComparisonGroupStatsRow,
     ComparisonPairStatsRow,

@@ -5,8 +5,8 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from phospy.frames.table_schema import TableSchema, require_canonical_label_index
-from phospy.frames.validation import (
+from phospy.core.frames.table_schema import TableSchema, require_canonical_label_index
+from phospy.core.frames.validation import (
     require_dataframe,
     require_finite_numeric_dataframe,
     require_numeric_dataframe,

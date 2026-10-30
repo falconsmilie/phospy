@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-from phospy.errors.base import PhosPyError
-from phospy.errors.validation import WorkflowValidationError
+from phospy.core.errors.base import PhosPyError
+from phospy.core.errors.validation import WorkflowValidationError
 
 
 class PhosPyWorkflowError(PhosPyError):

@@ -3,8 +3,8 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy.errors.validation import DatasetValidationError
-from phospy.frames.validation import (
+from phospy.core.errors.validation import DatasetValidationError
+from phospy.core.frames.validation import (
     format_label_examples,
     require_aligned_dataframe_shape,
     require_columns,

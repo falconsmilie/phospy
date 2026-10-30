@@ -6,6 +6,7 @@ from dataclasses import dataclass
 
 import pandas as pd
 
+from phospy.core.frames.ownership import own_dataframe, own_optional_dataframe
 from phospy.datasets.construction.normalization_reporting import (
     SAMPLE_LABEL_INDEX_POLICY as _SAMPLE_LABEL_INDEX_POLICY,
 )
@@ -21,7 +22,6 @@ from phospy.datasets.construction.site_metadata import (
 from phospy.datasets.construction.total_matrix import (
     TotalProteinMatrixNormalizer,
 )
-from phospy.frames.ownership import own_dataframe, own_optional_dataframe
 from phospy.phosphosites.identifiers import (
     SiteIdentifierNormalisationRecord,
     SiteIdentifierNormalisationReport,

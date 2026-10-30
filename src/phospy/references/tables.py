@@ -8,12 +8,12 @@ from typing import NoReturn
 
 import pandas as pd
 
-from phospy.errors.validation import (
+from phospy.core.errors.validation import (
     ReferenceIdentifierNormalisationValidationError,
     ReferenceValidationError,
 )
-from phospy.frames.table_schema import TableSchema
-from phospy.frames.validation import (
+from phospy.core.frames.table_schema import TableSchema
+from phospy.core.frames.validation import (
     require_canonical_string_column,
     require_columns,
     require_dataframe,

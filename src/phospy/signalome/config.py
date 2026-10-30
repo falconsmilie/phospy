@@ -5,17 +5,17 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Literal
 
-from phospy.errors.validation import ContractValidationError
-from phospy.evidence.config import LocalisationRequirement
-from phospy.policies.config_values import (
+from phospy.core.errors.validation import ContractValidationError
+from phospy.core.policies.config_values import (
     coerce_policy_enum,
 )
-from phospy.policies.config_values import (
+from phospy.core.policies.config_values import (
     require_int_at_least as _require_int_at_least,
 )
-from phospy.policies.config_values import (
+from phospy.core.policies.config_values import (
     require_real_between as _require_real_between,
 )
+from phospy.evidence.config import LocalisationRequirement
 from phospy.references.config import (
     REFERENCE_CONTEXT_COMPATIBILITY_POLICY_REQUIRE_KNOWN_MATCH,
     ReferenceContextCompatibilityPolicy,

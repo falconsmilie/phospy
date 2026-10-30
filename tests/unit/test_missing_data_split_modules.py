@@ -8,7 +8,7 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.preprocessing.contracts import (
     PreprocessingPlan,
     PreprocessingState,

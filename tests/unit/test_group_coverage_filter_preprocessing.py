@@ -13,7 +13,7 @@ from phospy.api.advanced import (
     DatasetGroupCoverageFilterConfig,
     DatasetMissingDataConfig,
 )
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 
 
 def _phospho() -> pd.DataFrame:

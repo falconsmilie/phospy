@@ -5,11 +5,11 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, cast
 
+from phospy.core.errors.input import PhosPyInputError
+from phospy.core.errors.validation import DatasetValidationError
 from phospy.datasets.trusted_assertions import (
     TrustedDatasetConstructionAssertions,
 )
-from phospy.errors.input import PhosPyInputError
-from phospy.errors.validation import DatasetValidationError
 from phospy.run_lineage.models import (
     RunProvenance,
 )

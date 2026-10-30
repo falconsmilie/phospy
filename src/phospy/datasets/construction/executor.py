@@ -7,6 +7,7 @@ from dataclasses import replace
 
 import pandas as pd
 
+from phospy.core.errors.validation import DatasetValidationError
 from phospy.datasets._construction.organism_coherence import (
     normalize_dataset_organism_state,
 )
@@ -39,7 +40,6 @@ from phospy.datasets.construction.transformation_state import (
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.datasets.processing_state import DatasetPreprocessingReport
 from phospy.datasets.protein_aware import ProteinAwarePreparationResult
-from phospy.errors.validation import DatasetValidationError
 from phospy.preprocessing.contracts import (
     reject_external_corrected_output_after_downstream_preprocessing,
 )

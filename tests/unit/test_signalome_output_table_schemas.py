@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from phospy.errors import PhosPyValidationError
+from phospy.core.errors import PhosPyValidationError
 from phospy.signalome.models import (
     KinaseNetwork,
     SignalomeAssignments,

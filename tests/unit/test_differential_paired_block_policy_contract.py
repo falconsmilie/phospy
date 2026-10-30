@@ -11,13 +11,13 @@ from phospy.api import (
     SampleDesignRecord,
 )
 from phospy.api.advanced import DifferentialAnalysisConfig
+from phospy.core.errors import ContractValidationError
 from phospy.differential.policies import (
     PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION,
     PAIRED_DESIGN_POLICY_FIXED_BLOCK,
     PAIRED_DESIGN_POLICY_REJECT,
     SUPPORTED_PAIRED_DESIGN_POLICIES,
 )
-from phospy.errors import ContractValidationError
 
 
 def test_paired_design_policy_defaults_to_reject() -> None:

@@ -16,8 +16,8 @@ from phospy.api.advanced import (
     KinaseScoringConfig,
     ReferenceContextCompatibilityPolicy,
 )
+from phospy.core.errors import WorkflowValidationError
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.errors import WorkflowValidationError
 from phospy.kinase.contracts import ResolvedKinaseWorkflowRequest
 from phospy.kinase.references.models import (
     KinaseLibraryMatrix,

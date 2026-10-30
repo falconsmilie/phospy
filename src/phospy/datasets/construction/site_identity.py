@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pandas as pd
 
-from phospy.errors.input import UnsupportedInputFormatError
-from phospy.frames.ownership import own_dataframe
+from phospy.core.errors.input import UnsupportedInputFormatError
+from phospy.core.frames.ownership import own_dataframe
 from phospy.phosphosites.identifiers import canonicalize_site_components_series
 from phospy.phosphosites.site_keys import (
     build_protein_scoped_site_key,

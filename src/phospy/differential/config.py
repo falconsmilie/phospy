@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import cast
 
+from phospy.core.errors.validation import ContractValidationError
 from phospy.differential.moderation.config import (
     EmpiricalBayesConfig,
 )
@@ -36,7 +37,6 @@ from phospy.differential.policies import (
     PairedDesignPolicy,
     TechnicalReplicatePolicy,
 )
-from phospy.errors.validation import ContractValidationError
 
 
 @dataclass(frozen=True, slots=True)

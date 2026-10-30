@@ -6,7 +6,7 @@ import math
 from dataclasses import dataclass
 from typing import cast
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.preparation_records.policies import (
     MissingDataPolicy,
     NormalisationPolicy,

@@ -7,10 +7,10 @@ from typing import ClassVar, cast
 
 import pandas as pd
 
-from phospy.errors.validation import PhosPyValidationError
-from phospy.frames.comparison import dataframe_equals
-from phospy.frames.ownership import export_dataframe, own_dataframe
-from phospy.frames.validation import (
+from phospy.core.errors.validation import PhosPyValidationError
+from phospy.core.frames.comparison import dataframe_equals
+from phospy.core.frames.ownership import export_dataframe, own_dataframe
+from phospy.core.frames.validation import (
     require_no_duplicate_labels,
     require_string_index,
 )

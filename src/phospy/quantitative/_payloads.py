@@ -6,8 +6,8 @@ import re
 from collections.abc import Mapping, Sequence
 from typing import Final, cast
 
-from phospy.errors.input import PhosPyInputError
-from phospy.errors.transformations import InvalidTransformationStateError
+from phospy.core.errors.input import PhosPyInputError
+from phospy.core.errors.transformations import InvalidTransformationStateError
 from phospy.provenance.immutability import freeze_json_mapping_with_error_type
 from phospy.provenance.models import (
     TableFingerprint,

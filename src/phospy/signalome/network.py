@@ -7,7 +7,7 @@ from collections.abc import Mapping, Sequence
 import numpy as np
 import pandas as pd
 
-from phospy.errors.workflows import WorkflowStageError
+from phospy.core.errors.workflows import WorkflowStageError
 from phospy.signalome.config import (
     SIGNALOME_KINASE_NETWORK_POLICIES,
     SIGNALOME_KINASE_NETWORK_POLICY_ABSOLUTE_THRESHOLD,

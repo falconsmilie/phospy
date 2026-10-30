@@ -30,6 +30,7 @@ from phospy.api.advanced import (
     EmpiricalBayesConfig,
     TechnicalReplicatePolicy,
 )
+from phospy.core.errors import WorkflowBoundaryError
 from phospy.differential.execution.linear_model import (
     DIFFERENTIAL_LINEAR_MODEL_MAX_CONDITION_NUMBER,
 )
@@ -68,7 +69,6 @@ from phospy.differential.tables import (
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_COVARIATE_INVALID,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_PREPARATION_INELIGIBLE,
 )
-from phospy.errors import WorkflowBoundaryError
 from phospy.evidence.quantification_depth import QUANTIFICATION_DEPTH_KIND_PSM_COUNT
 from phospy.provenance.hashing import fingerprint_table_strict
 from phospy.statistics.multiple_testing import (

@@ -6,7 +6,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from phospy.errors.validation import ReferenceValidationError
+from phospy.core.errors.validation import ReferenceValidationError
 from phospy.kinase.references.loading import (
     KinaseLibraryResourceLoader,
 )

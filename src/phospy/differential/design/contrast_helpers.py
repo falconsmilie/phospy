@@ -5,8 +5,8 @@ from __future__ import annotations
 from collections import Counter
 from typing import cast
 
+from phospy.core.errors.validation import WorkflowValidationError
 from phospy.differential.design.models import Contrast, ExperimentalDesign
-from phospy.errors.validation import WorkflowValidationError
 
 
 def all_pairwise_contrasts(design: ExperimentalDesign) -> tuple[Contrast, ...]:

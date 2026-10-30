@@ -6,7 +6,7 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from typing import Literal, TypeAlias, cast
 
-from phospy.errors.validation import ContractValidationError
+from phospy.core.errors.validation import ContractValidationError
 from phospy.provenance.immutability import (
     FrozenJsonMapping,
     freeze_json_mapping_with_error_type,

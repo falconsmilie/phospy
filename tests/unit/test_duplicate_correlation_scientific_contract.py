@@ -4,6 +4,7 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
+from phospy.core.errors import PhosPyInputError
 from phospy.differential.models.duplicate_correlation import (
     DUPLICATE_CORRELATION_BLOCK_TREATMENT_CONSENSUS_CORRELATION,
     DUPLICATE_CORRELATION_COVARIANCE_STRUCTURE_COMPOUND_SYMMETRY,
@@ -25,7 +26,6 @@ from phospy.differential.models.duplicate_correlation import (
     DuplicateCorrelationWorkflowProvenance,
     duplicate_correlation_workflow_provenance_from_payload,
 )
-from phospy.errors import PhosPyInputError
 from phospy.provenance.models import TableFingerprint
 
 

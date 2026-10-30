@@ -9,7 +9,7 @@ from os import PathLike
 from pathlib import Path
 from typing import cast
 
-from phospy.errors.references import ReferenceResolutionError
+from phospy.core.errors.references import ReferenceResolutionError
 from phospy.references.models import (
     ReferenceBundleBuildRequest,
     SequenceWindowDefinition,

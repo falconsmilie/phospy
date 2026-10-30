@@ -3,8 +3,8 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy.errors import PhosPyInputError
-from phospy.errors.validation import PhosPyValidationError
+from phospy.core.errors import PhosPyInputError
+from phospy.core.errors.validation import PhosPyValidationError
 from phospy.phosphosites.contracts import (
     ANALYSIS_READY_DATASET_IDENTITY_CONTRACT,
     SITE_SEQUENCE_COLUMN,

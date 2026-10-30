@@ -5,8 +5,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-from phospy.errors.validation import ContractValidationError
-from phospy.policies.config_values import require_int_at_least as _require_int_at_least
+from phospy.core.errors.validation import ContractValidationError
+from phospy.core.policies.config_values import (
+    require_int_at_least as _require_int_at_least,
+)
 
 KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING = "deterministic_ranking"
 KINASE_PREDICTION_MODE_ADAPTIVE_ENSEMBLE = "adaptive_ensemble"

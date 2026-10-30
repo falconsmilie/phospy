@@ -8,7 +8,10 @@ from importlib import resources
 
 import pandas as pd
 
-from phospy.errors.references import ReferenceResolutionError, UnsupportedOrganismError
+from phospy.core.errors.references import (
+    ReferenceResolutionError,
+    UnsupportedOrganismError,
+)
 from phospy.phosphosites.identifiers import (
     canonicalize_site_index,
     canonicalize_site_series,

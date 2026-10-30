@@ -28,7 +28,7 @@ from phospy.api.advanced import (
     TemporaryImputationMethod,
     TemporaryImputationPolicy,
 )
-from phospy.errors import PhosPyInputError
+from phospy.core.errors import PhosPyInputError
 from phospy.preprocessing.batch_correction import (
     BatchCorrectionPlanInterpreter,
     BatchCorrectionWorkflowRequest,

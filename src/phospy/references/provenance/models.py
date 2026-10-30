@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
-from phospy.errors.validation import ReferenceValidationError
+from phospy.core.errors.validation import ReferenceValidationError
 from phospy.provenance.immutability import (
     freeze_optional_json_mapping,
 )

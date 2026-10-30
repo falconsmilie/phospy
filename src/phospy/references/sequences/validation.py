@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 
 LOOKUP_STATUS_FOUND = "found"
 LOOKUP_STATUS_MISSING_ACCESSION = "missing_accession"

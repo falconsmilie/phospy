@@ -4,11 +4,11 @@ from typing import cast
 
 import pytest
 
+from phospy.core.errors.build import DatasetBuildError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.datasets.construction.state_assembly import (
     DatasetProcessingStateBuilder,
 )
-from phospy.errors.build import DatasetBuildError
-from phospy.errors.input import PhosPyInputError
 from phospy.preparation_records.policies import (
     MissingDataPolicy,
     NormalisationPolicy,

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from phospy.errors.references import ReferenceResolutionError
+from phospy.core.errors.references import ReferenceResolutionError
 from phospy.provenance.hashing import fingerprint_table
 from phospy.references.compatibility import ReferenceCompatibilityValidator
 from phospy.references.models import (

@@ -20,8 +20,8 @@ from phospy.api.advanced import (
     KinaseScoringConfig,
     ReferenceContextCompatibilityPolicy,
 )
+from phospy.core.errors import WorkflowBoundaryError
 from phospy.datasets.internal_view import DatasetInternalView
-from phospy.errors import WorkflowBoundaryError
 from phospy.kinase.activity.config import ResolvedKinaseActivityExecutionConfig
 from phospy.kinase.activity.inputs import KinaseActivityInputs, PredMatOverlapSummary
 from phospy.kinase.activity.runner import KinaseActivityRunner

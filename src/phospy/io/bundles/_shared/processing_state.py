@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 
+from phospy.core.errors.input import PhosPyInputError
 from phospy.datasets.processing_state import (
     ComparisonState,
     DatasetProcessingState,
@@ -19,7 +20,6 @@ from phospy.datasets.processing_state import (
     TotalProteinCorrectionState,
     default_ruv_readiness_state,
 )
-from phospy.errors.input import PhosPyInputError
 from phospy.io.bundles._shared.primitives import (
     require_bool,
     require_int,

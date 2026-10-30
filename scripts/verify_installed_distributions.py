@@ -59,6 +59,10 @@ RETIRED_CAPABILITY_ROUTES = (
 RETIRED_HORIZONTAL_ROUTES = (
     "phospy._api_inventory",
     "phospy.advanced",
+    "phospy.errors",
+    "phospy.frames",
+    "phospy.policies",
+    "phospy.validation",
     "phospy.contracts",
     "phospy.contracts.configs",
     "phospy.contracts.requests",
@@ -1991,7 +1995,7 @@ def _exercise_protein_aware_configuration_contract() -> dict[str, object]:
 def _verify_withdrawn_peptide_to_site_boundary() -> dict[str, object]:
     import phospy.differential as differential_public
     import phospy.differential.aggregation as aggregation_public
-    from phospy.errors import PhosPyInputError
+    from phospy.core.errors import PhosPyInputError
     from phospy.differential.aggregation.experimental import (
         PeptideToSiteAggregator,
     )

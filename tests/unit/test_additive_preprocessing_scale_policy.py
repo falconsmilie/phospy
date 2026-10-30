@@ -14,9 +14,9 @@ from phospy.api.advanced import (
     DatasetNormalisationConfig,
     SpsRuvBatchCorrectionConfig,
 )
+from phospy.core.errors import PhosPyInputError
 from phospy.datasets.construction.contracts import InterpretedDatasetBuildRequest
 from phospy.datasets.construction.executor import DatasetBuildExecutor
-from phospy.errors import PhosPyInputError
 from phospy.preparation_records.batch_correction import (
     BatchCorrectionDiagnostics,
     BatchCorrectionPolicy,

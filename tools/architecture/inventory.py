@@ -61,13 +61,13 @@ def render_inventory(repo_root: Path) -> str:
         f"- Tracked Python modules: **{len(python_paths)}**.",
         f"- Owner-map entries: **{len(owners)}**.",
         "- Temporary architecture exceptions: **0**.",
-        "- Retired tracked package roots (`contracts`, `science`, `tables`, `workflows`): **0**.",
+        "- Retired tracked package roots (`contracts`, `errors`, `frames`, `policies`, `science`, `tables`, `validation`, `workflows`): **0**.",
         "- Unclassified structural forwarding candidates, old-path literals, compatibility behavior, and lazy loading: **0**.",
         "- The complete eager module graph and policy-filtered owner graph are required to be acyclic by maintained tests.",
         "",
         "## Top-level roots",
         "",
-        "| Root | Final classification |",
+        "| Root | Current classification |",
         "| --- | --- |",
     ]
     lines.extend(

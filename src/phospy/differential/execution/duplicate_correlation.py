@@ -17,6 +17,7 @@ from typing import cast
 import numpy as np
 import numpy.typing as npt
 
+from phospy.core.errors.input import PhosPyInputError
 from phospy.differential.execution.compound_symmetry_gls import (
     CompoundSymmetryGLSFit,
     fit_compound_symmetry_gls,
@@ -36,7 +37,6 @@ from phospy.differential.models.duplicate_correlation import (
     DuplicateCorrelationFeatureStatus,
     DuplicateCorrelationReasonCount,
 )
-from phospy.errors.input import PhosPyInputError
 
 DUPLICATE_CORRELATION_POSITIVE_DEFINITE_TOLERANCE = 1.0e-10
 DUPLICATE_CORRELATION_FISHER_BOUNDARY_TOLERANCE = (

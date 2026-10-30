@@ -22,8 +22,8 @@ from phospy.api.advanced import (
     ReferenceContextCompatibilityPolicy,
     SignalomeValidationConfig,
 )
-from phospy.errors.input import PhosPyInputError
-from phospy.errors.validation import ContractValidationError
+from phospy.core.errors.input import PhosPyInputError
+from phospy.core.errors.validation import ContractValidationError
 from phospy.kinase.activity.threshold_membership import (
     threshold_membership_mask_array,
 )

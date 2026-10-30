@@ -2,20 +2,20 @@ from __future__ import annotations
 
 import pytest
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
+from phospy.core.validation.common.config_values import (
+    coerce_policy_enum,
+    require_supported_literal,
+)
+from phospy.core.validation.common.numbers import (
+    require_optional_int_at_least,
+    require_optional_real_between,
+)
+from phospy.core.validation.common.paths import require_local_filesystem_path
 from phospy.preprocessing.contracts.policies import IntensityTransformPolicy
 from phospy.preprocessing.validation.configuration import (
     validate_preprocessing_section_type,
 )
-from phospy.validation.common.config_values import (
-    coerce_policy_enum,
-    require_supported_literal,
-)
-from phospy.validation.common.numbers import (
-    require_optional_int_at_least,
-    require_optional_real_between,
-)
-from phospy.validation.common.paths import require_local_filesystem_path
 
 
 def test_require_supported_literal_reports_sorted_supported_values() -> None:

@@ -14,6 +14,7 @@ from phospy.api import (
     Organism,
     SampleDesignRecord,
 )
+from phospy.core.errors import ContractValidationError, WorkflowValidationError
 from phospy.differential.design.matrix_builder import DesignMatrixBuilder
 from phospy.differential.policies import PAIRED_DESIGN_POLICY_FIXED_BLOCK
 from phospy.differential.validation.dataset import (
@@ -29,7 +30,6 @@ from phospy.differential.validation.design import (
     FixedBlockDesignValidator,
     ResolvedDifferentialDesignMatrixValidator,
 )
-from phospy.errors import ContractValidationError, WorkflowValidationError
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

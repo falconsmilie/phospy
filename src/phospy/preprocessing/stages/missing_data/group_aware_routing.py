@@ -8,7 +8,7 @@ from dataclasses import replace
 import numpy as np
 import pandas as pd
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.preparation_records.validation.sample_groups import (
     SampleGroupMetadataResolver,
 )

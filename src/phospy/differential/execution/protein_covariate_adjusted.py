@@ -12,6 +12,7 @@ import numpy.typing as npt
 import pandas as pd
 from scipy import stats
 
+from phospy.core.errors.input import PhosPyInputError
 from phospy.differential.diagnostics import (
     EmpiricalBayesPriorDiagnostics,
     MeanVarianceTrendDiagnostics,
@@ -62,7 +63,6 @@ from phospy.differential.tables import (
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_COVARIATE_INVALID,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_MODEL_FIT_INVALID,
 )
-from phospy.errors.input import PhosPyInputError
 from phospy.evidence.quantification_depth import validate_quantification_depth_series
 from phospy.statistics.multiple_testing import adjust_p_values
 

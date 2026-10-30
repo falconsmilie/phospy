@@ -10,7 +10,7 @@ from phospy.api import (
     Organism,
 )
 from phospy.api.advanced import DatasetBatchCorrectionConfig
-from phospy.errors import PhosPyInputError
+from phospy.core.errors import PhosPyInputError
 from phospy.preprocessing.batch_correction.metadata import (
     BatchCorrectionMetadataResolver,
 )

@@ -14,12 +14,12 @@ from typing import cast
 
 import pandas as pd
 
-from phospy.errors.validation import PhosPyValidationError
-from phospy.errors.workflows import WorkflowBoundaryError
-from phospy.frames.comparison import dataframe_equals
-from phospy.frames.ownership import export_dataframe, own_dataframe
-from phospy.frames.table_schema import require_canonical_label_index
-from phospy.frames.validation import (
+from phospy.core.errors.validation import PhosPyValidationError
+from phospy.core.errors.workflows import WorkflowBoundaryError
+from phospy.core.frames.comparison import dataframe_equals
+from phospy.core.frames.ownership import export_dataframe, own_dataframe
+from phospy.core.frames.table_schema import require_canonical_label_index
+from phospy.core.frames.validation import (
     require_dataframe,
     require_finite_numeric_dataframe,
     require_numeric_dataframe,

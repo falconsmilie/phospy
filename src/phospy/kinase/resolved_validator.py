@@ -7,8 +7,8 @@ from typing import NoReturn, TypedDict, cast
 
 import pandas as pd
 
+from phospy.core.errors.workflows import PhosPyWorkflowError, WorkflowBoundaryError
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.errors.workflows import PhosPyWorkflowError, WorkflowBoundaryError
 from phospy.kinase.attrition_metrics import (
     KinaseAttritionMetrics,
     KinaseAttritionPolicyViolation,

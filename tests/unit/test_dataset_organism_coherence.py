@@ -3,8 +3,8 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
+from phospy.core.errors import DatasetValidationError
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.errors import DatasetValidationError
 from phospy.phosphosites.site_keys import (
     build_protein_scoped_site_key,
     decode_site_key,

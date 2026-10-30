@@ -9,9 +9,9 @@ from typing import Literal
 
 import pandas as pd
 
-from phospy.errors.validation import PhosPyValidationError
-from phospy.frames.comparison import dataframe_equals, optional_dataframe_equals
-from phospy.frames.ownership import (
+from phospy.core.errors.validation import PhosPyValidationError
+from phospy.core.frames.comparison import dataframe_equals, optional_dataframe_equals
+from phospy.core.frames.ownership import (
     export_dataframe,
     export_optional_dataframe,
     own_dataframe,

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from phospy.errors.validation import PhosPyValidationError
+from phospy.core.errors.validation import PhosPyValidationError
 from phospy.provenance.result_caveats import ResultCaveat
 from phospy.references.provenance.context import ReferenceContext
 

@@ -16,6 +16,7 @@ from phospy.api.advanced import (
     DifferentialAnalysisConfig,
     MultipleTestingConfig,
 )
+from phospy.core.errors import WorkflowBoundaryError
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.differential.execution.model_executor import (
     DifferentialAnalysisExecutor as DifferentialComputationExecutor,
@@ -30,7 +31,6 @@ from phospy.differential.tables import (
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_ALL_CONSTANT,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_OTHER,
 )
-from phospy.errors import WorkflowBoundaryError
 from phospy.provenance.immutability import thaw_json_mapping
 from phospy.statistics.multiple_testing import adjust_p_values
 from tests.support.analysis_ready_dataset_factories import (

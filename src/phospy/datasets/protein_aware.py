@@ -8,10 +8,10 @@ from typing import cast
 
 import pandas as pd
 
-from phospy.errors.validation import DatasetValidationError
-from phospy.frames.comparison import dataframe_equals
-from phospy.frames.ownership import export_dataframe, own_dataframe
-from phospy.frames.validation import (
+from phospy.core.errors.validation import DatasetValidationError
+from phospy.core.frames.comparison import dataframe_equals
+from phospy.core.frames.ownership import export_dataframe, own_dataframe
+from phospy.core.frames.validation import (
     require_columns,
     require_exact_index_match,
     require_numeric_dataframe,

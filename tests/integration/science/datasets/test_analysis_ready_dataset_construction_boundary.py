@@ -6,8 +6,8 @@ import pandas as pd
 import pytest
 
 from phospy.api import AnalysisReadyDatasetBuilder, DatasetBuildRequest, Organism
+from phospy.core.errors import DatasetValidationError, PhosPyInputError
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.errors import DatasetValidationError, PhosPyInputError
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

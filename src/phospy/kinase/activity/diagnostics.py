@@ -6,9 +6,9 @@ from dataclasses import dataclass, field
 
 import pandas as pd
 
-from phospy.errors.workflows import WorkflowBoundaryError
-from phospy.frames.comparison import optional_dataframe_equals
-from phospy.frames.ownership import export_optional_dataframe
+from phospy.core.errors.workflows import WorkflowBoundaryError
+from phospy.core.frames.comparison import optional_dataframe_equals
+from phospy.core.frames.ownership import export_optional_dataframe
 from phospy.kinase.activity.models import (
     SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY_METHOD,
     SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY_METHOD,

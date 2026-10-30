@@ -8,7 +8,7 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 
 LOCALISATION_CONFIDENCE_SCALE_PROBABILITY = "probability"
 LOCALISATION_CONFIDENCE_SCALE_PERCENT = "percent"

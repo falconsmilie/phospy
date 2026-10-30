@@ -11,11 +11,11 @@ from phospy.api import (
 from phospy.api.advanced import (
     DatasetSiteSequenceResolutionConfig,
 )
+from phospy.core.errors.input import PhosPyInputError
 from phospy.datasets.construction.preprocessing import (
     DatasetPreprocessor,
     build_dataset_processing_state,
 )
-from phospy.errors.input import PhosPyInputError
 from phospy.io.bundles._shared.processing_state import processing_state_to_payload
 from phospy.preparation_records.policies import (
     SiteSequenceConflictPolicy,

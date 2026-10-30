@@ -10,6 +10,8 @@ from typing import Literal, TypeVar, cast
 
 import pandas as pd
 
+from phospy.core.errors.validation import WorkflowValidationError
+from phospy.core.frames.validation import require_columns, require_dataframe
 from phospy.enrichment.contracts.collections import (
     EnrichmentSet,
     EnrichmentSetCollection,
@@ -47,8 +49,6 @@ from phospy.enrichment.planning import (
     EnrichmentSelectedIdentifierSource,
     ValidatedEnrichmentWorkflowRequest,
 )
-from phospy.errors.validation import WorkflowValidationError
-from phospy.frames.validation import require_columns, require_dataframe
 from phospy.provenance.hashing import fingerprint_table
 from phospy.provenance.models.tables import TableFingerprint
 from phospy.provenance.serialization.tables import table_fingerprint_to_payload

@@ -11,7 +11,7 @@ import pytest
 from phospy.api.advanced import (
     KinasePredictionConfig,
 )
-from phospy.errors import (
+from phospy.core.errors import (
     ContractValidationError,
     WorkflowStageError,
 )

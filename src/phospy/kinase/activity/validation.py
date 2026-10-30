@@ -7,19 +7,22 @@ import pandas as pd
 from phospy.activities.semantics import (
     ActivityInputMatrix,
 )
-from phospy.errors.workflows import WorkflowBoundaryError
-from phospy.frames.missing_values import MissingValuePolicy
-from phospy.frames.numeric import require_numeric_matrix
-from phospy.frames.validation import (
+from phospy.core.errors.workflows import WorkflowBoundaryError
+from phospy.core.frames.missing_values import MissingValuePolicy
+from phospy.core.frames.numeric import require_numeric_matrix
+from phospy.core.frames.validation import (
     require_unique_columns,
     require_unique_index,
+)
+from phospy.core.policies.config_values import (
+    require_int_at_least,
+    require_real_between,
 )
 from phospy.kinase.activity.inputs import (
     KinaseActivityInputs,
     PredMatOverlapSummary,
 )
 from phospy.kinase.activity.membership import ActivityMembershipSelection
-from phospy.policies.config_values import require_int_at_least, require_real_between
 
 DEFAULT_MIN_PRED_MAT_OVERLAP = 1
 DEFAULT_MIN_PRED_MAT_OVERLAP_FRACTION = 0.5

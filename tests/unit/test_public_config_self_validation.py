@@ -30,7 +30,7 @@ from phospy.api.advanced import (
     SignalomeScientificConfig,
     SignalomeValidationConfig,
 )
-from phospy.errors import ContractValidationError, PhosPyInputError
+from phospy.core.errors import ContractValidationError, PhosPyInputError
 from phospy.evidence.config import (
     LOCALISATION_POLICY_REQUIRE_THRESHOLD,
     LOCALISATION_PRODUCTION_MINIMUM_PROBABILITY,

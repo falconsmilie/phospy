@@ -6,6 +6,7 @@ from collections.abc import Mapping
 
 import pandas as pd
 
+from phospy.core.errors.build import DatasetBuildError
 from phospy.datasets.construction.sequence_derivation import (
     SiteSequenceDerivationReport,
 )
@@ -14,7 +15,6 @@ from phospy.datasets.processing_state import (
     SiteSequenceResolutionReport,
 )
 from phospy.datasets.protein_aware import ProteinAwarePreparationReport
-from phospy.errors.build import DatasetBuildError
 from phospy.evidence.dataset_resolution.models import (
     PeptideEvidenceResolutionSummary,
 )

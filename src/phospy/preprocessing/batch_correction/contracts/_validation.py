@@ -5,8 +5,8 @@ from __future__ import annotations
 from collections.abc import Collection, Sequence
 from enum import Enum
 
-from phospy.errors.input import PhosPyInputError
-from phospy.policies.config_values import (
+from phospy.core.errors.input import PhosPyInputError
+from phospy.core.policies.config_values import (
     coerce_policy_enum,
     require_non_empty_string,
     require_optional_int_at_least,

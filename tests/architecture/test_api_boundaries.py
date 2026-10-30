@@ -88,7 +88,7 @@ def test_public_api_root_does_not_import_validation_or_low_level_workflow_module
     offenders = sorted(
         module
         for module in imported
-        if module.startswith("phospy.validation")
+        if module.startswith("phospy.core.validation")
         or module.endswith(".validator")
         or module.endswith(".interpreter")
         or module.endswith(".executor")

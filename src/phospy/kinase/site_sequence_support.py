@@ -8,7 +8,7 @@ from typing import Literal, cast
 
 import pandas as pd
 
-from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.core.errors.workflows import WorkflowBoundaryError
 from phospy.kinase.scoring.config import (
     KINASE_SITE_SEQUENCE_CONFLICT_POLICIES,
     KINASE_SITE_SEQUENCE_CONFLICT_POLICY_ERROR,

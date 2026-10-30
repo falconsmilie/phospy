@@ -10,8 +10,8 @@ from phospy.api import KinaseWorkflowRequest, Organism, ReferenceBundle
 from phospy.api.advanced import (
     KinaseScoringConfig,
 )
+from phospy.core.errors.validation import PhosPyValidationError, WorkflowValidationError
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.errors.validation import PhosPyValidationError, WorkflowValidationError
 from phospy.kinase.validator import KinaseWorkflowValidator
 from phospy.references.context_compatibility import (
     REFERENCE_CONTEXT_UNKNOWN_CAVEAT_CODE,

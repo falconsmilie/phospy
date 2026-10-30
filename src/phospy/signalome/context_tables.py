@@ -6,7 +6,7 @@ from collections.abc import Callable
 
 import pandas as pd
 
-from phospy.errors.workflows import WorkflowStageError
+from phospy.core.errors.workflows import WorkflowStageError
 from phospy.signalome.clustering import ClusterSitesResult
 from phospy.signalome.component_helpers import (
     prediction_shape_details,

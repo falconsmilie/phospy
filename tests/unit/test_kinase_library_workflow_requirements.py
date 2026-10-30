@@ -15,13 +15,13 @@ from phospy.api.advanced import (
     KinaseScoringConfig,
     ReferenceContextCompatibilityPolicy,
 )
-from phospy.datasets.internal_view import DatasetInternalView
-from phospy.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.errors import (
+from phospy.core.errors import (
     ContractValidationError,
     WorkflowBoundaryError,
     WorkflowValidationError,
 )
+from phospy.datasets.internal_view import DatasetInternalView
+from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.kinase.contracts import ValidatedKinaseWorkflowRequest
 from phospy.kinase.executor import KinaseWorkflowExecutor
 from phospy.kinase.interpreter import KinaseWorkflowInterpreter

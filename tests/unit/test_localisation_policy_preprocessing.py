@@ -9,8 +9,8 @@ from phospy.api import (
     DatasetLocalisationConfig,
     DatasetPreprocessingConfig,
 )
+from phospy.core.errors.input import PhosPyInputError
 from phospy.datasets.construction.preprocessing import DatasetPreprocessor
-from phospy.errors.input import PhosPyInputError
 from phospy.preprocessing.contracts import PreprocessingPlan
 from phospy.preprocessing.contracts.configuration import (
     DATASET_LOCALISATION_MODE_ALLOW_MISSING_WITH_WAIVER,

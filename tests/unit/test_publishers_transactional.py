@@ -8,8 +8,8 @@ import pandas as pd
 import pytest
 
 from phospy.api import Organism, ReferenceBundle
+from phospy.core.errors.input import PhosPyInputError
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.errors.input import PhosPyInputError
 from phospy.io.bundles._shared import transactions
 from phospy.io.publishers import workflows as publishers
 from phospy.io.publishers.workflows import (

@@ -16,8 +16,8 @@ from phospy.api.advanced import (
     LocalisationRequirement,
     ReferenceContextCompatibilityPolicy,
 )
+from phospy.core.errors.validation import WorkflowValidationError
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.errors.validation import WorkflowValidationError
 from phospy.kinase.prediction.results import KinasePredictionResult
 from phospy.kinase.scoring.results import KinaseScoringResult
 from phospy.kinase.validator import KinaseWorkflowValidator

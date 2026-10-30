@@ -14,10 +14,10 @@ from phospy.api.advanced import (
     DatasetTotalProteinCorrectionConfig,
     DatasetTotalProteinCorrectionIdentityConfig,
 )
+from phospy.core.errors.input import PhosPyInputError
 from phospy.datasets.construction.executor import DatasetBuildExecutor
 from phospy.datasets.construction.interpreter import DatasetBuildRequestInterpreter
 from phospy.datasets.construction.preprocessing import DatasetPreprocessor
-from phospy.errors.input import PhosPyInputError
 from phospy.preprocessing.contracts import PreprocessingPlan
 from phospy.preprocessing.contracts.configuration import (
     DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MATCHING_POLICY_GENE_SYMBOL_NORMALISED,

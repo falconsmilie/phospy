@@ -8,7 +8,7 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.preparation_records.batch_correction import (
     BATCH_CORRECTION_CONFOUNDING_PASSED,
     BATCH_CORRECTION_STATUS_APPLIED,

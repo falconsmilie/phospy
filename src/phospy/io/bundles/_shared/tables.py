@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.io.bundles._shared.integrity import (
     build_table_file_entry,
     require_optional_table_entry,

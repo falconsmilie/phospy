@@ -10,9 +10,9 @@ from phospy.activities.semantics import (
     ActivityProfileAxis,
     ActivityProfileMetadata,
 )
-from phospy.errors.validation import PhosPyValidationError
-from phospy.errors.workflows import WorkflowBoundaryError
-from phospy.frames.ownership import export_dataframe
+from phospy.core.errors.validation import PhosPyValidationError
+from phospy.core.errors.workflows import WorkflowBoundaryError
+from phospy.core.frames.ownership import export_dataframe
 from phospy.kinase.activity.tables import ActivityMatrix
 
 

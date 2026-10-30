@@ -9,7 +9,7 @@ from collections.abc import Callable, Mapping, Sequence
 import numpy as np
 import pandas as pd
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.io.importers.validation import normalise_sample_column_mapping
 
 _MULTI_VALUE_SPLIT_PATTERN = re.compile(r"\s*[,;]\s*")

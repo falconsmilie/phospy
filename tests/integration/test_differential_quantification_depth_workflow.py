@@ -29,6 +29,7 @@ from phospy.api.advanced import (
     DifferentialProteinAwareModelConfig,
     EmpiricalBayesConfig,
 )
+from phospy.core.errors import WorkflowBoundaryError
 from phospy.differential.moderation.config import (
     EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,
 )
@@ -38,7 +39,6 @@ from phospy.differential.tables import (
     DIFFERENTIAL_RESULT_STATUS_TESTED,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_ALL_CONSTANT,
 )
-from phospy.errors import WorkflowBoundaryError
 from phospy.evidence.dataset_resolution.models import (
     DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED,
 )

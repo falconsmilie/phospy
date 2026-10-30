@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from phospy.errors.input import UnsupportedInputFormatError
-from phospy.validation.common.input_sources import validate_dataframe_or_path
+from phospy.core.errors.input import UnsupportedInputFormatError
+from phospy.core.validation.common.input_sources import validate_dataframe_or_path
 
 
 class DatasetInputSourceValidator:

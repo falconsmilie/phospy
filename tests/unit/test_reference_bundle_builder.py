@@ -12,8 +12,8 @@ from phospy.api import (
     ReferenceBundleBuilder,
     ReferenceBundleBuildRequest,
 )
-from phospy.errors.references import ReferenceResolutionError
-from phospy.errors.validation import ReferenceValidationError
+from phospy.core.errors.references import ReferenceResolutionError
+from phospy.core.errors.validation import ReferenceValidationError
 
 
 def test_reference_bundle_builder_builds_valid_human_bundle_from_local_files(

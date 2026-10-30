@@ -28,6 +28,7 @@ from phospy.api.advanced import (
     DifferentialProteinAwareModelConfig,
     TechnicalReplicatePolicy,
 )
+from phospy.core.errors import WorkflowBoundaryError
 from phospy.differential.moderation.config import (
     EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,
     EmpiricalBayesConfig,
@@ -40,7 +41,6 @@ from phospy.differential.tables import (
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_COVARIATE_INVALID,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_MODEL_FIT_INVALID,
 )
-from phospy.errors import WorkflowBoundaryError
 from phospy.evidence.quantification_depth import (
     QUANTIFICATION_DEPTH_KIND_PEPTIDE_COUNT,
     QUANTIFICATION_DEPTH_KIND_PSM_COUNT,

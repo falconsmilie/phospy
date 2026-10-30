@@ -6,7 +6,7 @@ from collections import defaultdict
 from hashlib import sha256
 from pathlib import Path
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.references.sequences.models import ProteinSequenceRecord
 from phospy.references.sequences.validation import (
     ensure_local_path,

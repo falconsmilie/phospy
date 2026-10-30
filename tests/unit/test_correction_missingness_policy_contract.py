@@ -5,7 +5,7 @@ import json
 import pandas as pd
 import pytest
 
-from phospy.errors import PhosPyInputError
+from phospy.core.errors import PhosPyInputError
 from phospy.preprocessing.batch_correction.contracts import (
     CorrectedMissingCellAction,
     CorrectionMaskPolicy,

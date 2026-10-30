@@ -7,7 +7,7 @@ from enum import Enum
 import numpy as np
 import pandas as pd
 
-from phospy.errors.validation import PhosPyValidationError
+from phospy.core.errors.validation import PhosPyValidationError
 
 ValidationErrorType = type[PhosPyValidationError]
 

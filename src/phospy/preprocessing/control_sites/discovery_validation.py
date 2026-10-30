@@ -8,8 +8,8 @@ from typing import cast
 
 import pandas as pd
 
-from phospy.errors.validation import ReferenceValidationError
-from phospy.frames.validation import (
+from phospy.core.errors.validation import ReferenceValidationError
+from phospy.core.frames.validation import (
     require_finite_numeric_dataframe,
     require_numeric_dataframe,
 )

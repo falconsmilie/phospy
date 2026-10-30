@@ -3,7 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy.errors import WorkflowValidationError
+from phospy.core.errors import WorkflowValidationError
 from phospy.phosphosites.contracts import (
     WORKFLOW_CENTERED_SEQUENCE_CONTEXT_CONTRACT,
     PhosphositeIdentityContract,

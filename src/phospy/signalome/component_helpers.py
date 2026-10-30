@@ -6,7 +6,7 @@ from typing import NoReturn, cast
 
 import pandas as pd
 
-from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.core.errors.workflows import WorkflowBoundaryError
 from phospy.signalome.clustering import ClusterSitesResult
 from phospy.signalome.component_models import SignalomeExecutionMetadata
 from phospy.signalome.constants import (

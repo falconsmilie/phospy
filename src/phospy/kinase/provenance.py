@@ -10,7 +10,7 @@ import pandas as pd
 from phospy.activities.contracts import (
     ResolvedMethodQuantitativeInputContract,
 )
-from phospy.errors.workflows import PhosPyWorkflowError
+from phospy.core.errors.workflows import PhosPyWorkflowError
 from phospy.evidence.config import LocalisationRequirement
 from phospy.kinase.activity.config import (
     KINASE_ACTIVITY_METHOD_KSEA_ZSCORE,

@@ -8,7 +8,7 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 
 QUANTIFICATION_DEPTH_COLUMN: Final[str] = "quantification_depth"
 QUANTIFICATION_DEPTH_INTEGER_TOLERANCE: Final[float] = 1.0e-8

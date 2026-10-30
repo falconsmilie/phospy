@@ -14,7 +14,7 @@ from phospy.api.advanced import (
     DatasetSiteMatrixConfig,
     DatasetSiteSequenceResolutionConfig,
 )
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.taxonomy import Organism
 
 

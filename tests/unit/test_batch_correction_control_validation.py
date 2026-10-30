@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from phospy.errors import PhosPyInputError
+from phospy.core.errors import PhosPyInputError
 from phospy.preprocessing.batch_correction.validation.controls import (
     normalize_applied_selected_site_key_rows,
     require_control_site_source_metadata,

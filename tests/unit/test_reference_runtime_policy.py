@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from phospy.errors import UnsupportedOrganismError
+from phospy.core.errors import UnsupportedOrganismError
 from phospy.references.models import ReferencePreset
 from phospy.references.resolution import ReferenceResolver
 from phospy.references.resources import (

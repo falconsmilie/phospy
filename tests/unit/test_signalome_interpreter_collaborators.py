@@ -14,7 +14,7 @@ from phospy.api import (
     SignalomeWorkflow,
     SignalomeWorkflowRequest,
 )
-from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.core.errors.workflows import WorkflowBoundaryError
 from phospy.signalome.alignment_diagnostics import (
     SignalomeAlignmentDiagnosticsBuilder,
 )

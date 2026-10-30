@@ -9,6 +9,7 @@ from typing import cast
 
 import pandas as pd
 
+from phospy.core.errors.workflows import WorkflowBoundaryError
 from phospy.differential.config import (
     IMPUTED_VALUE_POLICY_REJECT,
     IMPUTED_VALUE_POLICY_WITHHOLD_IMPUTED_FEATURES,
@@ -89,7 +90,6 @@ from phospy.differential.provenance.models import (
 from phospy.differential.quantification_depth import (
     QUANTIFICATION_DEPTH_TREND_TRANSFORMATION,
 )
-from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.provenance.hashing import (
     fingerprint_matrix,
     fingerprint_table,

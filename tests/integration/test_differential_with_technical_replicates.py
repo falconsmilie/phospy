@@ -16,7 +16,7 @@ from phospy.api.advanced import (
     DifferentialAnalysisConfig,
     TechnicalReplicatePolicy,
 )
-from phospy.errors import WorkflowValidationError
+from phospy.core.errors import WorkflowValidationError
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

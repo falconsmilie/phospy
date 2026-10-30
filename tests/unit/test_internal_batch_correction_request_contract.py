@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from phospy.errors import PhosPyInputError
+from phospy.core.errors import PhosPyInputError
 from phospy.preprocessing.batch_correction.contracts import (
     InternalBatchCorrectionControlSiteMode,
     InternalBatchCorrectionControlSiteSource,

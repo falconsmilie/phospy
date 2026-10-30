@@ -8,7 +8,7 @@ from types import MappingProxyType
 
 import pandas as pd
 
-from phospy.errors.build import DatasetBuildError
+from phospy.core.errors.build import DatasetBuildError
 from phospy.preprocessing.contracts import PreprocessingState
 
 _RESERVED_DIAGNOSTIC_KEYS = frozenset(

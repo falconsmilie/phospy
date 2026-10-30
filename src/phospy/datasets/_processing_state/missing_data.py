@@ -7,7 +7,7 @@ from collections.abc import Iterator, Mapping
 from dataclasses import dataclass, field
 from typing import Any, ClassVar, cast
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.preparation_records.imputation import (
     DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICIES,
     DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICY_VERSION,

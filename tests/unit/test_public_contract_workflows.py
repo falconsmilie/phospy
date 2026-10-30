@@ -34,8 +34,8 @@ from phospy.api.advanced import (
     SignalomeConfig,
     SignalomeOutputConfig,
 )
+from phospy.core.errors import ContractValidationError
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.errors import ContractValidationError
 
 REMOVED_REQUEST_COMPATIBILITY_CONSTANTS = {
     "DATASET_MULTI_SITE_POLICY_EXCLUDE_FROM_SEQUENCE_SCORING",

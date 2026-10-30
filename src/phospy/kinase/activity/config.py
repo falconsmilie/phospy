@@ -6,14 +6,14 @@ from dataclasses import dataclass
 from typing import Literal
 
 from phospy.activities.contracts import ResolvedMethodQuantitativeInputContract
-from phospy.errors.validation import ContractValidationError
-from phospy.kinase.scoring.config import _require_bool
-from phospy.policies.config_values import (
+from phospy.core.errors.validation import ContractValidationError
+from phospy.core.policies.config_values import (
     require_int_at_least as _require_int_at_least,
 )
-from phospy.policies.config_values import (
+from phospy.core.policies.config_values import (
     require_real_between as _require_real_between,
 )
+from phospy.kinase.scoring.config import _require_bool
 
 KINASE_ACTIVITY_MIN_SUBSTRATES_FLOOR = 1
 KINASE_ACTIVITY_TOP_N_SUBSTRATES_FLOOR = 1

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.evidence.dataset_resolution.allocation import (
     allocate_peptide_signals_to_resolved_sites,
     summarise_allocated_site_signals,

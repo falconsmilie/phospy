@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from phospy.frames.ownership import (
+from phospy.core.frames.ownership import (
     export_dataframe,
     export_optional_dataframe,
     export_optional_series,
@@ -10,12 +10,12 @@ from phospy.frames.ownership import (
     own_optional_series,
     own_series,
 )
-from phospy.frames.table_schema import (
+from phospy.core.frames.table_schema import (
     TableSchema,
     ValidationErrorType,
     require_canonical_label_index,
 )
-from phospy.frames.validation import (
+from phospy.core.frames.validation import (
     require_dataframe,
     require_exact_index_match,
     require_finite_numeric_dataframe,

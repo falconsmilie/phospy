@@ -36,9 +36,9 @@ from phospy.api.advanced import (
     KinaseScoringConfig,
     ReferenceContextCompatibilityPolicy,
 )
+from phospy.core.errors.input import PhosPyInputError
 from phospy.datasets.internal_view import DatasetInternalView
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.errors.input import PhosPyInputError
 from phospy.io.bundles.signalome import (
     SignalomeWorkflowConfigSnapshot,
     load_signalome_workflow_bundle,

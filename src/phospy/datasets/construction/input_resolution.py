@@ -9,6 +9,8 @@ from typing import NoReturn, Protocol
 
 import pandas as pd
 
+from phospy.core.errors.input import PhosPyInputError
+from phospy.core.validation.common.input_sources import validate_dataframe_or_path
 from phospy.datasets.construction.contracts import (
     DatasetBuildRequestProtocol,
     DatasetInput,
@@ -18,7 +20,6 @@ from phospy.datasets.construction.normalization import (
     NormalizedDatasetInputs,
 )
 from phospy.datasets.construction.site_identity import DatasetSiteIdentityDeriver
-from phospy.errors.input import PhosPyInputError
 from phospy.evidence.dataset_resolution.models import (
     DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
     DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED,
@@ -41,7 +42,6 @@ from phospy.preprocessing.contracts.policies import (
 )
 from phospy.quantitative.models import IntensityScaleKind
 from phospy.taxonomy.organisms import Organism
-from phospy.validation.common.input_sources import validate_dataframe_or_path
 
 
 class DatasetInputSourceValidatorProtocol(Protocol):

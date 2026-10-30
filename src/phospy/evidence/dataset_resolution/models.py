@@ -9,7 +9,7 @@ from typing import Any, cast
 
 import pandas as pd
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.quantitative.models import (
     IntensityScaleKind,
     QuantitativeMeaning,

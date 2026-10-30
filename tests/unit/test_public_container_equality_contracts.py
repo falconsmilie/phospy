@@ -11,6 +11,7 @@ import pandas as pd
 import pytest
 
 from phospy.api import DatasetBuildRequest, Organism, ReferenceBundle
+from phospy.core.errors import PhosPyInputError
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.differential.diagnostics import (
     EmpiricalBayesPriorDiagnostics,
@@ -23,7 +24,6 @@ from phospy.differential.models.design import (
 from phospy.differential.results import (
     DifferentialAnalysisResult,
 )
-from phospy.errors import PhosPyInputError
 from phospy.kinase.activity.tables import ActivityMatrix
 from phospy.provenance.immutability import FrozenJsonMapping, thaw_json_mapping
 from phospy.run_lineage.models import RunProvenance
@@ -43,7 +43,7 @@ _PUBLIC_PANDAS_CONTAINER_PATHS = (
     "src/phospy/enrichment/contracts/results.py",
     "src/phospy/kinase/results.py",
     "src/phospy/signalome/results.py",
-    "src/phospy/frames/table_schema.py",
+    "src/phospy/core/frames/table_schema.py",
     "src/phospy/kinase/activity/diagnostics.py",
     "src/phospy/kinase/activity/inputs.py",
     "src/phospy/kinase/activity/results.py",

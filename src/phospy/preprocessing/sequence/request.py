@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from phospy.errors.input import UnsupportedInputFormatError
+from phospy.core.errors.input import UnsupportedInputFormatError
 from phospy.evidence.sequence_resolution import PhosphositeSequenceResolutionRequest
 from phospy.preparation_records.policies import (
     SiteSequenceResolutionMode,

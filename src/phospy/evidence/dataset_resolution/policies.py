@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.evidence.dataset_resolution.models import (
     _INPUT_MEANING_BY_SCALE,
     _OUTPUT_MEANING_BY_SCALE,

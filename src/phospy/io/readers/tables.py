@@ -8,20 +8,20 @@ from typing import Any, NoReturn, cast
 
 import pandas as pd
 
-from phospy.errors.input import PhosPyInputError, UnsupportedInputFormatError
-from phospy.frames.table_formats import (
+from phospy.core.errors.input import PhosPyInputError, UnsupportedInputFormatError
+from phospy.core.frames.table_formats import (
     SUPPORTED_TABLE_OUTPUT_FORMATS as _SUPPORTED_OUTPUT_FORMATS,
 )
-from phospy.frames.table_formats import (
+from phospy.core.frames.table_formats import (
     TABLE_FORMAT_CSV as _CSV,
 )
-from phospy.frames.table_formats import (
+from phospy.core.frames.table_formats import (
     TABLE_FORMAT_PARQUET as _PARQUET,
 )
-from phospy.frames.table_formats import (
+from phospy.core.frames.table_formats import (
     TABLE_FORMAT_TSV as _TSV,
 )
-from phospy.frames.table_formats import (
+from phospy.core.frames.table_formats import (
     table_format_from_path,
 )
 

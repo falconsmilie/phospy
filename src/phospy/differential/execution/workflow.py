@@ -5,6 +5,8 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import cast
 
+from phospy.core.errors.input import PhosPyInputError
+from phospy.core.errors.workflows import WorkflowBoundaryError
 from phospy.differential.config import (
     PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION,
 )
@@ -32,8 +34,6 @@ from phospy.differential.provenance.assembly import (
 )
 from phospy.differential.result_assembly import DifferentialResultAssembler
 from phospy.differential.results import DifferentialAnalysisResult
-from phospy.errors.input import PhosPyInputError
-from phospy.errors.workflows import WorkflowBoundaryError
 
 
 class DifferentialAnalysisExecutor:

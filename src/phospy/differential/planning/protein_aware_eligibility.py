@@ -6,6 +6,7 @@ from typing import NoReturn
 
 import pandas as pd
 
+from phospy.core.errors.workflows import WorkflowBoundaryError
 from phospy.differential.models.protein_aware import (
     ProteinAwareDifferentialComputationResult,
 )
@@ -18,7 +19,6 @@ from phospy.differential.tables import (
     DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN,
     DIFFERENTIAL_RESULT_STATUS_TESTED,
 )
-from phospy.errors.workflows import WorkflowBoundaryError
 
 
 def protein_aware_feature_eligibility_after_computation(

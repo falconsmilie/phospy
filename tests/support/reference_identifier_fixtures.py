@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from phospy.errors.validation import (
+from phospy.core.errors.validation import (
     ReferenceIdentifierNormalisationValidationError,
 )
 from phospy.references.identifiers import (

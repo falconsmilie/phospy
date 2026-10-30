@@ -10,7 +10,7 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 
-from phospy.errors.base import PhosPyError
+from phospy.core.errors.base import PhosPyError
 
 ValidationErrorType = type[PhosPyError]
 _ALIGNMENT_EXAMPLE_LIMIT = 5

@@ -7,6 +7,7 @@ from typing import cast
 
 import pandas as pd
 
+from phospy.core.errors.build import DatasetBuildError
 from phospy.datasets.construction.contracts import (
     InterpretedDatasetBuildRequest,
     PreprocessedDatasetBuildTables,
@@ -15,7 +16,6 @@ from phospy.datasets.construction.sequence_derivation import (
     SiteSequenceDerivationReport,
 )
 from phospy.datasets.protein_aware import ProteinAwarePreparationReport
-from phospy.errors.build import DatasetBuildError
 from phospy.preprocessing.contracts import (
     DATASET_PREPROCESSING_STAGE_BATCH_CORRECTION,
     DATASET_PREPROCESSING_STAGE_COMPARISONS,

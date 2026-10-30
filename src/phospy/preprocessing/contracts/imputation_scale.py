@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import phospy.preparation_records.imputation as _imputation_records
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.preparation_records.policies import MissingDataPolicy
 from phospy.preprocessing.contracts.policies import (
     ImputationInputScale,

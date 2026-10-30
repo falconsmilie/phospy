@@ -16,6 +16,7 @@ from phospy.api.advanced import (
     DatasetIntensityTransformConfig,
     DatasetMissingDataConfig,
 )
+from phospy.core.errors.input import PhosPyInputError
 from phospy.datasets.construction.contracts import (
     InterpretedDatasetBuildRequest,
     PreprocessedDatasetBuildTables,
@@ -23,7 +24,6 @@ from phospy.datasets.construction.contracts import (
 from phospy.datasets.construction.provenance import (
     DatasetRunProvenanceAssembler,
 )
-from phospy.errors.input import PhosPyInputError
 from phospy.preparation_records.policies import MissingDataPolicy
 from phospy.preprocessing.contracts import (
     PreprocessingPlan,

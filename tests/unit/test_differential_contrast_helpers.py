@@ -10,7 +10,7 @@ from phospy.api import (
     all_pairwise_contrasts,
     contrasts_vs_control,
 )
-from phospy.errors import WorkflowValidationError
+from phospy.core.errors import WorkflowValidationError
 
 
 def _design(condition_order: tuple[str, ...]) -> ExperimentalDesign:

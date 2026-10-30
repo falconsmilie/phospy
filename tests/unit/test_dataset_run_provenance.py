@@ -19,7 +19,7 @@ from phospy.api.advanced import (
     DatasetIntensityTransformConfig,
     DatasetMissingDataConfig,
 )
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.phosphosites.site_keys import (
     ProteinScopedPhosphositeKey,
     encode_site_key,

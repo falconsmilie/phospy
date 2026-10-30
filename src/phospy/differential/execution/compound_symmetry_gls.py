@@ -18,7 +18,7 @@ import numpy as np
 import numpy.typing as npt
 from scipy.linalg import solve_triangular
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 
 COMPOUND_SYMMETRY_GLS_SOLVER = "compound_symmetry_cholesky_gls"
 COMPOUND_SYMMETRY_GLS_COVARIANCE_MODEL = "block_compound_symmetry_correlation"

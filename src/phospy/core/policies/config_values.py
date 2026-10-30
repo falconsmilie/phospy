@@ -6,7 +6,7 @@ from collections.abc import Collection, Iterable
 from enum import Enum
 from typing import TypeVar
 
-from phospy.errors.validation import ContractValidationError
+from phospy.core.errors.validation import ContractValidationError
 
 ValidationErrorType = type[Exception]
 _EnumT = TypeVar("_EnumT", bound=Enum)

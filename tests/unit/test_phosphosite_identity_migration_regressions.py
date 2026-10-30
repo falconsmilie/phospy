@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from phospy.errors.validation import PhosPyValidationError
+from phospy.core.errors.validation import PhosPyValidationError
 from phospy.phosphosites.site_keys import (
     ProteinScopedPhosphositeKey,
     decode_site_key,

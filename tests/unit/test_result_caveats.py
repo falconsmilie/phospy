@@ -28,6 +28,7 @@ from phospy.api.advanced import (
     KinaseScoringConfig,
     ReferenceContextCompatibilityPolicy,
 )
+from phospy.core.errors import ContractValidationError
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.differential.caveats import (
     DIFFERENTIAL_DIRECT_TRUSTED_DATASET_CAVEAT_CODE,
@@ -36,7 +37,6 @@ from phospy.enrichment.contracts.collections import GeneSetCollection
 from phospy.enrichment.contracts.vocabulary import (
     ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
 )
-from phospy.errors import ContractValidationError
 from phospy.kinase.caveats import (
     KINASE_DIRECT_TRUSTED_DATASET_CAVEAT_CODE,
 )

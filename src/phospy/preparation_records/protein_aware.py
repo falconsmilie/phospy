@@ -8,11 +8,11 @@ from typing import Literal
 
 import pandas as pd
 
-from phospy.errors.validation import DatasetValidationError
-from phospy.frames.comparison import dataframe_equals
-from phospy.frames.ownership import export_dataframe, own_dataframe
-from phospy.frames.validation import require_columns
-from phospy.policies import PolicyEnum
+from phospy.core.errors.validation import DatasetValidationError
+from phospy.core.frames.comparison import dataframe_equals
+from phospy.core.frames.ownership import export_dataframe, own_dataframe
+from phospy.core.frames.validation import require_columns
+from phospy.core.policies import PolicyEnum
 
 DATASET_PROTEIN_AWARE_PREPARATION_POLICY_DISABLED = "disabled"
 DATASET_PROTEIN_AWARE_PREPARATION_POLICY_PREPARE_MODEL_INPUTS = "prepare_model_inputs"

@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 
-from phospy.errors.validation import ReferenceValidationError
+from phospy.core.errors.validation import ReferenceValidationError
 from phospy.provenance.hashing import hash_json_payload
 from phospy.provenance.models import (
     JsonValue,

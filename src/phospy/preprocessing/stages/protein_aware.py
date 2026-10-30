@@ -6,8 +6,8 @@ from collections.abc import Sequence
 
 import pandas as pd
 
-from phospy.errors.input import PhosPyInputError
-from phospy.errors.validation import DatasetValidationError
+from phospy.core.errors.input import PhosPyInputError
+from phospy.core.errors.validation import DatasetValidationError
 from phospy.preparation_records.protein_aware import (
     DATASET_PROTEIN_AWARE_PREPARATION_MAPPING_POLICY_ALLOW_MISSING_WITH_REPORT,
     DATASET_PROTEIN_AWARE_PREPARATION_MAPPING_POLICY_REQUIRE_UNAMBIGUOUS,

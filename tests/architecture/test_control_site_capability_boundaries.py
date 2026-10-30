@@ -137,7 +137,7 @@ def test_correction_consumes_only_published_control_site_contract_boundaries() -
     correction_prefixes = (
         "phospy.preprocessing.batch_correction.execution",
         "phospy.preprocessing.batch_correction",
-        "phospy.validation.workflows.batch_correction",
+        "phospy.core.validation.workflows.batch_correction",
     )
     targets = {
         record.target

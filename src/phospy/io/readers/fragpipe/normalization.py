@@ -7,7 +7,7 @@ import math
 
 import pandas as pd
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.evidence.modified_peptides import parse_modified_peptide_sequence
 from phospy.evidence.quantification_depth import (
     QUANTIFICATION_DEPTH_COLUMN,

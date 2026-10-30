@@ -7,8 +7,8 @@ import pytest
 from phospy.api import (
     AnalysisReadyPhosphoDataset,
 )
+from phospy.core.errors import WorkflowValidationError
 from phospy.differential.validation.workflow import DifferentialAnalysisValidator
-from phospy.errors import WorkflowValidationError
 from phospy.kinase.validator import KinaseWorkflowValidator
 from phospy.signalome.validator import SignalomeWorkflowValidator
 from tests.support.workflow_identity_coherence import (

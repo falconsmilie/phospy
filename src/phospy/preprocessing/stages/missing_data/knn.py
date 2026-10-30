@@ -25,7 +25,7 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.preprocessing.contracts import PreprocessingState
 from phospy.preprocessing.contracts.configuration import (
     DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICIES,

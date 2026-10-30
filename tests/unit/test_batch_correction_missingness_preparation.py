@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from phospy.errors import PhosPyInputError
+from phospy.core.errors import PhosPyInputError
 from phospy.preprocessing.batch_correction.contracts.missingness import (
     TemporaryImputationMethod,
 )

@@ -7,8 +7,8 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from phospy.errors.references import ReferenceResolutionError
-from phospy.errors.validation import ReferenceValidationError
+from phospy.core.errors.references import ReferenceResolutionError
+from phospy.core.errors.validation import ReferenceValidationError
 from phospy.provenance.models import EnvironmentProvenance
 from phospy.references import resolution as reference_resolution
 from phospy.references.acquisition import ReferenceSourceTableReader

@@ -8,7 +8,7 @@ from dataclasses import replace
 import numpy as np
 import pandas as pd
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.preparation_records.group_evidence import (
     hash_group_aware_imputation_mask,
     hash_group_aware_mechanism_mask,

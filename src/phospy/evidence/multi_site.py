@@ -8,7 +8,7 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from phospy.errors.input import PhosPyInputError
+from phospy.core.errors.input import PhosPyInputError
 from phospy.phosphosites.identifiers import canonicalize_site_components
 
 MULTI_SITE_POLICY_KEEP_JOINT = "keep_joint"

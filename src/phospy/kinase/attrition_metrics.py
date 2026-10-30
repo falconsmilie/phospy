@@ -8,7 +8,7 @@ from typing import Literal
 
 import pandas as pd
 
-from phospy.errors.workflows import PhosPyWorkflowError
+from phospy.core.errors.workflows import PhosPyWorkflowError
 from phospy.kinase.scoring.config import KinaseAttritionPolicy
 
 KINASE_ATTRITION_POLICY_CAVEAT_CODE = "kinase_attrition_policy_violation"

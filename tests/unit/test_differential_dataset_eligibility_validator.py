@@ -7,10 +7,10 @@ from phospy.api import (
     AnalysisReadyPhosphoDataset,
     Organism,
 )
+from phospy.core.errors import WorkflowValidationError
 from phospy.differential.validation.dataset import (
     DifferentialDatasetEligibilityValidator,
 )
-from phospy.errors import WorkflowValidationError
 from phospy.phosphosites.site_keys import (
     build_protein_scoped_site_key,
     encode_site_key,

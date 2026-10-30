@@ -2,7 +2,7 @@
 """Benchmark DataFrame ownership borrow-copy policy.
 
 Targets:
-- `phospy.frames.ownership._borrow_dataframe`
+- `phospy.core.frames.ownership._borrow_dataframe`
 """
 
 from __future__ import annotations
@@ -86,7 +86,7 @@ def _exercise_borrow(
     repeats: int,
     replacement: object,
 ) -> _BorrowMetrics:
-    from phospy.frames.ownership import _borrow_dataframe
+    from phospy.core.frames.ownership import _borrow_dataframe
 
     original_value = frame.iloc[0, 0]
     owner_mutation_leaks = 0

@@ -1,6 +1,6 @@
 """Builder-boundary exceptions."""
 
-from phospy.errors.base import PhosPyError
+from phospy.core.errors.base import PhosPyError
 
 
 class PhosPyBuildError(PhosPyError):

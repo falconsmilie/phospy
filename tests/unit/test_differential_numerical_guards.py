@@ -8,6 +8,7 @@ import pandas.testing as pdt
 import pytest
 
 import phospy.differential.execution.model_executor as differential_executor_module
+from phospy.core.errors import PhosPyInputError
 from phospy.differential.diagnostics import (
     EmpiricalBayesPriorDiagnostics,
 )
@@ -36,7 +37,6 @@ from phospy.differential.moderation.empirical_bayes import (
 from phospy.differential.results import (
     DifferentialAnalysisResult,
 )
-from phospy.errors import PhosPyInputError
 from phospy.evidence.quantification_depth import QUANTIFICATION_DEPTH_KIND_PSM_COUNT
 from tests.support.site_keys import protein_site_key_index, site_key_context_columns
 
