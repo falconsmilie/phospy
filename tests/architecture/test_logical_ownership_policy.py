@@ -293,13 +293,13 @@ def test_permitted_logical_owner_graph_is_acyclic() -> None:
 
 def test_preparation_record_owner_has_closed_paths_and_readers() -> None:
     expected_leaves = {
-        "phospy.preparation_records.batch_correction",
-        "phospy.preparation_records.group_evidence",
-        "phospy.preparation_records.imputation",
-        "phospy.preparation_records.policies",
-        "phospy.preparation_records.protein_aware",
-        "phospy.preparation_records.report_schema",
-        "phospy.preparation_records.validation.sample_groups",
+        "phospy.core.preparation_records.batch_correction",
+        "phospy.core.preparation_records.group_evidence",
+        "phospy.core.preparation_records.imputation",
+        "phospy.core.preparation_records.policies",
+        "phospy.core.preparation_records.protein_aware",
+        "phospy.core.preparation_records.report_schema",
+        "phospy.core.preparation_records.validation.sample_groups",
     }
     assert set(PREPARATION_RECORD_ALLOWED_SYMBOLS) == expected_leaves
     assert all(PREPARATION_RECORD_ALLOWED_SYMBOLS.values())
@@ -315,11 +315,11 @@ def test_preparation_record_owner_has_closed_paths_and_readers() -> None:
 
     differential_targets = {
         "phospy.differential.planning.protein_aware_inputs": {
-            "phospy.preparation_records.policies",
-            "phospy.preparation_records.protein_aware",
+            "phospy.core.preparation_records.policies",
+            "phospy.core.preparation_records.protein_aware",
         },
         "phospy.differential.result_assembly": {
-            "phospy.preparation_records.batch_correction",
+            "phospy.core.preparation_records.batch_correction",
         },
     }
     for source, permitted_targets in differential_targets.items():
@@ -336,19 +336,19 @@ def test_preparation_record_owner_has_closed_paths_and_readers() -> None:
             target_owner="preparation_records",
             source_module="phospy.io.bundles._shared.processing_state",
             target_module=target,
-        ) is (target == "phospy.preparation_records.policies")
+        ) is (target == "phospy.core.preparation_records.policies")
 
     assert not is_allowed_import(
         source_owner="differential",
         target_owner="preparation_records",
         source_module="phospy.differential.unapproved_reader",
-        target_module="phospy.preparation_records.policies",
+        target_module="phospy.core.preparation_records.policies",
     )
     assert not is_allowed_import(
         source_owner="io",
         target_owner="preparation_records",
         source_module="phospy.io.bundles._signalome.reconstruction",
-        target_module="phospy.preparation_records.policies",
+        target_module="phospy.core.preparation_records.policies",
     )
 
     for source_owner in {"kinase", "run_lineage", "signalome"}:
@@ -356,7 +356,7 @@ def test_preparation_record_owner_has_closed_paths_and_readers() -> None:
             source_owner=source_owner,
             target_owner="preparation_records",
             source_module=f"phospy.{source_owner}.unapproved_reader",
-            target_module="phospy.preparation_records.policies",
+            target_module="phospy.core.preparation_records.policies",
         )
 
 
@@ -506,8 +506,8 @@ def test_capability_specific_provenance_modules_have_semantic_owners() -> None:
         "src/phospy/core/provenance/serialization/batch_correction.py": "provenance",
         "src/phospy/core/references/provenance/serialization.py": "references",
         "src/phospy/preprocessing/provenance/serialization.py": "preprocessing",
-        "src/phospy/run_lineage/models.py": "run_lineage",
-        "src/phospy/run_lineage/serialization.py": "run_lineage",
+        "src/phospy/core/run_lineage/models.py": "run_lineage",
+        "src/phospy/core/run_lineage/serialization.py": "run_lineage",
         "src/phospy/kinase/references/provenance.py": "kinase",
     }
 

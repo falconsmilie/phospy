@@ -7,7 +7,7 @@ from typing import Literal
 
 import pandas as pd
 
-import phospy.preparation_records.protein_aware as _protein_records
+import phospy.core.preparation_records.protein_aware as _protein_records
 from phospy.preprocessing.validation.configuration_fields import (
     validate_protein_aware_preparation_config,
     validate_total_protein_correction_config,

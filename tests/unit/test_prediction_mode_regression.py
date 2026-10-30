@@ -16,11 +16,11 @@ from phospy.api.advanced import (
     ReferenceContextCompatibilityPolicy,
 )
 from phospy.core.provenance.scientific_policy_models import ScientificPolicyId
+from phospy.core.run_lineage.serialization import from_payload, to_payload
 from phospy.kinase.prediction.config import (
     KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
     KINASE_PREDICTION_MODES,
 )
-from phospy.run_lineage.serialization import from_payload, to_payload
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

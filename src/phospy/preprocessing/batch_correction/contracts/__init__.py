@@ -1,8 +1,8 @@
 """Passive contracts published by the batch-correction capability."""
 # pyright: reportUnsupportedDunderAll=false
 
-from phospy.preparation_records.batch_correction import *  # noqa: F403
-from phospy.preparation_records.batch_correction import __all__ as _passive_all
+from phospy.core.preparation_records.batch_correction import *  # noqa: F403
+from phospy.core.preparation_records.batch_correction import __all__ as _passive_all
 from phospy.preprocessing.batch_correction.contracts.configuration import *  # noqa: F403
 from phospy.preprocessing.batch_correction.contracts.configuration import (
     __all__ as _configuration_all,

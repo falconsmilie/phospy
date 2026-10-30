@@ -9,10 +9,10 @@ import pandas as pd
 
 from phospy.core.errors.input import PhosPyInputError
 from phospy.core.frames.ownership import export_dataframe, own_dataframe
-from phospy.core.provenance.immutability import freeze_json_mapping_with_error_type
-from phospy.preparation_records.batch_correction import (
+from phospy.core.preparation_records.batch_correction import (
     BatchCorrectionReport as _BatchCorrectionReport,
 )
+from phospy.core.provenance.immutability import freeze_json_mapping_with_error_type
 
 
 @dataclass(frozen=True, slots=True, init=False)

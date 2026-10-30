@@ -12,6 +12,7 @@ from phospy.core.quantitative.models import (
     MatrixIntensityScaleState,
 )
 from phospy.core.quantitative.transformers import IdentityTransformer, Log2Transformer
+from phospy.core.run_lineage.serialization import to_payload
 from phospy.core.taxonomy import Organism
 from phospy.datasets.construction.contracts import (
     InterpretedDatasetBuildRequest,
@@ -27,7 +28,6 @@ from phospy.preprocessing.contracts import (
     PreprocessingStageExecution,
 )
 from phospy.preprocessing.contracts.policies import IntensityTransformPolicy
-from phospy.run_lineage.serialization import to_payload
 from tests.support.dataset_preprocessor_fakes import (
     ConformingDatasetPreprocessorFake,
 )

@@ -5,10 +5,10 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 
 from phospy.core.errors.input import PhosPyInputError
-from phospy.core.provenance.models.batch_correction import BatchCorrectionProvenance
-from phospy.preparation_records.batch_correction import (
+from phospy.core.preparation_records.batch_correction import (
     BATCH_CORRECTION_STATUS_APPLIED,
 )
+from phospy.core.provenance.models.batch_correction import BatchCorrectionProvenance
 from phospy.preprocessing.batch_correction.contracts.output import (
     _CALLER_ATTESTED_EXTERNAL_CONTROL_ATTESTATION,
     _CALLER_ATTESTED_EXTERNAL_CORRECTION_ORIGIN,

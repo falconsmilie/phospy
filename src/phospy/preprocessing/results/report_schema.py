@@ -7,7 +7,7 @@ from typing import cast
 
 import pandas as pd
 
-import phospy.preparation_records.report_schema as _durable_schema
+import phospy.core.preparation_records.report_schema as _durable_schema
 
 PREPROCESSING_REPORT_ROW_COUNTS_TABLE = "row_counts"
 PREPROCESSING_REPORT_OPERATIONS_TABLE = "operations"

@@ -8,11 +8,11 @@ from dataclasses import dataclass
 from phospy.core.evidence.sequence_resolution import (
     PhosphositeSequenceResolutionRequest,
 )
-from phospy.core.references.sequences import FastaProteinSequenceRepository
-from phospy.preparation_records.policies import (
+from phospy.core.preparation_records.policies import (
     SiteSequenceConflictPolicy,
     SiteSequenceResolutionMode,
 )
+from phospy.core.references.sequences import FastaProteinSequenceRepository
 
 
 @dataclass(frozen=True, slots=True)

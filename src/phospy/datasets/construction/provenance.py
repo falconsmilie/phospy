@@ -18,6 +18,9 @@ from phospy.core.provenance.models import (
 )
 from phospy.core.provenance.scientific_policy_models import ScientificPolicyRecord
 from phospy.core.references.models import ReferenceContext
+from phospy.core.run_lineage.models import (
+    RunProvenance,
+)
 from phospy.datasets.construction.contracts import (
     InterpretedDatasetBuildRequest,
     PreprocessedDatasetBuildTables,
@@ -48,9 +51,6 @@ from phospy.preprocessing.workflow import (
     PreprocessingStageOrderPolicy,
     PreprocessingStageProvenance,
     build_duplicate_site_resolution_policy,
-)
-from phospy.run_lineage.models import (
-    RunProvenance,
 )
 
 _SUPPORTED_PREPROCESSING_STAGE_ORDER = (

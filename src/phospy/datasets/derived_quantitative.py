@@ -31,13 +31,13 @@ from phospy.core.provenance.serialization import (
     table_fingerprint_to_payload,
 )
 from phospy.core.quantitative.models import IntensityScaleState
+from phospy.core.run_lineage.models import RunProvenance
 from phospy.core.taxonomy.organisms import Organism
 from phospy.datasets._construction.service import (
     _AnalysisReadyDatasetConstructionService,
 )
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.datasets.processing_state import DatasetProcessingState
-from phospy.run_lineage.models import RunProvenance
 
 DERIVED_QUANTITATIVE_DATA_PROVENANCE_SCHEMA_VERSION_V1 = 1
 DERIVED_QUANTITATIVE_DATA_FINGERPRINT_ALGORITHM = DEFAULT_STABLE_JSON_HASH_ALGORITHM

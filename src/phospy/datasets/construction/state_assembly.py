@@ -9,6 +9,7 @@ import pandas as pd
 from phospy.core.errors.build import DatasetBuildError
 from phospy.core.errors.input import PhosPyInputError
 from phospy.core.errors.transformations import InvalidTransformationStateError
+from phospy.core.preparation_records.policies import TotalProteinCorrectionPolicy
 from phospy.core.provenance.models import (
     TableFingerprint,
 )
@@ -45,7 +46,6 @@ from phospy.datasets.processing_state import (
     TotalProteinCorrectionDiagnostics,
     TotalProteinCorrectionState,
 )
-from phospy.preparation_records.policies import TotalProteinCorrectionPolicy
 from phospy.preprocessing.contracts import (
     DATASET_PREPROCESSING_STAGE_MISSING_DATA,
     DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,

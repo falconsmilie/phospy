@@ -19,11 +19,11 @@ from phospy.core.provenance.scientific_policy_models import (
 )
 from phospy.core.provenance.serialization import table_fingerprint_to_payload
 from phospy.core.quantitative.evidence import input_intensity_scale_evidence_from_state
-from phospy.kinase.result_boundary import DownstreamScoreSource
-from phospy.run_lineage.models import (
+from phospy.core.run_lineage.models import (
     RunProvenance,
 )
-from phospy.run_lineage.serialization import to_payload as provenance_to_payload
+from phospy.core.run_lineage.serialization import to_payload as provenance_to_payload
+from phospy.kinase.result_boundary import DownstreamScoreSource
 from phospy.signalome.clustering import ClusterSitesResult
 from phospy.signalome.clustering.diagnostic_schemas import (
     backend_diagnostics_to_payload,

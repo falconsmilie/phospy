@@ -13,6 +13,7 @@ import pytest
 from phospy.api import DatasetBuildRequest, Organism, ReferenceBundle
 from phospy.core.errors import PhosPyInputError
 from phospy.core.provenance.immutability import FrozenJsonMapping, thaw_json_mapping
+from phospy.core.run_lineage.models import RunProvenance
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.differential.diagnostics import (
     EmpiricalBayesPriorDiagnostics,
@@ -26,7 +27,6 @@ from phospy.differential.results import (
     DifferentialAnalysisResult,
 )
 from phospy.kinase.activity.tables import ActivityMatrix
-from phospy.run_lineage.models import RunProvenance
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )
@@ -51,7 +51,7 @@ _PUBLIC_PANDAS_CONTAINER_PATHS = (
     "src/phospy/datasets/models.py",
     "src/phospy/datasets/imputation_metadata.py",
     "src/phospy/preprocessing/results/protein_aware.py",
-    "src/phospy/preparation_records/protein_aware.py",
+    "src/phospy/core/preparation_records/protein_aware.py",
     "src/phospy/datasets/protein_aware.py",
     "src/phospy/datasets/processing_state.py",
     "src/phospy/differential/execution/linear_model.py",

@@ -5,11 +5,10 @@ behaviour: `datasets`, `preprocessing`, `differential`, `enrichment`, `kinase`,
 and `signalome`. Shared scientific owners supply reusable meaning and data
 contracts: `activities`, `evidence`, `phosphosites`, `quantitative`,
 `references`, `statistics`, `taxonomy`, and `provenance`. These owners and the
-technical foundations `errors`, `frames`, `policies`, and `validation` live as
-distinct children beneath the inert organisational `core` namespace.
-`preparation_records` continues to own passive preparation records and
-`run_lineage` continues to compose provenance across capabilities at the
-package root until their separate migration ticket.
+technical foundations `errors`, `frames`, `policies`, and `validation`, the
+passive `preparation_records` owner, and the cross-capability
+`run_lineage` composition owner live as distinct children beneath the inert
+organisational `core` namespace.
 
 Dependencies point from capabilities toward shared foundations and published
 contracts. The `io` root is an inward adapter and can depend only on reviewed
@@ -91,12 +90,12 @@ decisions are [ADR-0053](adr/adr_0053_domain_first_capability_architecture.md) a
 governs the current API consolidation and directory refinement. The
 specialist facade and private inventory now live beneath `phospy.api`, and the
 three former root conveniences remain available through `phospy.api` only.
-The inert `phospy.core` namespace now contains the separately governed
-`errors`, `frames`, `policies`, `validation`, `activities`, `evidence`,
-`phosphosites`, `quantitative`, `references`, `statistics`, `taxonomy`, and
-`provenance` owners. The separate preparation-record and run-lineage migration
-remains later work. The live owner routes and maintained API baseline above
-remain authoritative.
+The inert `phospy.core` namespace now contains all fourteen separately
+governed children: `errors`, `frames`, `policies`, `validation`,
+`activities`, `evidence`, `phosphosites`, `quantitative`, `references`,
+`statistics`, `taxonomy`, `provenance`, `preparation_records`, and
+`run_lineage`. The live owner routes and maintained API baseline above remain
+authoritative.
 
 Architecture enforcement resolves owner-pure package units from the owner map,
 so the live `phospy.core.frames` and `phospy.core.quantitative` owners remain

@@ -32,6 +32,7 @@ from phospy.core.quantitative.state_coherence import (
     ObservedNumericDomain,
     require_quantitative_numeric_domain_coherence,
 )
+from phospy.core.run_lineage import from_payload, to_payload
 from phospy.datasets.construction.preprocessing import (
     build_dataset_processing_state,
 )
@@ -39,7 +40,6 @@ from phospy.datasets.trusted_assertions import (
     TrustedDatasetConstructionEvidence,
 )
 from phospy.preprocessing.contracts import PreprocessingPlan
-from phospy.run_lineage import from_payload, to_payload
 from tests.support.analysis_ready_dataset_factories import (
     complete_trusted_dataset_construction_assertions_for_tests,
     trusted_analysis_ready_dataset_from_tables,

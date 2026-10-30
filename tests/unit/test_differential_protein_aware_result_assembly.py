@@ -24,6 +24,13 @@ from phospy.api.advanced import (
 )
 from phospy.core.errors.input import PhosPyInputError
 from phospy.core.errors.workflows import WorkflowBoundaryError
+from phospy.core.preparation_records.protein_aware import (
+    ProteinAwarePreparationEligibility,
+    ProteinAwareSampleAlignmentDiagnostics,
+    ProteinAwareSiteEligibility,
+    ProteinAwareTransformationStateDiagnostics,
+    ProteinMappingStatus,
+)
 from phospy.core.provenance.hashing import (
     fingerprint_optional_table_strict,
     fingerprint_table_strict,
@@ -32,6 +39,7 @@ from phospy.core.provenance.models import EnvironmentProvenance
 from phospy.core.provenance.serialization.tables import table_fingerprint_to_payload
 from phospy.core.references.provenance.context import ReferenceContext
 from phospy.core.references.provenance.models import ReferenceProvenance
+from phospy.core.run_lineage.models import RunProvenance
 from phospy.datasets.processing_state import DatasetPreprocessingReport
 from phospy.datasets.protein_aware import (
     ProteinAwarePreparationReport,
@@ -104,14 +112,6 @@ from phospy.differential.tables import (
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_PREPARATION_INELIGIBLE,
 )
 from phospy.differential.validation.workflow import DifferentialAnalysisValidator
-from phospy.preparation_records.protein_aware import (
-    ProteinAwarePreparationEligibility,
-    ProteinAwareSampleAlignmentDiagnostics,
-    ProteinAwareSiteEligibility,
-    ProteinAwareTransformationStateDiagnostics,
-    ProteinMappingStatus,
-)
-from phospy.run_lineage.models import RunProvenance
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

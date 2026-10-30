@@ -8,13 +8,13 @@ import pandas as pd
 import pytest
 
 from phospy.core.errors import PhosPyInputError
-from phospy.core.provenance import fingerprint_matrix
-from phospy.core.provenance.models import BatchCorrectionProvenance
-from phospy.preparation_records.batch_correction import (
+from phospy.core.preparation_records.batch_correction import (
     BatchCorrectionDiagnostics,
     BatchCorrectionPolicy,
     BatchCorrectionReport,
 )
+from phospy.core.provenance import fingerprint_matrix
+from phospy.core.provenance.models import BatchCorrectionProvenance
 from phospy.preprocessing.batch_correction import (
     REPLICATE_METADATA_ROLE,
     BatchCorrectionDiagnosticRequirements,

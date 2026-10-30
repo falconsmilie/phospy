@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-import phospy.preparation_records.imputation as _imputation_records
+import phospy.core.preparation_records.imputation as _imputation_records
 from phospy.core.errors.input import PhosPyInputError
+from phospy.core.preparation_records.policies import MissingDataPolicy
 from phospy.core.quantitative.models import IntensityScaleKind
-from phospy.preparation_records.policies import MissingDataPolicy
 from phospy.preprocessing.contracts.policies import (
     ImputationInputScale,
     IntensityTransformPolicy,

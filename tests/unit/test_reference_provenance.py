@@ -9,9 +9,9 @@ from phospy.core.provenance.models import (
 from phospy.core.references.models import ReferenceBundle, ReferencePreset
 from phospy.core.references.resolution import ReferenceResolver
 from phospy.core.references.resources import bundled_reference_name_for_organism
+from phospy.core.run_lineage.models import RunProvenance
+from phospy.core.run_lineage.serialization import from_payload, to_payload
 from phospy.core.taxonomy import Organism
-from phospy.run_lineage.models import RunProvenance
-from phospy.run_lineage.serialization import from_payload, to_payload
 
 
 def test_explicit_reference_bundle_defaults_to_explicit_provenance() -> None:

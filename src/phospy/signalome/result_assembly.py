@@ -7,7 +7,7 @@ from collections.abc import Callable
 import pandas as pd
 
 from phospy.core.errors.workflows import WorkflowStageError
-from phospy.run_lineage.models import (
+from phospy.core.run_lineage.models import (
     RunProvenance,
 )
 from phospy.signalome.caveats import build_signalome_result_caveats

@@ -28,9 +28,7 @@ exact owner-edge policy, and the permanent classification registry.
 | `enrichment` | `capability` |
 | `io` | `adapter` |
 | `kinase` | `capability` |
-| `preparation_records` | `passive_shared_record_foundation` |
 | `preprocessing` | `capability` |
-| `run_lineage` | `composition_foundation` |
 | `signalome` | `capability` |
 
 ## Complete statically observed owner graph (before classifications)
@@ -394,6 +392,7 @@ runtime binding, and it does not attempt to model arbitrary Python behavior.
 | `src/phospy/core/references/manifest.py` | `deliberate_internal_facade` | Reference manifest contract composition. |
 | `src/phospy/core/references/sequences/__init__.py` | `deliberate_internal_facade` | Reference sequence package composition. |
 | `src/phospy/core/references/validation/__init__.py` | `deliberate_internal_facade` | Reference validation package composition. |
+| `src/phospy/core/run_lineage/__init__.py` | `deliberate_internal_facade` | Run-lineage composition foundation facade. |
 | `src/phospy/core/statistics/__init__.py` | `deliberate_internal_facade` | Statistics owner-package composition. |
 | `src/phospy/core/taxonomy/__init__.py` | `deliberate_internal_facade` | Taxonomy owner-package composition. |
 | `src/phospy/io/bundles/kinase.py` | `deliberate_internal_facade` | IO-owned Kinase bundle composition. |
@@ -414,7 +413,6 @@ runtime binding, and it does not attempt to model arbitrary Python behavior.
 | `src/phospy/preprocessing/stages/missing_data/__init__.py` | `deliberate_internal_facade` | Missing-data stage package composition. |
 | `src/phospy/preprocessing/stages/site_matrix_components/__init__.py` | `deliberate_internal_facade` | Site-matrix stage component composition. |
 | `src/phospy/preprocessing/workflow.py` | `deliberate_internal_facade` | Preprocessing-owned workflow composition route. |
-| `src/phospy/run_lineage/__init__.py` | `deliberate_internal_facade` | Run-lineage composition foundation facade. |
 | `src/phospy/signalome/clustering/backends/__init__.py` | `deliberate_internal_facade` | Signalome clustering backend package composition. |
 | `src/phospy/signalome/tables/__init__.py` | `deliberate_internal_facade` | Signalome table package composition. |
 
@@ -587,6 +585,15 @@ identifiers from live compatibility routes. Their exact sets are enforced.
 - `src/phospy/core/policies/__init__.py`
 - `src/phospy/core/policies/config_values.py`
 - `src/phospy/core/policies/policy_base.py`
+- `src/phospy/core/preparation_records/__init__.py`
+- `src/phospy/core/preparation_records/batch_correction.py`
+- `src/phospy/core/preparation_records/group_evidence.py`
+- `src/phospy/core/preparation_records/imputation.py`
+- `src/phospy/core/preparation_records/policies.py`
+- `src/phospy/core/preparation_records/protein_aware.py`
+- `src/phospy/core/preparation_records/report_schema.py`
+- `src/phospy/core/preparation_records/validation/__init__.py`
+- `src/phospy/core/preparation_records/validation/sample_groups.py`
 - `src/phospy/core/provenance/__init__.py`
 - `src/phospy/core/provenance/environment.py`
 - `src/phospy/core/provenance/hashing.py`
@@ -660,6 +667,9 @@ identifiers from live compatibility routes. Their exact sets are enforced.
 - `src/phospy/core/references/validation/manifest_schema.py`
 - `src/phospy/core/references/validation/redistribution_policy.py`
 - `src/phospy/core/references/validation/resource_integrity.py`
+- `src/phospy/core/run_lineage/__init__.py`
+- `src/phospy/core/run_lineage/models.py`
+- `src/phospy/core/run_lineage/serialization.py`
 - `src/phospy/core/statistics/__init__.py`
 - `src/phospy/core/statistics/multiple_testing.py`
 - `src/phospy/core/taxonomy/__init__.py`
@@ -953,15 +963,6 @@ identifiers from live compatibility routes. Their exact sets are enforced.
 - `src/phospy/kinase/site_sequence_policy.py`
 - `src/phospy/kinase/site_sequence_support.py`
 - `src/phospy/kinase/validator.py`
-- `src/phospy/preparation_records/__init__.py`
-- `src/phospy/preparation_records/batch_correction.py`
-- `src/phospy/preparation_records/group_evidence.py`
-- `src/phospy/preparation_records/imputation.py`
-- `src/phospy/preparation_records/policies.py`
-- `src/phospy/preparation_records/protein_aware.py`
-- `src/phospy/preparation_records/report_schema.py`
-- `src/phospy/preparation_records/validation/__init__.py`
-- `src/phospy/preparation_records/validation/sample_groups.py`
 - `src/phospy/preprocessing/__init__.py`
 - `src/phospy/preprocessing/batch_correction/__init__.py`
 - `src/phospy/preprocessing/batch_correction/adapters/__init__.py`
@@ -1099,9 +1100,6 @@ identifiers from live compatibility routes. Their exact sets are enforced.
 - `src/phospy/preprocessing/validation/quantitative_evidence.py`
 - `src/phospy/preprocessing/validation/quantitative_transition.py`
 - `src/phospy/preprocessing/workflow.py`
-- `src/phospy/run_lineage/__init__.py`
-- `src/phospy/run_lineage/models.py`
-- `src/phospy/run_lineage/serialization.py`
 - `src/phospy/signalome/__init__.py`
 - `src/phospy/signalome/alignment_diagnostics.py`
 - `src/phospy/signalome/assignments.py`
@@ -1238,6 +1236,15 @@ identifiers from live compatibility routes. Their exact sets are enforced.
 | `src/phospy/core/policies/__init__.py` | `phospy.core.policies` | `policies` | Generic parsing and scalar policy |
 | `src/phospy/core/policies/config_values.py` | `phospy.core.policies.config_values` | `policies` | Generic parsing and scalar policy |
 | `src/phospy/core/policies/policy_base.py` | `phospy.core.policies.policy_base` | `policies` | Generic parsing and scalar policy |
+| `src/phospy/core/preparation_records/__init__.py` | `phospy.core.preparation_records` | `preparation_records` | Passive preparation record or structural validation |
+| `src/phospy/core/preparation_records/batch_correction.py` | `phospy.core.preparation_records.batch_correction` | `preparation_records` | Passive preparation record or structural validation |
+| `src/phospy/core/preparation_records/group_evidence.py` | `phospy.core.preparation_records.group_evidence` | `preparation_records` | Passive preparation record or structural validation |
+| `src/phospy/core/preparation_records/imputation.py` | `phospy.core.preparation_records.imputation` | `preparation_records` | Passive preparation record or structural validation |
+| `src/phospy/core/preparation_records/policies.py` | `phospy.core.preparation_records.policies` | `preparation_records` | Passive preparation record or structural validation |
+| `src/phospy/core/preparation_records/protein_aware.py` | `phospy.core.preparation_records.protein_aware` | `preparation_records` | Passive preparation record or structural validation |
+| `src/phospy/core/preparation_records/report_schema.py` | `phospy.core.preparation_records.report_schema` | `preparation_records` | Passive preparation record or structural validation |
+| `src/phospy/core/preparation_records/validation/__init__.py` | `phospy.core.preparation_records.validation` | `preparation_records` | Passive preparation record or structural validation |
+| `src/phospy/core/preparation_records/validation/sample_groups.py` | `phospy.core.preparation_records.validation.sample_groups` | `preparation_records` | Passive preparation record or structural validation |
 | `src/phospy/core/provenance/__init__.py` | `phospy.core.provenance` | `provenance` | Generic immutable provenance infrastructure |
 | `src/phospy/core/provenance/environment.py` | `phospy.core.provenance.environment` | `provenance` | Generic immutable provenance infrastructure |
 | `src/phospy/core/provenance/hashing.py` | `phospy.core.provenance.hashing` | `provenance` | Generic immutable provenance infrastructure |
@@ -1311,6 +1318,9 @@ identifiers from live compatibility routes. Their exact sets are enforced.
 | `src/phospy/core/references/validation/manifest_schema.py` | `phospy.core.references.validation.manifest_schema` | `references` | General reference identity, resources, sequences, or construction |
 | `src/phospy/core/references/validation/redistribution_policy.py` | `phospy.core.references.validation.redistribution_policy` | `references` | General reference identity, resources, sequences, or construction |
 | `src/phospy/core/references/validation/resource_integrity.py` | `phospy.core.references.validation.resource_integrity` | `references` | General reference identity, resources, sequences, or construction |
+| `src/phospy/core/run_lineage/__init__.py` | `phospy.core.run_lineage` | `run_lineage` | Cross-capability run-lineage composition owner |
+| `src/phospy/core/run_lineage/models.py` | `phospy.core.run_lineage.models` | `run_lineage` | Cross-capability run-lineage composition owner |
+| `src/phospy/core/run_lineage/serialization.py` | `phospy.core.run_lineage.serialization` | `run_lineage` | Cross-capability run-lineage composition owner |
 | `src/phospy/core/statistics/__init__.py` | `phospy.core.statistics` | `statistics` | Reusable statistical kernel or generic correction value |
 | `src/phospy/core/statistics/multiple_testing.py` | `phospy.core.statistics.multiple_testing` | `statistics` | Reusable statistical kernel or generic correction value |
 | `src/phospy/core/taxonomy/__init__.py` | `phospy.core.taxonomy` | `taxonomy` | Typed organism vocabulary and normalisation |
@@ -1598,15 +1608,6 @@ identifiers from live compatibility routes. Their exact sets are enforced.
 | `src/phospy/kinase/site_sequence_policy.py` | `phospy.kinase.site_sequence_policy` | `kinase` | Kinase capability package |
 | `src/phospy/kinase/site_sequence_support.py` | `phospy.kinase.site_sequence_support` | `kinase` | Kinase capability package |
 | `src/phospy/kinase/validator.py` | `phospy.kinase.validator` | `kinase` | Kinase capability package |
-| `src/phospy/preparation_records/__init__.py` | `phospy.preparation_records` | `preparation_records` | Passive preparation record or structural validation |
-| `src/phospy/preparation_records/batch_correction.py` | `phospy.preparation_records.batch_correction` | `preparation_records` | Passive preparation record or structural validation |
-| `src/phospy/preparation_records/group_evidence.py` | `phospy.preparation_records.group_evidence` | `preparation_records` | Passive preparation record or structural validation |
-| `src/phospy/preparation_records/imputation.py` | `phospy.preparation_records.imputation` | `preparation_records` | Passive preparation record or structural validation |
-| `src/phospy/preparation_records/policies.py` | `phospy.preparation_records.policies` | `preparation_records` | Passive preparation record or structural validation |
-| `src/phospy/preparation_records/protein_aware.py` | `phospy.preparation_records.protein_aware` | `preparation_records` | Passive preparation record or structural validation |
-| `src/phospy/preparation_records/report_schema.py` | `phospy.preparation_records.report_schema` | `preparation_records` | Passive preparation record or structural validation |
-| `src/phospy/preparation_records/validation/__init__.py` | `phospy.preparation_records.validation` | `preparation_records` | Passive preparation record or structural validation |
-| `src/phospy/preparation_records/validation/sample_groups.py` | `phospy.preparation_records.validation.sample_groups` | `preparation_records` | Passive preparation record or structural validation |
 | `src/phospy/preprocessing/__init__.py` | `phospy.preprocessing` | `preprocessing` | Preprocessing control-site capability lifecycle |
 | `src/phospy/preprocessing/batch_correction/__init__.py` | `phospy.preprocessing.batch_correction` | `preprocessing` | Nested preprocessing batch-correction capability |
 | `src/phospy/preprocessing/batch_correction/adapters/__init__.py` | `phospy.preprocessing.batch_correction.adapters` | `preprocessing` | Batch-correction preprocessing adaptation |
@@ -1744,9 +1745,6 @@ identifiers from live compatibility routes. Their exact sets are enforced.
 | `src/phospy/preprocessing/validation/quantitative_evidence.py` | `phospy.preprocessing.validation.quantitative_evidence` | `preprocessing` | Preprocessing control-site capability lifecycle |
 | `src/phospy/preprocessing/validation/quantitative_transition.py` | `phospy.preprocessing.validation.quantitative_transition` | `preprocessing` | Preprocessing control-site capability lifecycle |
 | `src/phospy/preprocessing/workflow.py` | `phospy.preprocessing.workflow` | `preprocessing` | Preprocessing control-site capability lifecycle |
-| `src/phospy/run_lineage/__init__.py` | `phospy.run_lineage` | `run_lineage` | Cross-capability run-lineage composition owner |
-| `src/phospy/run_lineage/models.py` | `phospy.run_lineage.models` | `run_lineage` | Cross-capability run-lineage composition owner |
-| `src/phospy/run_lineage/serialization.py` | `phospy.run_lineage.serialization` | `run_lineage` | Cross-capability run-lineage composition owner |
 | `src/phospy/signalome/__init__.py` | `phospy.signalome` | `signalome` | Complete Signalome capability lifecycle |
 | `src/phospy/signalome/alignment_diagnostics.py` | `phospy.signalome.alignment_diagnostics` | `signalome` | Complete Signalome capability lifecycle |
 | `src/phospy/signalome/assignments.py` | `phospy.signalome.assignments` | `signalome` | Complete Signalome capability lifecycle |

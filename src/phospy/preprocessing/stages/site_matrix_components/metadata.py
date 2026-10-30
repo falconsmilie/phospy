@@ -12,7 +12,7 @@ from phospy.core.evidence.quantification_depth import (
 )
 from phospy.core.phosphosites.identifiers import canonicalize_site_series
 from phospy.core.phosphosites.validation import require_site_key_series
-from phospy.preparation_records.report_schema import (
+from phospy.core.preparation_records.report_schema import (
     METADATA_CONFLICT_COLUMNS,
     dataframe_from_metadata_conflict_rows,
 )

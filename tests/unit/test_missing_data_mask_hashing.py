@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from phospy.preparation_records.group_evidence import (
+from phospy.core.preparation_records.group_evidence import (
     hash_group_aware_imputation_mask,
     hash_group_aware_mechanism_mask,
 )

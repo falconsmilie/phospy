@@ -7,7 +7,7 @@ from dataclasses import dataclass
 import pandas as pd
 
 from phospy.core.errors.input import PhosPyInputError
-from phospy.preparation_records.validation.sample_groups import (
+from phospy.core.preparation_records.validation.sample_groups import (
     ResolvedSampleGroups,
     SampleGroupMetadataResolver,
 )

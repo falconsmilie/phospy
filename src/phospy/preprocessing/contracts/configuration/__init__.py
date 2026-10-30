@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from phospy.preparation_records.imputation import (
+from phospy.core.preparation_records.imputation import (
     DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICIES,
     DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICY_COLUMN_MEAN_WITH_CAVEAT,
     DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICY_ERROR,
     DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICY_VERSION,
 )
-from phospy.preparation_records.protein_aware import (
+from phospy.core.preparation_records.protein_aware import (
     DATASET_PROTEIN_AWARE_PREPARATION_MAPPING_POLICIES,
     DATASET_PROTEIN_AWARE_PREPARATION_MAPPING_POLICY_ALLOW_MISSING_WITH_REPORT,
     DATASET_PROTEIN_AWARE_PREPARATION_MAPPING_POLICY_REQUIRE_UNAMBIGUOUS,

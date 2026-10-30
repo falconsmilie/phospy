@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from phospy.preparation_records.report_schema import PreprocessingRowAuditRow
+from phospy.core.preparation_records.report_schema import PreprocessingRowAuditRow
 from phospy.preprocessing.contracts import (
     DATASET_PREPROCESSING_STAGE_SITE_MATRIX,
 )

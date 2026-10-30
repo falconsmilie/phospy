@@ -7,6 +7,9 @@ from typing import cast
 
 import pandas as pd
 
+from phospy.core.run_lineage.models import (
+    RunProvenance,
+)
 from phospy.kinase.activity.results import KinaseActivityResult
 from phospy.kinase.attrition_metrics import (
     build_kinase_attrition_provenance_payload,
@@ -21,9 +24,6 @@ from phospy.kinase.results import (
     KinaseWorkflowSiteAttritionSummary,
 )
 from phospy.kinase.scoring.results import KinaseScoringResult
-from phospy.run_lineage.models import (
-    RunProvenance,
-)
 
 
 class KinaseResultAssembler:

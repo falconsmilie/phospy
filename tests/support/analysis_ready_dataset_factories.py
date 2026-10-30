@@ -19,6 +19,7 @@ from phospy.core.quantitative.models import (
     QuantitativeMeaning,
 )
 from phospy.core.quantitative.state_coherence import observe_numeric_domain
+from phospy.core.run_lineage.models import RunProvenance
 from phospy.core.taxonomy import Organism
 from phospy.datasets.processing_state import (
     DatasetPreprocessingReport,
@@ -32,7 +33,6 @@ from phospy.datasets.trusted_assertions import (
 from phospy.preprocessing.contracts.configuration.dataset import (
     DatasetPreprocessingConfig,
 )
-from phospy.run_lineage.models import RunProvenance
 
 
 def complete_trusted_dataset_construction_assertions_for_tests(

@@ -14,6 +14,9 @@ from phospy.core.frames.validation import (
     format_label_examples,
     require_exact_index_match,
 )
+from phospy.core.preparation_records.protein_aware import (
+    DATASET_PROTEIN_AWARE_PREPARATION_POLICY_PREPARE_MODEL_INPUTS,
+)
 from phospy.core.provenance.hashing import fingerprint_optional_table_strict
 from phospy.core.provenance.serialization.tables import table_fingerprints_from_payload
 from phospy.datasets._construction.fingerprints import (
@@ -23,9 +26,6 @@ from phospy.datasets.protein_aware import (
     PROTEIN_AWARE_PREPARATION_SCHEMA_VERSION,
     ProteinAwarePreparationReport,
     ProteinAwarePreparationResult,
-)
-from phospy.preparation_records.protein_aware import (
-    DATASET_PROTEIN_AWARE_PREPARATION_POLICY_PREPARE_MODEL_INPUTS,
 )
 
 if TYPE_CHECKING:

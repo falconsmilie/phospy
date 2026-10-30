@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import cast
 
 from phospy.core.errors.input import PhosPyInputError
-from phospy.preparation_records.policies import (
+from phospy.core.preparation_records.policies import (
     MissingDataPolicy,
     NormalisationPolicy,
     SiteSequenceConflictPolicy,

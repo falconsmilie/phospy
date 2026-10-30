@@ -28,6 +28,13 @@ from phospy.core.frames.pandas_typing import (
     dataframe_loc,
     index_snapshot,
 )
+from phospy.core.preparation_records.policies import (
+    TotalProteinCorrectionPolicy,
+)
+from phospy.core.preparation_records.protein_aware import (
+    DATASET_PROTEIN_AWARE_PREPARATION_POLICY_PREPARE_MODEL_INPUTS,
+    ProteinAwarePreparationEligibility,
+)
 from phospy.core.quantitative.models import IntensityScaleKind
 from phospy.core.references.provenance.serialization import reference_to_payload
 from phospy.core.statistics.multiple_testing import MultipleTestingCorrection
@@ -87,13 +94,6 @@ from phospy.differential.tables import (
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_CONTRAST_NON_ESTIMABLE,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_COVARIATE_INVALID,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_PREPARATION_INELIGIBLE,
-)
-from phospy.preparation_records.policies import (
-    TotalProteinCorrectionPolicy,
-)
-from phospy.preparation_records.protein_aware import (
-    DATASET_PROTEIN_AWARE_PREPARATION_POLICY_PREPARE_MODEL_INPUTS,
-    ProteinAwarePreparationEligibility,
 )
 
 _FloatArray = npt.NDArray[np.float64]

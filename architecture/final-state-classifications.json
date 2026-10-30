@@ -146,7 +146,7 @@
       "disposition": "deliberate_internal_facade",
       "rationale": "Reference validation package composition."
     },
-    "src/phospy/run_lineage/__init__.py": {
+    "src/phospy/core/run_lineage/__init__.py": {
       "disposition": "deliberate_internal_facade",
       "rationale": "Run-lineage composition foundation facade."
     },

@@ -5,6 +5,10 @@ from dataclasses import replace
 import pytest
 
 from phospy.core.errors.input import PhosPyInputError
+from phospy.core.preparation_records.policies import (
+    MissingDataPolicy,
+    TotalProteinCorrectionPolicy,
+)
 from phospy.core.quantitative.models import QuantitativeMeaning
 from phospy.core.quantitative.serialization import (
     intensity_scale_state_from_payload,
@@ -27,10 +31,6 @@ from phospy.datasets.processing_state import (
 from phospy.io.bundles._shared.processing_state import (
     processing_state_from_payload,
     processing_state_to_payload,
-)
-from phospy.preparation_records.policies import (
-    MissingDataPolicy,
-    TotalProteinCorrectionPolicy,
 )
 
 

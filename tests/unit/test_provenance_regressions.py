@@ -32,11 +32,11 @@ from phospy.api.advanced import (
 )
 from phospy.core.provenance.hashing import hash_table_exact, hash_table_tolerance
 from phospy.core.provenance.scientific_policy_models import ScientificPolicyId
+from phospy.core.run_lineage.serialization import from_payload, to_payload
 from phospy.io.bundles._shared.processing_state import (
     processing_state_from_payload,
     processing_state_to_payload,
 )
-from phospy.run_lineage.serialization import from_payload, to_payload
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

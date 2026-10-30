@@ -7,11 +7,11 @@ from typing import TYPE_CHECKING, cast
 
 from phospy.core.errors.input import PhosPyInputError
 from phospy.core.errors.validation import DatasetValidationError
+from phospy.core.run_lineage.models import (
+    RunProvenance,
+)
 from phospy.datasets.trusted_assertions import (
     TrustedDatasetConstructionAssertions,
-)
-from phospy.run_lineage.models import (
-    RunProvenance,
 )
 
 if TYPE_CHECKING:

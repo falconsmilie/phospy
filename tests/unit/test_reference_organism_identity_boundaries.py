@@ -22,6 +22,8 @@ from phospy.core.references.models import (
 from phospy.core.references.provenance.context import ReferenceContext
 from phospy.core.references.provenance.models import ReferenceProvenance
 from phospy.core.references.resolution import ReferenceResolver
+from phospy.core.run_lineage.models import RunProvenance
+from phospy.core.run_lineage.serialization import from_payload, to_payload
 from phospy.core.taxonomy import Organism
 from phospy.datasets.construction.provenance import (
     DatasetRunProvenanceAssembler,
@@ -38,8 +40,6 @@ from phospy.datasets.processing_state import DatasetProcessingState
 from phospy.differential.provenance.lineage import (
     build_derived_quantitative_run_provenance,
 )
-from phospy.run_lineage.models import RunProvenance
-from phospy.run_lineage.serialization import from_payload, to_payload
 from tests.support.analysis_ready_dataset_factories import (
     complete_trusted_dataset_construction_assertions_for_tests,
     trusted_analysis_ready_dataset_from_tables,

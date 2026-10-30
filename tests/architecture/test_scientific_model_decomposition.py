@@ -3,6 +3,7 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
+import phospy.core.preparation_records.batch_correction as batch_models
 import phospy.core.provenance.models as provenance_models
 import phospy.core.provenance.models.batch_correction as batch_provenance_models
 import phospy.core.quantitative.models as transformation_models
@@ -19,7 +20,6 @@ import phospy.kinase.activity.diagnostics as activity_diagnostics
 import phospy.kinase.activity.inputs as activity_inputs
 import phospy.kinase.activity.models as activity_method_models
 import phospy.kinase.activity.results as activity_results
-import phospy.preparation_records.batch_correction as batch_models
 import phospy.preprocessing.batch_correction.contracts.results as active_batch_results
 import phospy.preprocessing.batch_correction.execution.linear as batch_engine
 
@@ -138,10 +138,14 @@ def test_decomposed_scientific_model_classes_have_single_definition() -> None:
         "ActivityMethodMetadata": "phospy/kinase/activity/models.py",
         "ActivityMethodSummary": "phospy/kinase/activity/models.py",
         "BatchCorrectionDiagnostics": (
-            "phospy/preparation_records/batch_correction.py"
+            "phospy/core/preparation_records/batch_correction.py"
         ),
-        "BatchCorrectionPolicy": ("phospy/preparation_records/batch_correction.py"),
-        "BatchCorrectionReport": ("phospy/preparation_records/batch_correction.py"),
+        "BatchCorrectionPolicy": (
+            "phospy/core/preparation_records/batch_correction.py"
+        ),
+        "BatchCorrectionReport": (
+            "phospy/core/preparation_records/batch_correction.py"
+        ),
         "BatchCorrectionResult": (
             "phospy/preprocessing/batch_correction/contracts/results.py"
         ),

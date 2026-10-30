@@ -11,6 +11,7 @@ from phospy.core.errors.input import PhosPyInputError
 from phospy.core.evidence.localisation import (
     assess_localisation_probability_column,
 )
+from phospy.core.preparation_records.report_schema import PreprocessingRowAuditRow
 from phospy.core.quantitative.quantitative_contracts import (
     NegativeDomainPolicy,
     QuantitativeEvidenceRequirement,
@@ -18,7 +19,6 @@ from phospy.core.quantitative.quantitative_contracts import (
     QuantitativeReversibilityKind,
     preserve_quantitative_contract,
 )
-from phospy.preparation_records.report_schema import PreprocessingRowAuditRow
 from phospy.preprocessing.contracts import (
     DATASET_PREPROCESSING_STAGE_LOCALISATION,
     PreprocessingPlan,

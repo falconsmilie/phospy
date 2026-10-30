@@ -254,8 +254,8 @@ from phospy.preprocessing.provenance.models import PreprocessingStageProvenance
 from phospy.core.provenance.models.environment import EnvironmentProvenance
 from phospy.core.provenance.hashing import hash_json_payload
 from phospy.core.provenance.serialization.tables import table_fingerprint_to_payload
-from phospy.run_lineage.models import RunProvenance
-from phospy.run_lineage.serialization import (
+from phospy.core.run_lineage.models import RunProvenance
+from phospy.core.run_lineage.serialization import (
     from_payload as run_provenance_from_payload,
     to_payload as run_provenance_to_payload,
 )
@@ -1699,12 +1699,12 @@ def _verify_protein_aware_boundary_import_orders(
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.datasets.internal_view import DatasetInternalView
 from phospy.datasets.protein_aware import ProteinAwarePreparationReport, ProteinAwarePreparationResult
-from phospy.run_lineage.models import RunProvenance
+from phospy.core.run_lineage.models import RunProvenance
 from phospy.datasets.construction.protein_aware import compose_protein_aware_preparation_result
 '''
         else:
             stage_first_assertions = '''
-assert not any(name == 'phospy.run_lineage' or name.startswith('phospy.run_lineage.') for name in sys.modules)
+assert not any(name == 'phospy.core.run_lineage' or name.startswith('phospy.core.run_lineage.') for name in sys.modules)
 assert not any(name == 'phospy.datasets' or name.startswith('phospy.datasets.') for name in sys.modules)
 assert not any(name == 'phospy.science.datasets' or name.startswith('phospy.science.datasets.') for name in sys.modules)
 '''
@@ -1763,7 +1763,7 @@ assert stage_output.__class__ is ProteinAwarePreparationStageOutput
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.datasets.internal_view import DatasetInternalView
 from phospy.datasets.protein_aware import ProteinAwarePreparationReport, ProteinAwarePreparationResult
-from phospy.run_lineage.models import RunProvenance
+from phospy.core.run_lineage.models import RunProvenance
 from phospy.datasets.construction.protein_aware import compose_protein_aware_preparation_result
 
 result = compose_protein_aware_preparation_result(stage_output, provenance=None)
@@ -1774,7 +1774,7 @@ assert ProteinAwarePreparationStageOutput.__module__ == 'phospy.preprocessing.re
 assert AnalysisReadyPhosphoDataset.__module__ == 'phospy.datasets.models'
 assert ProteinAwarePreparationReport.__module__ == 'phospy.datasets.protein_aware'
 assert ProteinAwarePreparationResult.__module__ == 'phospy.datasets.protein_aware'
-assert RunProvenance.__module__ == 'phospy.run_lineage.models'
+assert RunProvenance.__module__ == 'phospy.core.run_lineage.models'
 assert DatasetInternalView.__module__ == 'phospy.datasets.internal_view'
 payload = result.to_payload()
 assert list(payload) == [
@@ -1840,7 +1840,7 @@ for module_name in (
     'phospy.datasets.construction.protein_aware',
     'phospy.datasets.internal_view',
     'phospy.datasets.protein_aware',
-    'phospy.run_lineage.models',
+    'phospy.core.run_lineage.models',
 ):
     origin = pathlib.Path(importlib.import_module(module_name).__file__).resolve()
     origin.relative_to(environment_root)

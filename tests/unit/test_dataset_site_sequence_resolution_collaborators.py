@@ -3,7 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy.preparation_records.policies import (
+from phospy.core.preparation_records.policies import (
     SiteSequenceConflictPolicy,
 )
 from phospy.preprocessing.sequence import (

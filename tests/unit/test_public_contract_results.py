@@ -173,6 +173,9 @@ def test_public_result_exports_match_contract() -> None:
 
 
 def test_result_domain_modules_preserve_supported_import_identity() -> None:
+    from phospy.core.preparation_records.batch_correction import (
+        BatchCorrectionReport,
+    )
     from phospy.core.provenance.result_caveats import ResultCaveat
     from phospy.differential.results import DifferentialAnalysisResult
     from phospy.enrichment.contracts.results import EnrichmentWorkflowResult
@@ -185,9 +188,6 @@ def test_result_domain_modules_preserve_supported_import_identity() -> None:
         KinaseWorkflowAttritionProvenance,
         KinaseWorkflowCaveat,
         KinaseWorkflowResult,
-    )
-    from phospy.preparation_records.batch_correction import (
-        BatchCorrectionReport,
     )
     from phospy.signalome.results import SignalomeWorkflowResult
 
@@ -204,7 +204,7 @@ def test_result_domain_modules_preserve_supported_import_identity() -> None:
     assert advanced_result_models.KinaseWorkflowCaveat is KinaseWorkflowCaveat
     assert result_models.KinaseWorkflowResult is KinaseWorkflowResult
     assert BatchCorrectionReport.__module__ == (
-        "phospy.preparation_records.batch_correction"
+        "phospy.core.preparation_records.batch_correction"
     )
     assert result_models.SignalomeWorkflowResult is SignalomeWorkflowResult
 

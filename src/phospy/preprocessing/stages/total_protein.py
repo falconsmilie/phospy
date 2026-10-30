@@ -7,6 +7,10 @@ from dataclasses import dataclass, replace
 import pandas as pd
 
 from phospy.core.errors.input import PhosPyInputError
+from phospy.core.preparation_records.policies import (
+    TotalProteinCorrectionIdentityMatchingPolicy,
+    TotalProteinCorrectionPolicy,
+)
 from phospy.core.provenance.hashing import hash_table_tolerance
 from phospy.core.quantitative.models import (
     QUANTITATIVE_MEANING_OPERATION_TOTAL_PROTEIN_SUBTRACT_LOG_TOTAL,
@@ -23,10 +27,6 @@ from phospy.core.quantitative.quantitative_contracts import (
     evidence_resolved_meaning_transition,
     preserve_quantitative_contract,
     preserve_scale_transition,
-)
-from phospy.preparation_records.policies import (
-    TotalProteinCorrectionIdentityMatchingPolicy,
-    TotalProteinCorrectionPolicy,
 )
 from phospy.preprocessing.contracts import (
     DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,

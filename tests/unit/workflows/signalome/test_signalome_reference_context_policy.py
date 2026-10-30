@@ -24,8 +24,8 @@ from phospy.core.references.context_compatibility import (
 )
 from phospy.core.references.models import ReferenceContext
 from phospy.core.references.provenance.models import ReferenceProvenance
+from phospy.core.run_lineage.models import RunProvenance
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.run_lineage.models import RunProvenance
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

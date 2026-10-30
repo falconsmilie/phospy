@@ -8,14 +8,14 @@ from dataclasses import dataclass, field
 from typing import Any, ClassVar, cast
 
 from phospy.core.errors.input import PhosPyInputError
-from phospy.preparation_records.imputation import (
+from phospy.core.preparation_records.imputation import (
     DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICIES,
     DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICY_VERSION,
     IMPUTATION_INPUT_SCALE_SOURCE_CALLER_SELECTED,
     IMPUTATION_INPUT_SCALE_SOURCE_METHOD_REQUIRED,
     IMPUTATION_OPERATION_ORDERS,
 )
-from phospy.preparation_records.policies import MissingDataPolicy
+from phospy.core.preparation_records.policies import MissingDataPolicy
 
 from .json_contracts import (
     MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V1,

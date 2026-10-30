@@ -15,12 +15,12 @@ from phospy.api.advanced import (
     DatasetTotalProteinCorrectionIdentityConfig,
 )
 from phospy.core.errors.input import PhosPyInputError
-from phospy.core.quantitative.models import IntensityScaleKind
-from phospy.preparation_records.policies import (
+from phospy.core.preparation_records.policies import (
     MissingDataPolicy,
     NormalisationPolicy,
     TotalProteinCorrectionPolicy,
 )
+from phospy.core.quantitative.models import IntensityScaleKind
 from phospy.preprocessing.contracts import (
     PREPROCESSING_STAGE_ORDER_RATIONALE_MINPROB_MISSING_DATA,
     PreprocessingPlan,

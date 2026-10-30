@@ -9,7 +9,7 @@ from types import MappingProxyType
 
 import pandas as pd
 
-from phospy.preparation_records.validation.sample_groups import (
+from phospy.core.preparation_records.validation.sample_groups import (
     ResolvedSampleGroups,
 )
 from phospy.preprocessing.results.missing_data import JsonValue

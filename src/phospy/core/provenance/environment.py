@@ -369,7 +369,7 @@ def _discover_constraints_files() -> tuple[Path, ...]:
 
 def _project_root_from_module() -> Path:
     # src/phospy/core/provenance/environment.py -> repository root
-    return Path(__file__).resolve().parents[3]
+    return Path(__file__).resolve().parents[4]
 
 
 __all__ = [

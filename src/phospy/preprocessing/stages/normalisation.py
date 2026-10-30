@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 
 from phospy.core.errors.input import PhosPyInputError
+from phospy.core.preparation_records.policies import NormalisationPolicy
 from phospy.core.provenance.hashing import hash_table_tolerance
 from phospy.core.quantitative.models import (
     IntensityScaleKind,
@@ -25,7 +26,6 @@ from phospy.core.quantitative.quantitative_contracts import (
     preserve_quantitative_contract,
     preserve_scale_transition,
 )
-from phospy.preparation_records.policies import NormalisationPolicy
 from phospy.preprocessing.contracts import (
     DATASET_PREPROCESSING_STAGE_NORMALISATION,
     PreprocessingPlan,

@@ -176,7 +176,7 @@ def test_dependency_boundaries_are_exact() -> None:
             (
                 "phospy.datasets",
                 "phospy.preprocessing",
-                "phospy.preparation_records",
+                "phospy.core.preparation_records",
                 "phospy.io",
                 "phospy.core.statistics",
             )
@@ -190,9 +190,9 @@ def test_dependency_boundaries_are_exact() -> None:
         "phospy.datasets.models",
         "phospy.datasets.processing_state",
         "phospy.datasets.trusted_construction_caveats",
-        "phospy.preparation_records.batch_correction",
-        "phospy.preparation_records.policies",
-        "phospy.preparation_records.protein_aware",
+        "phospy.core.preparation_records.batch_correction",
+        "phospy.core.preparation_records.policies",
+        "phospy.core.preparation_records.protein_aware",
         "phospy.core.statistics.multiple_testing",
     }
 

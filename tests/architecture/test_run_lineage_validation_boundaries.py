@@ -12,7 +12,7 @@ from phospy.core.references.provenance import models as reference_models
 from phospy.preprocessing.provenance import models as preprocessing_models
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-RUN_LINEAGE_MODELS = PROJECT_ROOT / "src/phospy/run_lineage/models.py"
+RUN_LINEAGE_MODELS = PROJECT_ROOT / "src/phospy/core/run_lineage/models.py"
 PUBLIC_API_BASELINE = PROJECT_ROOT / "architecture/public-api-baseline.json"
 
 INTERNAL_VALIDATION_CONTRACTS = {

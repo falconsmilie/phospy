@@ -13,6 +13,9 @@ from phospy.core.frames.ownership import export_optional_dataframe
 from phospy.core.provenance.immutability import freeze_json_mapping, thaw_json_mapping
 from phospy.core.provenance.result_caveats import ResultCaveat, validate_result_caveats
 from phospy.core.references.models import ReferenceBundle
+from phospy.core.run_lineage.models import (
+    RunProvenance,
+)
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.datasets.processing_state import DatasetPreprocessingReport
 from phospy.kinase.activity.diagnostics import (
@@ -25,9 +28,6 @@ from phospy.kinase.activity.results import KinaseActivityResult
 from phospy.kinase.prediction.results import KinasePredictionResult
 from phospy.kinase.scoring.results import KinaseScoringResult
 from phospy.kinase.scoring.tables import KinaseSubstrateContributionTable
-from phospy.run_lineage.models import (
-    RunProvenance,
-)
 
 KinaseWorkflowCaveat = ResultCaveat
 

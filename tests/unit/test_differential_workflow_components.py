@@ -33,6 +33,14 @@ from phospy.core.errors import (
     WorkflowBoundaryError,
     WorkflowValidationError,
 )
+from phospy.core.preparation_records.policies import NormalisationPolicy
+from phospy.core.preparation_records.protein_aware import (
+    ProteinAwarePreparationEligibility,
+    ProteinAwareSampleAlignmentDiagnostics,
+    ProteinAwareSiteEligibility,
+    ProteinAwareTransformationStateDiagnostics,
+    ProteinMappingStatus,
+)
 from phospy.core.provenance.hashing import fingerprint_optional_table_strict
 from phospy.core.provenance.serialization.tables import table_fingerprint_to_payload
 from phospy.core.quantitative.models import (
@@ -105,14 +113,6 @@ from phospy.differential.validation.dataset import (
     ValidatedExperimentalDesignContract,
 )
 from phospy.differential.validation.workflow import DifferentialAnalysisValidator
-from phospy.preparation_records.policies import NormalisationPolicy
-from phospy.preparation_records.protein_aware import (
-    ProteinAwarePreparationEligibility,
-    ProteinAwareSampleAlignmentDiagnostics,
-    ProteinAwareSiteEligibility,
-    ProteinAwareTransformationStateDiagnostics,
-    ProteinMappingStatus,
-)
 from phospy.preprocessing.protein_aware.alignment import (
     PROTEIN_AWARE_REASON_AMBIGUOUS_PROTEIN_MAPPING,
     PROTEIN_AWARE_REASON_MISSING_TOTAL_PROTEIN_ROW,

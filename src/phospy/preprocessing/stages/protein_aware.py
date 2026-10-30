@@ -8,10 +8,7 @@ import pandas as pd
 
 from phospy.core.errors.input import PhosPyInputError
 from phospy.core.errors.validation import DatasetValidationError
-from phospy.core.provenance.hashing import fingerprint_optional_table_strict
-from phospy.core.provenance.serialization.tables import table_fingerprint_to_payload
-from phospy.core.quantitative.models import IntensityScaleState
-from phospy.preparation_records.protein_aware import (
+from phospy.core.preparation_records.protein_aware import (
     DATASET_PROTEIN_AWARE_PREPARATION_MAPPING_POLICY_ALLOW_MISSING_WITH_REPORT,
     DATASET_PROTEIN_AWARE_PREPARATION_MAPPING_POLICY_REQUIRE_UNAMBIGUOUS,
     DATASET_PROTEIN_AWARE_PREPARATION_POLICY_DISABLED,
@@ -26,6 +23,9 @@ from phospy.preparation_records.protein_aware import (
     ProteinAwareTransformationStateDiagnostics,
     ProteinMappingStatus,
 )
+from phospy.core.provenance.hashing import fingerprint_optional_table_strict
+from phospy.core.provenance.serialization.tables import table_fingerprint_to_payload
+from phospy.core.quantitative.models import IntensityScaleState
 from phospy.preprocessing.contracts.configuration.total_protein import (
     DatasetProteinAwarePreparationConfig,
 )

@@ -812,7 +812,7 @@ def test_installed_probe_source_avoids_repository_tests_and_fixtures() -> None:
         INSTALLED_PROBE_SOURCE
     )
     assert "phospy.contracts.results.preprocessing" in INSTALLED_PROBE_SOURCE
-    assert "name.startswith('phospy.run_lineage.')" in INSTALLED_PROBE_SOURCE
+    assert "name.startswith('phospy.core.run_lineage.')" in INSTALLED_PROBE_SOURCE
     assert "name.startswith('phospy.datasets.')" in INSTALLED_PROBE_SOURCE
     assert "name.startswith('phospy.science.datasets.')" in INSTALLED_PROBE_SOURCE
     assert (

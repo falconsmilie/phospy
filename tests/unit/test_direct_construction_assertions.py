@@ -18,13 +18,13 @@ from phospy.core.provenance import (
 from phospy.core.quantitative.state_coherence import observe_numeric_domain
 from phospy.core.references.provenance.context import ReferenceContext
 from phospy.core.references.provenance.models import ReferenceProvenance
+from phospy.core.run_lineage import RunProvenance, from_payload, to_payload
 from phospy.datasets._construction import service as construction_service
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.datasets.trusted_assertions import (
     TrustedDatasetConstructionAssertions,
     TrustedDatasetConstructionEvidence,
 )
-from phospy.run_lineage import RunProvenance, from_payload, to_payload
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,

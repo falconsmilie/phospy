@@ -17,6 +17,12 @@ from phospy.core.quantitative.serialization import (
     intensity_scale_state_from_payload,
 )
 from phospy.core.references.models import ReferenceBundle
+from phospy.core.run_lineage.models import (
+    RunProvenance,
+)
+from phospy.core.run_lineage.serialization import (
+    from_payload as provenance_from_payload,
+)
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.datasets.processing_state import DatasetProcessingState
 from phospy.io.bundles._shared.kinase_scoring_state import (
@@ -60,10 +66,6 @@ from phospy.kinase.results import (
     KinaseWorkflowCaveat,
     KinaseWorkflowResult,
 )
-from phospy.run_lineage.models import (
-    RunProvenance,
-)
-from phospy.run_lineage.serialization import from_payload as provenance_from_payload
 from phospy.signalome.constants import (
     LEGACY_PROTEIN_GROUP_ID_COLUMN,
     PROTEIN_GROUP_ID_COLUMN,

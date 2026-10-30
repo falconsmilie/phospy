@@ -35,14 +35,14 @@ from phospy.core.provenance.models.batch_correction import BatchCorrectionProven
 from phospy.core.provenance.serialization.batch_correction import (
     batch_correction_provenance_to_payload,
 )
+from phospy.core.run_lineage.models import RunProvenance
+from phospy.core.run_lineage.serialization import to_payload as provenance_to_payload
 from phospy.io.bundles.signalome import (
     SIGNALOME_BUNDLE_MANIFEST_VERSION,
     SignalomeWorkflowConfigSnapshot,
     load_signalome_workflow_bundle,
     save_signalome_workflow_bundle,
 )
-from phospy.run_lineage.models import RunProvenance
-from phospy.run_lineage.serialization import to_payload as provenance_to_payload
 from phospy.signalome.clustering import (
     SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_EXACT_CLUSTER_TREE,
 )

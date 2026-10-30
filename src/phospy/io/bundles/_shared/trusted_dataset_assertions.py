@@ -11,13 +11,13 @@ from phospy.core.provenance.models import (
 )
 from phospy.core.quantitative.assertions import numeric_domain_assertion_payload
 from phospy.core.quantitative.models import IntensityScaleState
+from phospy.core.run_lineage.models import (
+    RunProvenance,
+)
 from phospy.datasets.processing_state import DatasetProcessingState
 from phospy.datasets.trusted_assertions import (
     TrustedDatasetConstructionAssertions,
     TrustedDatasetConstructionEvidence,
-)
-from phospy.run_lineage.models import (
-    RunProvenance,
 )
 
 

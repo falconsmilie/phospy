@@ -7,10 +7,10 @@ from dataclasses import dataclass
 import pandas as pd
 
 from phospy.core.errors.input import PhosPyInputError
-from phospy.core.provenance.hashing import hash_table_tolerance
-from phospy.preparation_records.policies import (
+from phospy.core.preparation_records.policies import (
     TotalProteinCorrectionIdentityMatchingPolicy,
 )
+from phospy.core.provenance.hashing import hash_table_tolerance
 from phospy.preprocessing.contracts.configuration import (
     DATASET_TOTAL_PROTEIN_CORRECTION_DUPLICATE_POLICIES,
     DATASET_TOTAL_PROTEIN_CORRECTION_DUPLICATE_POLICY_ERROR,

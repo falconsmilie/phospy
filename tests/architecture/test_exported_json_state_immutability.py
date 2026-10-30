@@ -10,6 +10,12 @@ import pandas as pd
 
 import phospy.api as public_api
 import phospy.api as public_results
+from phospy.core.preparation_records.protein_aware import (
+    ProteinAwarePreparationEligibility,
+    ProteinAwareSampleAlignmentDiagnostics,
+    ProteinAwareSiteEligibility,
+    ProteinMappingStatus,
+)
 from phospy.core.provenance.hashing import hash_json_payload
 from phospy.core.provenance.immutability import FrozenJsonMapping
 from phospy.core.provenance.models import JsonValue
@@ -35,12 +41,6 @@ from phospy.io.importers.contracts import (
 )
 from phospy.kinase.results import KinaseWorkflowAttritionProvenance
 from phospy.kinase.scoring.results import KinaseScoringResult
-from phospy.preparation_records.protein_aware import (
-    ProteinAwarePreparationEligibility,
-    ProteinAwareSampleAlignmentDiagnostics,
-    ProteinAwareSiteEligibility,
-    ProteinMappingStatus,
-)
 from tests.support.site_keys import protein_site_key_index, site_key_context_columns
 
 _IMMUTABLE_JSON_FIELDS = {

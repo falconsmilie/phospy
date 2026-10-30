@@ -22,7 +22,7 @@ from phospy.core.provenance.scientific_policy_models import ScientificPolicyId
 from phospy.core.quantitative.evidence import (
     INPUT_INTENSITY_SCALE_DECLARED_CAVEAT_CODE,
 )
-from phospy.run_lineage.serialization import from_payload, to_payload
+from phospy.core.run_lineage.serialization import from_payload, to_payload
 from phospy.signalome.assignments import (
     build_module_assignments,
     select_kinase_substrates,

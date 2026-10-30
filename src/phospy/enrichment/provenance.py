@@ -10,6 +10,7 @@ from phospy.core.provenance import (
     collect_environment_provenance,
     fingerprint_table,
 )
+from phospy.core.run_lineage.models import RunProvenance
 from phospy.enrichment.assembly import (
     retained_foreground_fraction,
     unmatched_set_identifier_summary_for_request,
@@ -26,7 +27,6 @@ from phospy.enrichment.filtering import (
 )
 from phospy.enrichment.ora import OraResult
 from phospy.enrichment.planning import InterpretedEnrichmentWorkflowRequest
-from phospy.run_lineage.models import RunProvenance
 
 ENRICHMENT_OFFLINE_NO_ONLINE_RESOURCE_POLICY = "offline_user_supplied_collections_only"
 ENRICHMENT_LIMITATIONS: tuple[str, ...] = (

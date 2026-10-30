@@ -141,7 +141,7 @@ SHARED_ALLOWED_TARGETS: Mapping[str, frozenset[str]] = {
 # Closed current symbol-owner map for passive preparation records. The live
 # module map classifies each source file by its direct physical owner.
 PREPARATION_RECORD_ALLOWED_SYMBOLS: Mapping[str, frozenset[str]] = {
-    "phospy.preparation_records.policies": frozenset(
+    "phospy.core.preparation_records.policies": frozenset(
         {
             "MissingDataPolicy",
             "NormalisationPolicy",
@@ -151,7 +151,7 @@ PREPARATION_RECORD_ALLOWED_SYMBOLS: Mapping[str, frozenset[str]] = {
             "TotalProteinCorrectionPolicy",
         }
     ),
-    "phospy.preparation_records.imputation": frozenset(
+    "phospy.core.preparation_records.imputation": frozenset(
         {
             "DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICIES",
             "DATASET_MISSING_DATA_KNN_NO_OVERLAP_POLICY_COLUMN_MEAN_WITH_CAVEAT",
@@ -165,7 +165,7 @@ PREPARATION_RECORD_ALLOWED_SYMBOLS: Mapping[str, frozenset[str]] = {
             "IMPUTATION_OPERATION_ORDER_NO_INTENSITY_TRANSFORM",
         }
     ),
-    "phospy.preparation_records.report_schema": frozenset(
+    "phospy.core.preparation_records.report_schema": frozenset(
         {
             "COMPARISON_GROUP_STATS_COLUMNS",
             "COMPARISON_PAIR_STATS_COLUMNS",
@@ -204,7 +204,7 @@ PREPARATION_RECORD_ALLOWED_SYMBOLS: Mapping[str, frozenset[str]] = {
             "rows_from_dataframe",
         }
     ),
-    "phospy.preparation_records.batch_correction": frozenset(
+    "phospy.core.preparation_records.batch_correction": frozenset(
         {
             "BATCH_CORRECTION_CONFOUNDING_CONFOUNDED",
             "BATCH_CORRECTION_CONFOUNDING_NOT_APPLICABLE",
@@ -225,7 +225,7 @@ PREPARATION_RECORD_ALLOWED_SYMBOLS: Mapping[str, frozenset[str]] = {
             "_shape_to_payload",
         }
     ),
-    "phospy.preparation_records.protein_aware": frozenset(
+    "phospy.core.preparation_records.protein_aware": frozenset(
         {
             "DATASET_PROTEIN_AWARE_PREPARATION_MAPPING_POLICIES",
             "DATASET_PROTEIN_AWARE_PREPARATION_MAPPING_POLICY_ALLOW_MISSING_WITH_REPORT",
@@ -253,14 +253,14 @@ PREPARATION_RECORD_ALLOWED_SYMBOLS: Mapping[str, frozenset[str]] = {
             "_require_non_empty_string",
         }
     ),
-    "phospy.preparation_records.group_evidence": frozenset(
+    "phospy.core.preparation_records.group_evidence": frozenset(
         {
             "_canonical_mask",
             "hash_group_aware_imputation_mask",
             "hash_group_aware_mechanism_mask",
         }
     ),
-    "phospy.preparation_records.validation.sample_groups": frozenset(
+    "phospy.core.preparation_records.validation.sample_groups": frozenset(
         {
             "ResolvedSampleGroups",
             "SampleGroupMetadataResolver",
@@ -475,7 +475,7 @@ IO_ADAPTER_ALLOWED_TARGETS: Mapping[str, frozenset[str]] = {
         }
     ),
     "phosphosites": frozenset({"phospy.core.phosphosites.identifiers"}),
-    "preparation_records": frozenset({"phospy.preparation_records.policies"}),
+    "preparation_records": frozenset({"phospy.core.preparation_records.policies"}),
     "preprocessing": frozenset(
         {
             "phospy.preprocessing.contracts",
@@ -486,8 +486,8 @@ IO_ADAPTER_ALLOWED_TARGETS: Mapping[str, frozenset[str]] = {
     ),
     "run_lineage": frozenset(
         {
-            "phospy.run_lineage.models",
-            "phospy.run_lineage.serialization",
+            "phospy.core.run_lineage.models",
+            "phospy.core.run_lineage.serialization",
         }
     ),
     "provenance": frozenset(
@@ -1547,14 +1547,14 @@ def is_allowed_import(
         return _run_lineage_target(target_owner, target_module)
     if source_owner == "datasets" and target_owner == "run_lineage":
         return source_module != "phospy.datasets" and target_module in {
-            "phospy.run_lineage.models",
-            "phospy.run_lineage.serialization",
+            "phospy.core.run_lineage.models",
+            "phospy.core.run_lineage.serialization",
         }
     if target_owner == "run_lineage":
         return target_module in {
-            "phospy.run_lineage",
-            "phospy.run_lineage.models",
-            "phospy.run_lineage.serialization",
+            "phospy.core.run_lineage",
+            "phospy.core.run_lineage.models",
+            "phospy.core.run_lineage.serialization",
         }
     if source_owner == "differential" and target_owner == "datasets":
         return _dataset_contract_target(target_module)
@@ -1628,16 +1628,16 @@ def _preparation_record_target(
     if source_owner == "differential":
         return target in {
             "phospy.differential.planning.protein_aware_inputs": {
-                "phospy.preparation_records.policies",
-                "phospy.preparation_records.protein_aware",
+                "phospy.core.preparation_records.policies",
+                "phospy.core.preparation_records.protein_aware",
             },
             "phospy.differential.result_assembly": {
-                "phospy.preparation_records.batch_correction",
+                "phospy.core.preparation_records.batch_correction",
             },
         }.get(source, set())
     if source_owner == "io":
         return source == "phospy.io.bundles._shared.processing_state" and target == (
-            "phospy.preparation_records.policies"
+            "phospy.core.preparation_records.policies"
         )
     return False
 
@@ -1692,10 +1692,10 @@ def _preprocessing_evidence_contract_target(target: str) -> bool:
         "phospy.preprocessing.results.diagnostics",
         "phospy.preprocessing.results.protein_aware",
         "phospy.preprocessing.results.quantitative_evidence",
-        "phospy.preparation_records.report_schema",
+        "phospy.core.preparation_records.report_schema",
         "phospy.preprocessing.validation.configuration",
         "phospy.preprocessing.validation.group_coverage",
-        "phospy.preparation_records.validation.sample_groups",
+        "phospy.core.preparation_records.validation.sample_groups",
         "phospy.preprocessing.workflow",
     }
     return target in published_modules

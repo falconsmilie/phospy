@@ -11,9 +11,9 @@ from phospy.core.provenance.models.environment import EnvironmentProvenance
 from phospy.core.provenance.models.tables import TableFingerprint
 from phospy.core.references.provenance.context import ReferenceContext
 from phospy.core.references.provenance.models import ReferenceProvenance
+from phospy.core.run_lineage.models import RunProvenance
 from phospy.core.taxonomy.organisms import Organism
 from phospy.preprocessing.provenance.models import PreprocessingStageProvenance
-from phospy.run_lineage.models import RunProvenance
 
 
 def test_run_lineage_owner_contracts_preserve_sequence_order() -> None:

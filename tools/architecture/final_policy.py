@@ -145,9 +145,7 @@ TOP_LEVEL_ROOT_CLASSIFICATIONS: Mapping[str, str] = {
     "enrichment": "capability",
     "io": "adapter",
     "kinase": "capability",
-    "preparation_records": "passive_shared_record_foundation",
     "preprocessing": "capability",
-    "run_lineage": "composition_foundation",
     "signalome": "capability",
 }
 
@@ -160,9 +158,11 @@ RETIRED_TOP_LEVEL_ROOTS = frozenset(
         "frames",
         "phosphosites",
         "policies",
+        "preparation_records",
         "provenance",
         "quantitative",
         "references",
+        "run_lineage",
         "science",
         "statistics",
         "tables",

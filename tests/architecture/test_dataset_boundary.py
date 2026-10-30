@@ -129,8 +129,8 @@ def test_preprocessing_has_no_dataset_or_run_lineage_dependency() -> None:
         or record.source_module.startswith("phospy.preprocessing.")
         if record.target == "phospy.datasets"
         or record.target.startswith("phospy.datasets.")
-        or record.target == "phospy.run_lineage"
-        or record.target.startswith("phospy.run_lineage.")
+        or record.target == "phospy.core.run_lineage"
+        or record.target.startswith("phospy.core.run_lineage.")
     )
 
     assert offenders == []
@@ -143,8 +143,8 @@ def test_preparation_records_are_passive_closed_leaves_with_exact_declarations()
     actual_targets = {
         record.target
         for record in graph.records
-        if record.source_module == "phospy.preparation_records"
-        or record.source_module.startswith("phospy.preparation_records.")
+        if record.source_module == "phospy.core.preparation_records"
+        or record.source_module.startswith("phospy.core.preparation_records.")
     }
     assert actual_targets == {
         "phospy.core.errors.input",
@@ -161,8 +161,8 @@ def test_preparation_records_are_passive_closed_leaves_with_exact_declarations()
         assert _top_level_declarations(path) == set(expected)
 
     for relative in (
-        Path("preparation_records/__init__.py"),
-        Path("preparation_records/validation/__init__.py"),
+        Path("core/preparation_records/__init__.py"),
+        Path("core/preparation_records/validation/__init__.py"),
     ):
         tree = ast.parse((PACKAGE_ROOT / relative).read_text(encoding="utf-8"))
         assert not any(
@@ -176,26 +176,26 @@ def test_dataset_run_lineage_composition_is_published_and_one_way() -> None:
         record.target
         for record in graph.records
         if record.source_module.startswith("phospy.datasets.")
-        if record.target == "phospy.run_lineage"
-        or record.target.startswith("phospy.run_lineage.")
+        if record.target == "phospy.core.run_lineage"
+        or record.target.startswith("phospy.core.run_lineage.")
     }
     lineage_to_dataset = {
         record.target
         for record in graph.records
-        if record.source_module == "phospy.run_lineage"
-        or record.source_module.startswith("phospy.run_lineage.")
+        if record.source_module == "phospy.core.run_lineage"
+        or record.source_module.startswith("phospy.core.run_lineage.")
         if record.target == "phospy.datasets"
         or record.target.startswith("phospy.datasets.")
     }
 
     assert dataset_to_lineage == {
-        "phospy.run_lineage.models",
-        "phospy.run_lineage.serialization",
+        "phospy.core.run_lineage.models",
+        "phospy.core.run_lineage.serialization",
     }
     assert lineage_to_dataset == set()
     assert not any(
         record.source_module in {"phospy.datasets", "phospy.science.datasets"}
-        and record.target.startswith("phospy.run_lineage")
+        and record.target.startswith("phospy.core.run_lineage")
         for record in graph.records
     )
 
@@ -452,12 +452,12 @@ assert importlib.import_module({first!r}) is first
 assert importlib.import_module({second!r}) is second
 from phospy.api import AnalysisReadyPhosphoDataset as public_model
 from phospy.datasets.models import AnalysisReadyPhosphoDataset as owner_model
-from phospy.preparation_records.batch_correction import BatchCorrectionReport as owner_report
+from phospy.core.preparation_records.batch_correction import BatchCorrectionReport as owner_report
 from phospy.preprocessing.batch_correction.contracts import BatchCorrectionReport as consumer_report
 assert public_model is owner_model
 assert consumer_report is owner_report
 assert owner_model.__module__ == "phospy.datasets.models"
-assert owner_report.__module__ == "phospy.preparation_records.batch_correction"
+assert owner_report.__module__ == "phospy.core.preparation_records.batch_correction"
 """
     environment = os.environ.copy()
     environment["PYTHONPATH"] = str(SRC_ROOT)

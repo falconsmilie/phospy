@@ -339,15 +339,15 @@ src/phospy/core/phosphosites/workflow_identity.py,phospy.core.phosphosites.workf
 src/phospy/core/policies/__init__.py,phospy.core.policies,policies,Generic parsing and scalar policy
 src/phospy/core/policies/config_values.py,phospy.core.policies.config_values,policies,Generic parsing and scalar policy
 src/phospy/core/policies/policy_base.py,phospy.core.policies.policy_base,policies,Generic parsing and scalar policy
-src/phospy/preparation_records/__init__.py,phospy.preparation_records,preparation_records,Passive preparation record or structural validation
-src/phospy/preparation_records/batch_correction.py,phospy.preparation_records.batch_correction,preparation_records,Passive preparation record or structural validation
-src/phospy/preparation_records/group_evidence.py,phospy.preparation_records.group_evidence,preparation_records,Passive preparation record or structural validation
-src/phospy/preparation_records/imputation.py,phospy.preparation_records.imputation,preparation_records,Passive preparation record or structural validation
-src/phospy/preparation_records/policies.py,phospy.preparation_records.policies,preparation_records,Passive preparation record or structural validation
-src/phospy/preparation_records/protein_aware.py,phospy.preparation_records.protein_aware,preparation_records,Passive preparation record or structural validation
-src/phospy/preparation_records/report_schema.py,phospy.preparation_records.report_schema,preparation_records,Passive preparation record or structural validation
-src/phospy/preparation_records/validation/__init__.py,phospy.preparation_records.validation,preparation_records,Passive preparation record or structural validation
-src/phospy/preparation_records/validation/sample_groups.py,phospy.preparation_records.validation.sample_groups,preparation_records,Passive preparation record or structural validation
+src/phospy/core/preparation_records/__init__.py,phospy.core.preparation_records,preparation_records,Passive preparation record or structural validation
+src/phospy/core/preparation_records/batch_correction.py,phospy.core.preparation_records.batch_correction,preparation_records,Passive preparation record or structural validation
+src/phospy/core/preparation_records/group_evidence.py,phospy.core.preparation_records.group_evidence,preparation_records,Passive preparation record or structural validation
+src/phospy/core/preparation_records/imputation.py,phospy.core.preparation_records.imputation,preparation_records,Passive preparation record or structural validation
+src/phospy/core/preparation_records/policies.py,phospy.core.preparation_records.policies,preparation_records,Passive preparation record or structural validation
+src/phospy/core/preparation_records/protein_aware.py,phospy.core.preparation_records.protein_aware,preparation_records,Passive preparation record or structural validation
+src/phospy/core/preparation_records/report_schema.py,phospy.core.preparation_records.report_schema,preparation_records,Passive preparation record or structural validation
+src/phospy/core/preparation_records/validation/__init__.py,phospy.core.preparation_records.validation,preparation_records,Passive preparation record or structural validation
+src/phospy/core/preparation_records/validation/sample_groups.py,phospy.core.preparation_records.validation.sample_groups,preparation_records,Passive preparation record or structural validation
 src/phospy/preprocessing/__init__.py,phospy.preprocessing,preprocessing,Preprocessing control-site capability lifecycle
 src/phospy/preprocessing/batch_correction/__init__.py,phospy.preprocessing.batch_correction,preprocessing,Nested preprocessing batch-correction capability
 src/phospy/preprocessing/batch_correction/adapters/__init__.py,phospy.preprocessing.batch_correction.adapters,preprocessing,Batch-correction preprocessing adaptation
@@ -558,9 +558,9 @@ src/phospy/core/references/validation/bundle_semantics.py,phospy.core.references
 src/phospy/core/references/validation/manifest_schema.py,phospy.core.references.validation.manifest_schema,references,"General reference identity, resources, sequences, or construction"
 src/phospy/core/references/validation/redistribution_policy.py,phospy.core.references.validation.redistribution_policy,references,"General reference identity, resources, sequences, or construction"
 src/phospy/core/references/validation/resource_integrity.py,phospy.core.references.validation.resource_integrity,references,"General reference identity, resources, sequences, or construction"
-src/phospy/run_lineage/__init__.py,phospy.run_lineage,run_lineage,Cross-capability run-lineage composition owner
-src/phospy/run_lineage/models.py,phospy.run_lineage.models,run_lineage,Cross-capability run-lineage composition owner
-src/phospy/run_lineage/serialization.py,phospy.run_lineage.serialization,run_lineage,Cross-capability run-lineage composition owner
+src/phospy/core/run_lineage/__init__.py,phospy.core.run_lineage,run_lineage,Cross-capability run-lineage composition owner
+src/phospy/core/run_lineage/models.py,phospy.core.run_lineage.models,run_lineage,Cross-capability run-lineage composition owner
+src/phospy/core/run_lineage/serialization.py,phospy.core.run_lineage.serialization,run_lineage,Cross-capability run-lineage composition owner
 src/phospy/signalome/__init__.py,phospy.signalome,signalome,Complete Signalome capability lifecycle
 src/phospy/signalome/alignment_diagnostics.py,phospy.signalome.alignment_diagnostics,signalome,Complete Signalome capability lifecycle
 src/phospy/signalome/assignments.py,phospy.signalome.assignments,signalome,Complete Signalome capability lifecycle

@@ -11,6 +11,7 @@ from phospy.core.errors.input import PhosPyInputError
 from phospy.core.quantitative.serialization import (
     intensity_scale_state_to_payload,
 )
+from phospy.core.run_lineage.serialization import to_payload as provenance_to_payload
 from phospy.io.bundles._kinase.constants import (
     KINASE_BUNDLE_KIND,
     KINASE_BUNDLE_MANIFEST_VERSION,
@@ -36,7 +37,6 @@ from phospy.io.bundles._shared.processing_state import (
     processing_state_to_payload,
 )
 from phospy.kinase.results import KinaseWorkflowResult
-from phospy.run_lineage.serialization import to_payload as provenance_to_payload
 
 
 @dataclass(frozen=True, slots=True)

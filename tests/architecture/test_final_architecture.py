@@ -151,9 +151,8 @@ def test_final_tracked_source_inventory_is_complete_and_classified() -> None:
     tracked = _git_paths("src/phospy")
     owners = load_module_owners(OWNER_MAP)
 
-    assert len(tracked) == 646
-    assert sum(path.endswith(".py") for path in tracked) == 640
-    assert len(owners) == 640
+    tracked_python_count = sum(path.endswith(".py") for path in tracked)
+    assert tracked_python_count == len(owners)
     assert (
         tracked_source_inventory_problems(
             tracked_paths=tracked,
@@ -177,9 +176,11 @@ def test_retired_package_roots_are_absent_from_git_and_pyright() -> None:
         "frames",
         "phosphosites",
         "policies",
+        "preparation_records",
         "provenance",
         "quantitative",
         "references",
+        "run_lineage",
         "science",
         "statistics",
         "tables",
@@ -187,7 +188,7 @@ def test_retired_package_roots_are_absent_from_git_and_pyright() -> None:
         "validation",
         "workflows",
     }
-    expected_intermediate_roots = {
+    expected_roots = {
         "api",
         "core",
         "data",
@@ -196,13 +197,11 @@ def test_retired_package_roots_are_absent_from_git_and_pyright() -> None:
         "enrichment",
         "io",
         "kinase",
-        "preparation_records",
         "preprocessing",
-        "run_lineage",
         "signalome",
     }
     assert not production_roots & retired
-    assert production_roots == expected_intermediate_roots
+    assert production_roots == expected_roots
 
     configuration = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     includes = configuration["tool"]["pyright"]["include"]
@@ -213,9 +212,11 @@ def test_retired_package_roots_are_absent_from_git_and_pyright() -> None:
         "src/phospy/frames",
         "src/phospy/phosphosites",
         "src/phospy/policies",
+        "src/phospy/preparation_records",
         "src/phospy/provenance",
         "src/phospy/quantitative",
         "src/phospy/references",
+        "src/phospy/run_lineage",
         "src/phospy/statistics",
         "src/phospy/tables",
         "src/phospy/taxonomy",

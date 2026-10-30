@@ -30,9 +30,9 @@ from phospy.core.references.resolution import (
     ReferenceResolver,
 )
 from phospy.core.references.validation import load_reference_manifest
+from phospy.core.run_lineage.models import RunProvenance
+from phospy.core.run_lineage.serialization import from_payload, to_payload
 from phospy.core.taxonomy import Organism
-from phospy.run_lineage.models import RunProvenance
-from phospy.run_lineage.serialization import from_payload, to_payload
 
 LOCAL_REFERENCE_VERSION = "local-snapshot-v1"
 UPSTREAM_SOURCE_VERSION = "upstream-source-v1"

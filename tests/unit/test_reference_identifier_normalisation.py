@@ -20,9 +20,9 @@ from phospy.core.references.tables import (
     ProteinAccessionReference,
     SiteSequenceReference,
 )
+from phospy.core.run_lineage.models import RunProvenance
+from phospy.core.run_lineage.serialization import from_payload, to_payload
 from phospy.core.taxonomy import Organism
-from phospy.run_lineage.models import RunProvenance
-from phospy.run_lineage.serialization import from_payload, to_payload
 
 
 def test_kinase_identifier_normaliser_normalises_mixed_case_values() -> None:

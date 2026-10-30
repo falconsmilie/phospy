@@ -8,7 +8,7 @@ from phospy.core.errors.input import UnsupportedInputFormatError
 from phospy.core.evidence.sequence_resolution import (
     PhosphositeSequenceResolutionRequest,
 )
-from phospy.preparation_records.policies import (
+from phospy.core.preparation_records.policies import (
     SiteSequenceResolutionMode,
 )
 from phospy.preprocessing.sequence.models import (

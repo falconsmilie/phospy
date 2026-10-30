@@ -23,7 +23,7 @@ from phospy.api import (
     SignalomeWorkflow,
     SignalomeWorkflowRequest,
 )
-from phospy.run_lineage.serialization import to_payload as provenance_to_payload
+from phospy.core.run_lineage.serialization import to_payload as provenance_to_payload
 from phospy.signalome.contracts import ResolvedSignalomeWorkflowRequest
 from phospy.signalome.executor import SignalomeWorkflowExecutor
 from phospy.signalome.results import SignalomeWorkflowResult

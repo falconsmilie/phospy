@@ -23,6 +23,9 @@ from phospy.core.provenance.scientific_policy_models import (
     ScientificPolicyRecord,
 )
 from phospy.core.quantitative.evidence import input_intensity_scale_evidence_from_state
+from phospy.core.run_lineage.models import (
+    RunProvenance,
+)
 from phospy.kinase.activity.config import (
     KINASE_ACTIVITY_METHOD_KSEA_ZSCORE,
     KINASE_ACTIVITY_METHOD_SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY,
@@ -97,9 +100,6 @@ from phospy.kinase.scoring.policies import (
 from phospy.kinase.scoring.results import KinaseScoringResult
 from phospy.kinase.scoring.tables import (
     KINASE_PROFILE_SCORE_DIAGNOSTIC_STATUS_UNSCORED,
-)
-from phospy.run_lineage.models import (
-    RunProvenance,
 )
 
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from phospy.core.errors.validation import DatasetValidationError
+from phospy.core.run_lineage.models import RunProvenance
 from phospy.datasets.protein_aware import (
     ProteinAwarePreparationReport,
     ProteinAwarePreparationResult,
@@ -10,7 +11,6 @@ from phospy.datasets.protein_aware import (
 from phospy.preprocessing.dataset_construction import (
     ProteinAwarePreparationStageOutput,
 )
-from phospy.run_lineage.models import RunProvenance
 
 
 def compose_protein_aware_preparation_result(

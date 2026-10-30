@@ -6,24 +6,25 @@ import pytest
 
 from phospy.core.errors.input import PhosPyInputError
 from phospy.core.policies import PolicyEnum
+from phospy.core.preparation_records.policies import (
+    MissingDataPolicy,
+    TotalProteinCorrectionPolicy,
+)
 from phospy.differential.policies import TechnicalReplicatePolicy
 from phospy.kinase.policies import ThresholdMode
 from phospy.kinase.result_boundary import DownstreamScoreSource
 from phospy.kinase.scoring.policies import ProfileSelfInclusionPolicy
-from phospy.preparation_records.policies import (
-    MissingDataPolicy,
-    TotalProteinCorrectionPolicy,
-)
 from phospy.preprocessing.contracts.policies import (
     SiteMatrixPolicy,
 )
 
 
 def test_preparation_record_policies_have_direct_owner_identity() -> None:
-    assert MissingDataPolicy.__module__ == "phospy.preparation_records.policies"
+    assert MissingDataPolicy.__module__ == "phospy.core.preparation_records.policies"
     assert SiteMatrixPolicy.__module__ == "phospy.preprocessing.contracts.policies"
     assert (
-        TotalProteinCorrectionPolicy.__module__ == "phospy.preparation_records.policies"
+        TotalProteinCorrectionPolicy.__module__
+        == "phospy.core.preparation_records.policies"
     )
 
 

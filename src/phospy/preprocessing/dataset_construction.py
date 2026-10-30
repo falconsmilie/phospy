@@ -8,6 +8,7 @@ from typing import Protocol
 import pandas as pd
 
 from phospy.core.errors.input import PhosPyInputError
+from phospy.core.preparation_records.batch_correction import BatchCorrectionReport
 from phospy.core.quantitative.models import (
     IntensityScaleKind,
     IntensityScaleState,
@@ -15,7 +16,6 @@ from phospy.core.quantitative.models import (
     QuantitativeMeaning,
 )
 from phospy.core.quantitative.quantitative_contracts import QuantitativeContractState
-from phospy.preparation_records.batch_correction import BatchCorrectionReport
 from phospy.preprocessing.batch_correction.adapters.preprocessing import (
     SpsRuvStyleBatchCorrectionWorkflowRunner,
 )

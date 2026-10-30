@@ -28,6 +28,12 @@ from phospy.core.quantitative.serialization import (
     intensity_scale_state_from_payload,
 )
 from phospy.core.references.models import ReferenceBundle
+from phospy.core.run_lineage.models import (
+    RunProvenance,
+)
+from phospy.core.run_lineage.serialization import (
+    from_payload as provenance_from_payload,
+)
 from phospy.core.taxonomy.organisms import Organism
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.datasets.processing_state import DatasetProcessingState
@@ -72,10 +78,6 @@ from phospy.kinase.results import (
     KinaseWorkflowResult,
 )
 from phospy.kinase.scoring.results import KinaseScoringResult
-from phospy.run_lineage.models import (
-    RunProvenance,
-)
-from phospy.run_lineage.serialization import from_payload as provenance_from_payload
 
 _LEGACY_KINASE_BUNDLE_SCHEMA_ERROR = (
     "Legacy kinase bundle schemas are no longer supported. Regenerate the bundle "

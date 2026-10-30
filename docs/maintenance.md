@@ -203,13 +203,13 @@ Pyright is the configured type checker. The checked scope is listed in
 - `src/phospy/io`
 - `src/phospy/kinase`
 - `src/phospy/core/phosphosites`
-- `src/phospy/preparation_records`
+- `src/phospy/core/preparation_records`
 - `src/phospy/preprocessing`
 - `src/phospy/core/policies`
 - `src/phospy/core/provenance`
 - `src/phospy/core/quantitative`
 - `src/phospy/core/references`
-- `src/phospy/run_lineage`
+- `src/phospy/core/run_lineage`
 - `src/phospy/signalome`
 - `src/phospy/core/statistics`
 - `src/phospy/core/taxonomy`
@@ -353,8 +353,8 @@ optional user intent belong to the owning capability, such as `phospy.datasets`,
 `phospy.differential`, `phospy.enrichment`, `phospy.kinase`, or
 `phospy.signalome`. Shared contracts belong to the narrow shared domain that
 defines their meaning, while passive cross-capability records belong to an
-accepted record or composition owner such as `phospy.preparation_records` or
-`phospy.run_lineage`. Public `phospy.api` and `phospy.api.advanced` facades may
+accepted record or composition owner such as `phospy.core.preparation_records` or
+`phospy.core.run_lineage`. Public `phospy.api` and `phospy.api.advanced` facades may
 re-export those owner-defined objects only by exact identity.
 
 Capability-specific validation belongs with its capability. Root

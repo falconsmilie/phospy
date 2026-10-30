@@ -5,6 +5,9 @@ from __future__ import annotations
 import pandas as pd
 
 from phospy.core.quantitative.models import IntensityScaleState
+from phospy.core.run_lineage.models import (
+    RunProvenance,
+)
 from phospy.core.taxonomy.organisms import Organism
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.datasets.processing_state import (
@@ -13,9 +16,6 @@ from phospy.datasets.processing_state import (
 )
 from phospy.datasets.trusted_assertions import (
     TrustedDatasetConstructionAssertions,
-)
-from phospy.run_lineage.models import (
-    RunProvenance,
 )
 
 

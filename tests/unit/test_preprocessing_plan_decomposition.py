@@ -8,7 +8,7 @@ import pandas as pd
 import pytest
 
 from phospy.core.errors.input import PhosPyInputError
-from phospy.preparation_records.policies import (
+from phospy.core.preparation_records.policies import (
     MissingDataPolicy,
     NormalisationPolicy,
     SiteSequenceConflictPolicy,

@@ -13,12 +13,12 @@ from phospy.core.frames.ownership import (
     own_optional_dataframe,
 )
 from phospy.core.provenance.result_caveats import ResultCaveat, validate_result_caveats
+from phospy.core.run_lineage.models import (
+    RunProvenance,
+)
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.datasets.processing_state import DatasetPreprocessingReport
 from phospy.kinase.results import KinaseWorkflowResult
-from phospy.run_lineage.models import (
-    RunProvenance,
-)
 from phospy.signalome.constants import (
     DISPLAY_ID_COLUMN,
     EXPANDED_SIGNALOME_ROW_KIND_COLUMN,

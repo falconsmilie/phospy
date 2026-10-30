@@ -7,16 +7,16 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-import phospy.preparation_records.protein_aware as _protein_records
-from phospy.core.quantitative.models import (
-    IntensityScaleState,
-    MatrixIntensityScaleState,
-)
-from phospy.preparation_records.protein_aware import (
+import phospy.core.preparation_records.protein_aware as _protein_records
+from phospy.core.preparation_records.protein_aware import (
     DATASET_PROTEIN_AWARE_PREPARATION_MAPPING_POLICIES,
     DATASET_PROTEIN_AWARE_PREPARATION_MAPPING_POLICY_ALLOW_MISSING_WITH_REPORT,
     DATASET_PROTEIN_AWARE_PREPARATION_MAPPING_POLICY_REQUIRE_UNAMBIGUOUS,
     DatasetProteinAwarePreparationMappingPolicy,
+)
+from phospy.core.quantitative.models import (
+    IntensityScaleState,
+    MatrixIntensityScaleState,
 )
 from phospy.preprocessing.protein_aware.mapping import (
     ProteinMappingRecord,

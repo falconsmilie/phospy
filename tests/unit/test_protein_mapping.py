@@ -3,7 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pandas.testing as pdt
 
-from phospy.preparation_records.protein_aware import ProteinMappingStatus
+from phospy.core.preparation_records.protein_aware import ProteinMappingStatus
 from phospy.preprocessing.protein_aware.mapping import (
     ProteinMappingConfig,
     ProteinMappingResolver,

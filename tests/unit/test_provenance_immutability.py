@@ -18,6 +18,8 @@ from phospy.core.provenance.scientific_policy_models import (
     ScientificPolicyId,
     ScientificPolicyRecord,
 )
+from phospy.core.run_lineage.models import RunProvenance
+from phospy.core.run_lineage.serialization import from_payload, to_payload
 from phospy.datasets.derived_quantitative import (
     DerivedQuantitativeDataProvenance,
     DerivedSampleMapping,
@@ -27,8 +29,6 @@ from phospy.preprocessing.provenance.models import (
     PreprocessingStageProvenance,
     ReproducibilityCaveat,
 )
-from phospy.run_lineage.models import RunProvenance
-from phospy.run_lineage.serialization import from_payload, to_payload
 
 
 class _DuplicateKeyMapping(Mapping[str, object]):

@@ -9,15 +9,15 @@ import pytest
 
 from phospy.core.errors import PhosPyInputError
 from phospy.core.errors.validation import DatasetValidationError
-from phospy.core.provenance import BatchCorrectionProvenance, fingerprint_matrix
-from phospy.core.taxonomy import Organism
-from phospy.datasets.builder import AnalysisReadyDatasetBuilder
-from phospy.datasets.contracts import DatasetBuildRequest
-from phospy.preparation_records.batch_correction import (
+from phospy.core.preparation_records.batch_correction import (
     BatchCorrectionDiagnostics,
     BatchCorrectionPolicy,
     BatchCorrectionReport,
 )
+from phospy.core.provenance import BatchCorrectionProvenance, fingerprint_matrix
+from phospy.core.taxonomy import Organism
+from phospy.datasets.builder import AnalysisReadyDatasetBuilder
+from phospy.datasets.contracts import DatasetBuildRequest
 from phospy.preprocessing.batch_correction import (
     BatchCorrectionPlanInterpreter,
     BatchCorrectionWorkflow,

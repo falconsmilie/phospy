@@ -3,8 +3,8 @@
 from phospy.core.provenance.environment import collect_environment_provenance
 from phospy.core.provenance.models import EnvironmentProvenance
 from phospy.core.references.provenance.context import ReferenceContext
+from phospy.core.run_lineage.models import RunProvenance
 from phospy.datasets.derived_quantitative import DerivedQuantitativeDataProvenance
-from phospy.run_lineage.models import RunProvenance
 
 
 def build_derived_quantitative_run_provenance(

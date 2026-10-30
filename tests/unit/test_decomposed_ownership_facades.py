@@ -32,6 +32,9 @@ def test_decomposed_owner_import_routes_preserve_supported_identity() -> None:
     from phospy.core.references.validation.manifest_schema import (
         load_reference_manifest as owner_load_reference_manifest,
     )
+    from phospy.core.run_lineage import RunProvenance, to_payload
+    from phospy.core.run_lineage.models import RunProvenance as OwnerRunProvenance
+    from phospy.core.run_lineage.serialization import to_payload as owner_to_payload
     from phospy.datasets.models import AnalysisReadyPhosphoDataset
     from phospy.datasets.models import (
         AnalysisReadyPhosphoDataset as OwnerAnalysisReadyPhosphoDataset,
@@ -50,9 +53,6 @@ def test_decomposed_owner_import_routes_preserve_supported_identity() -> None:
     from phospy.preprocessing.results.execution import (
         PreprocessingStageResult as OwnerPreprocessingStageResult,
     )
-    from phospy.run_lineage import RunProvenance, to_payload
-    from phospy.run_lineage.models import RunProvenance as OwnerRunProvenance
-    from phospy.run_lineage.serialization import to_payload as owner_to_payload
 
     assert EnvironmentProvenance is OwnerEnvironmentProvenance
     assert RunProvenance is OwnerRunProvenance

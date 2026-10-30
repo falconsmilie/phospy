@@ -7,6 +7,7 @@ import pytest
 
 from phospy.core.errors.build import DatasetBuildError
 from phospy.core.errors.input import PhosPyInputError
+from phospy.core.preparation_records.report_schema import PreprocessingRowAuditRow
 from phospy.core.quantitative.models import (
     IntensityScaleEvidenceLevel,
     IntensityScaleKind,
@@ -26,7 +27,6 @@ from phospy.datasets.construction.preprocessing import (
     DatasetPreprocessor,
     build_dataset_processing_state,
 )
-from phospy.preparation_records.report_schema import PreprocessingRowAuditRow
 from phospy.preprocessing.contracts import (
     PreprocessingPlan,
     PreprocessingReportRow,

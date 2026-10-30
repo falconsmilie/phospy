@@ -13,6 +13,9 @@ from phospy.core.evidence.dataset_resolution.models import (
     PeptideEvidenceResolutionSummary,
 )
 from phospy.core.phosphosites.identifiers import SiteIdentifierNormalisationReport
+from phospy.core.preparation_records.batch_correction import (
+    BatchCorrectionReport,
+)
 from phospy.core.quantitative.models import (
     DeclaredIntensityScaleDiagnosticPolicy,
     IntensityScaleEstablishmentMode,
@@ -33,9 +36,6 @@ from phospy.datasets.construction.sequence_derivation import (
     SiteSequenceDerivationReport,
 )
 from phospy.datasets.contracts import DatasetInput
-from phospy.preparation_records.batch_correction import (
-    BatchCorrectionReport,
-)
 from phospy.preprocessing.contracts import (
     PreprocessingPlan,
     PreprocessingStageExecution,

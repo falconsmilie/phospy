@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from phospy.core.references.sequences import FastaProteinSequenceRepository
-from phospy.preparation_records.policies import (
+from phospy.core.preparation_records.policies import (
     SiteSequenceConflictPolicy,
     SiteSequenceResolutionMode,
 )
+from phospy.core.references.sequences import FastaProteinSequenceRepository
 from phospy.preprocessing.contracts import PreprocessingPlan
 from phospy.preprocessing.sequence.models import (
     SiteSequenceResolutionContext,

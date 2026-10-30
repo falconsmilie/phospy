@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from phospy.core.errors.input import PhosPyInputError
-from phospy.preparation_records.policies import (
+from phospy.core.preparation_records.policies import (
     SiteSequenceConflictPolicy,
 )
 from phospy.preprocessing.sequence.models import (

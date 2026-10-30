@@ -32,6 +32,21 @@ RETIRED_CORE004_MODULES = (
     "phospy.taxonomy",
 )
 
+RETIRED_CORE005_MODULES = (
+    "phospy.preparation_records",
+    "phospy.preparation_records.batch_correction",
+    "phospy.preparation_records.group_evidence",
+    "phospy.preparation_records.imputation",
+    "phospy.preparation_records.policies",
+    "phospy.preparation_records.protein_aware",
+    "phospy.preparation_records.report_schema",
+    "phospy.preparation_records.validation",
+    "phospy.preparation_records.validation.sample_groups",
+    "phospy.run_lineage",
+    "phospy.run_lineage.models",
+    "phospy.run_lineage.serialization",
+)
+
 RETIRED_SIGNALOME_MODULES = (
     "phospy.contracts.configs.signalome",
     "phospy.contracts.results.signalome",
@@ -334,6 +349,7 @@ COMPATIBILITY_ONLY_MODULES = (
     + RETIRED_HORIZONTAL_MODULES
     + RETIRED_CORE003_MODULES
     + RETIRED_CORE004_MODULES
+    + RETIRED_CORE005_MODULES
 )
 
 
@@ -352,6 +368,7 @@ def test_deleted_compatibility_package_directories_have_no_source_modules() -> N
         "frames",
         "phosphosites",
         "policies",
+        "preparation_records",
         "provenance",
         "quantitative",
         "references",
@@ -367,6 +384,7 @@ def test_deleted_compatibility_package_directories_have_no_source_modules() -> N
         "tables/signalome",
         "statistics",
         "taxonomy",
+        "run_lineage",
         "validation",
         "validation/transformations",
         "workflows/enrichment",

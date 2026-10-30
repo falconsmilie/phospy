@@ -35,17 +35,17 @@ from phospy.api.advanced import (
     SignalomeConfig,
 )
 from phospy.core.errors import PhosPyInputError
+from phospy.core.preparation_records.batch_correction import (
+    BatchCorrectionDiagnostics,
+    BatchCorrectionPolicy,
+    BatchCorrectionReport,
+)
 from phospy.datasets.processing_state import (
     DatasetPreprocessingReport,
     RuvReadinessState,
 )
 from phospy.differential.planning.interpreter import DifferentialAnalysisInterpreter
 from phospy.differential.validation.workflow import DifferentialAnalysisValidator
-from phospy.preparation_records.batch_correction import (
-    BatchCorrectionDiagnostics,
-    BatchCorrectionPolicy,
-    BatchCorrectionReport,
-)
 from phospy.preprocessing.batch_correction import BatchCorrectionWorkflow
 from phospy.preprocessing.batch_correction.execution.linear import (
     LinearResidualizeBatchCorrectionEngine,
@@ -422,7 +422,7 @@ def test_downstream_workflows_do_not_import_batch_correction_executors() -> None
                     }:
                         forbidden_imports.append(f"{path}:{module}")
                     if (
-                        module == "phospy.preparation_records.batch_correction"
+                        module == "phospy.core.preparation_records.batch_correction"
                         and imported_names
                         & {
                             "BatchCorrectionEngine",

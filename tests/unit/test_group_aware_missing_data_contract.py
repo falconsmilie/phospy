@@ -17,6 +17,7 @@ from phospy.api.advanced import (
     DatasetMissingDataConfig,
 )
 from phospy.core.errors.input import PhosPyInputError
+from phospy.core.preparation_records.policies import MissingDataPolicy
 from phospy.core.quantitative.models import IntensityScaleKind
 from phospy.datasets.construction.contracts import (
     InterpretedDatasetBuildRequest,
@@ -25,7 +26,6 @@ from phospy.datasets.construction.contracts import (
 from phospy.datasets.construction.provenance import (
     DatasetRunProvenanceAssembler,
 )
-from phospy.preparation_records.policies import MissingDataPolicy
 from phospy.preprocessing.contracts import (
     PreprocessingPlan,
     PreprocessingState,

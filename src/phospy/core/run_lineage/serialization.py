@@ -30,11 +30,11 @@ from phospy.core.references.provenance.serialization import (
     reference_from_payload,
     reference_to_payload,
 )
+from phospy.core.run_lineage.models import RunProvenance
 from phospy.preprocessing.provenance.serialization import (
     stage_from_payload,
     stage_to_payload,
 )
-from phospy.run_lineage.models import RunProvenance
 
 
 def to_payload(provenance: RunProvenance) -> dict[str, object]:

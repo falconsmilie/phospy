@@ -6,6 +6,11 @@ import pytest
 
 from phospy.core.errors.build import DatasetBuildError
 from phospy.core.errors.input import PhosPyInputError
+from phospy.core.preparation_records.policies import (
+    MissingDataPolicy,
+    NormalisationPolicy,
+    TotalProteinCorrectionPolicy,
+)
 from phospy.core.provenance.models import TableFingerprint
 from phospy.core.quantitative.authority import (
     dataset_resolver_establishment_authority,
@@ -38,11 +43,6 @@ from phospy.core.quantitative.serialization import (
 )
 from phospy.datasets.construction.state_assembly import (
     DatasetProcessingStateBuilder,
-)
-from phospy.preparation_records.policies import (
-    MissingDataPolicy,
-    NormalisationPolicy,
-    TotalProteinCorrectionPolicy,
 )
 from phospy.preprocessing.batch_correction.contracts.configuration import (
     DATASET_BATCH_CORRECTION_METHOD_LINEAR_RESIDUALIZE_BATCH,

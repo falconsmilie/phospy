@@ -9,11 +9,11 @@ from phospy.core.provenance.hashing import fingerprint_optional_table_strict
 from phospy.core.provenance.models import (
     TableFingerprint,
 )
+from phospy.core.run_lineage.models import (
+    RunProvenance,
+)
 from phospy.datasets.trusted_assertions import (
     TrustedDatasetConstructionAssertions,
-)
-from phospy.run_lineage.models import (
-    RunProvenance,
 )
 
 DIRECT_CONSTRUCTION_WORKFLOW_NAME = "analysis_ready_dataset_direct_construction"

@@ -47,7 +47,7 @@ def test_preprocessing_has_no_dataset_or_run_lineage_import() -> None:
         for record in graph.records
         if record.source_module.startswith("phospy.preprocessing")
         if record.target.startswith(
-            ("phospy.datasets", "phospy.science.datasets", "phospy.run_lineage")
+            ("phospy.datasets", "phospy.science.datasets", "phospy.core.run_lineage")
         )
     )
 
@@ -167,7 +167,7 @@ def test_protein_aware_boundary_imports_and_composes_in_both_orders(
     stage_module_assertion = ""
     if dataset_first:
         imports = """
-from phospy.run_lineage.models import RunProvenance
+from phospy.core.run_lineage.models import RunProvenance
 from phospy.datasets.construction.protein_aware import compose_protein_aware_preparation_result
 from phospy.datasets.internal_view import DatasetInternalView, ProteinAwarePreparationInternalView
 from phospy.datasets.protein_aware import ProteinAwarePreparationReport, ProteinAwarePreparationResult
@@ -175,11 +175,11 @@ from phospy.datasets.protein_aware import ProteinAwarePreparationReport, Protein
     else:
         stage_module_assertion = """
 import sys
-assert not any(name == 'phospy.run_lineage' or name.startswith('phospy.run_lineage.') for name in sys.modules)
+assert not any(name == 'phospy.core.run_lineage' or name.startswith('phospy.core.run_lineage.') for name in sys.modules)
 assert not any(name == 'phospy.science.datasets' or name.startswith('phospy.science.datasets.') for name in sys.modules)
 """
     late_imports = """
-from phospy.run_lineage.models import RunProvenance
+from phospy.core.run_lineage.models import RunProvenance
 from phospy.datasets.construction.protein_aware import compose_protein_aware_preparation_result
 from phospy.datasets.internal_view import DatasetInternalView, ProteinAwarePreparationInternalView
 from phospy.datasets.protein_aware import ProteinAwarePreparationReport, ProteinAwarePreparationResult
@@ -197,7 +197,7 @@ assert result.report.provenance is None
 assert result.to_payload()["report"]["schema_version"] == 1
 protein_view = ProteinAwarePreparationInternalView(result)
 assert protein_view.matched_pairs.shape[0] == 1
-assert RunProvenance.__module__ == "phospy.run_lineage.models"
+assert RunProvenance.__module__ == "phospy.core.run_lineage.models"
 assert DatasetInternalView.__module__ == "phospy.datasets.internal_view"
 """
     )

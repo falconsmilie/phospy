@@ -3,12 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pandas.testing as pdt
 
-from phospy.core.provenance.models import EnvironmentProvenance
-from phospy.datasets.protein_aware import (
-    ProteinAwarePreparationReport,
-    ProteinAwarePreparationResult,
-)
-from phospy.preparation_records.protein_aware import (
+from phospy.core.preparation_records.protein_aware import (
     ProteinAwareMappingDiagnostics,
     ProteinAwarePreparationEligibility,
     ProteinAwareSampleAlignmentDiagnostics,
@@ -16,7 +11,12 @@ from phospy.preparation_records.protein_aware import (
     ProteinAwareTransformationStateDiagnostics,
     ProteinMappingStatus,
 )
-from phospy.run_lineage import RunProvenance
+from phospy.core.provenance.models import EnvironmentProvenance
+from phospy.core.run_lineage import RunProvenance
+from phospy.datasets.protein_aware import (
+    ProteinAwarePreparationReport,
+    ProteinAwarePreparationResult,
+)
 
 
 def _sample_alignment() -> ProteinAwareSampleAlignmentDiagnostics:

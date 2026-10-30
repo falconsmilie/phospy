@@ -8,19 +8,19 @@ from typing import TYPE_CHECKING, Protocol
 
 import pandas as pd
 
+from phospy.core.preparation_records.report_schema import (
+    ComparisonGroupStatsRow,
+    ComparisonPairStatsRow,
+    DuplicateSiteResolutionRow,
+    MetadataConflictRow,
+    PreprocessingRowAuditRow,
+)
 from phospy.core.provenance.models.batch_correction import BatchCorrectionProvenance
 from phospy.core.provenance.models.tables import TableFingerprint
 from phospy.core.quantitative.models import IntensityTransformationEvent
 from phospy.core.quantitative.quantitative_contracts import (
     QuantitativeOperationContract,
     QuantitativeTransitionEvidence,
-)
-from phospy.preparation_records.report_schema import (
-    ComparisonGroupStatsRow,
-    ComparisonPairStatsRow,
-    DuplicateSiteResolutionRow,
-    MetadataConflictRow,
-    PreprocessingRowAuditRow,
 )
 from phospy.preprocessing.provenance.models import (
     PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V3,

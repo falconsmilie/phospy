@@ -8,10 +8,10 @@ from enum import Enum
 
 import pandas as pd
 
-from phospy.preparation_records.batch_correction import (
+from phospy.core.preparation_records.batch_correction import (
     BatchCorrectionReport,
 )
-from phospy.preparation_records.report_schema import (
+from phospy.core.preparation_records.report_schema import (
     ROW_AUDIT_COLUMNS,
     PreprocessingRowAuditRow,
     dataframe_from_row_audit_rows,

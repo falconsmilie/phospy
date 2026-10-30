@@ -63,6 +63,15 @@ from phospy.core.frames.ownership import (
 from phospy.core.frames.table_schema import (
     TableSchema,
 )
+from phospy.core.preparation_records.report_schema import (
+    ComparisonGroupStatsRow,
+    ComparisonPairStatsRow,
+    DuplicateSiteResolutionRow,
+    MetadataConflictRow,
+    PreprocessingOperationRow,
+    PreprocessingRowAuditRow,
+    PreprocessingRowCountRow,
+)
 from phospy.core.provenance.hashing import fingerprint_table
 from phospy.datasets.construction.executor import DatasetBuildExecutor
 from phospy.datasets.construction.interpreter import DatasetBuildRequestInterpreter
@@ -80,15 +89,6 @@ from phospy.kinase.activity.results import KinaseActivityResult
 from phospy.kinase.scoring.results import KinaseScoringResult
 from phospy.kinase.scoring.tables import (
     KINASE_SUBSTRATE_CONTRIBUTION_COLUMNS,
-)
-from phospy.preparation_records.report_schema import (
-    ComparisonGroupStatsRow,
-    ComparisonPairStatsRow,
-    DuplicateSiteResolutionRow,
-    MetadataConflictRow,
-    PreprocessingOperationRow,
-    PreprocessingRowAuditRow,
-    PreprocessingRowCountRow,
 )
 from phospy.signalome.constants import (
     CORRELATION_COLUMN,

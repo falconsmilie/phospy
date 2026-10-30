@@ -55,9 +55,9 @@ from phospy.core.evidence.dataset_resolution.models import (
     DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED,
 )
 from phospy.core.phosphosites.site_keys import decode_site_key
+from phospy.core.run_lineage.serialization import from_payload
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.datasets.validation.request import DatasetBuildRequestValidator
-from phospy.run_lineage.serialization import from_payload
 
 
 def _site_key_for_display_id(

@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-import phospy.preparation_records.imputation as _imputation_records
+import phospy.core.preparation_records.imputation as _imputation_records
 from phospy.preprocessing.validation.configuration_fields import (
     validate_missing_data_config,
 )

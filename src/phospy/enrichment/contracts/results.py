@@ -13,6 +13,9 @@ from phospy.core.frames.comparison import dataframe_equals
 from phospy.core.frames.ownership import export_dataframe, own_dataframe
 from phospy.core.provenance.immutability import freeze_json_mapping_with_error_type
 from phospy.core.provenance.result_caveats import ResultCaveat, validate_result_caveats
+from phospy.core.run_lineage.models import (
+    RunProvenance,
+)
 from phospy.enrichment.contracts.collections import (
     EnrichmentSetCollection,
     _normalise_identifier_sequence,
@@ -37,9 +40,6 @@ from phospy.enrichment.contracts.vocabulary import (
     EnrichmentCollectionKind,
     EnrichmentIdentifierKind,
     MultipleTestingCorrection,
-)
-from phospy.run_lineage.models import (
-    RunProvenance,
 )
 
 

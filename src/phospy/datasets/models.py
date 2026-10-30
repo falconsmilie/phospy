@@ -17,6 +17,9 @@ from phospy.core.frames.ownership import (
 )
 from phospy.core.quantitative.models import IntensityScaleState
 from phospy.core.references.provenance.context import ReferenceContext
+from phospy.core.run_lineage.models import (
+    RunProvenance,
+)
 from phospy.core.taxonomy.organisms import Organism
 from phospy.datasets._construction.service import (
     _AnalysisReadyDatasetConstructionService,  # pyright: ignore[reportPrivateUsage] - the model and its private same-owner construction service form one sealed authority boundary
@@ -34,9 +37,6 @@ from phospy.datasets.processing_state import (
 from phospy.datasets.protein_aware import ProteinAwarePreparationResult
 from phospy.datasets.trusted_assertions import (
     TrustedDatasetConstructionAssertions,
-)
-from phospy.run_lineage.models import (
-    RunProvenance,
 )
 
 

@@ -6,7 +6,7 @@ from collections.abc import Mapping
 
 import pandas as pd
 
-from phospy.preparation_records.report_schema import (
+from phospy.core.preparation_records.report_schema import (
     PreprocessingOperationRow,
     PreprocessingRowCountRow,
     dataframe_from_operation_rows,

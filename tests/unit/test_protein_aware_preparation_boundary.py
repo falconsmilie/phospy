@@ -21,18 +21,18 @@ from phospy.api.advanced import (
     DatasetTotalProteinCorrectionConfig,
 )
 from phospy.core.errors import DatasetValidationError, PhosPyInputError
+from phospy.core.preparation_records.policies import (
+    TotalProteinCorrectionPolicy,
+)
+from phospy.core.preparation_records.protein_aware import (
+    ProteinAwareSampleAlignmentDiagnostics,
+    ProteinAwareSiteEligibility,
+)
 from phospy.datasets.internal_view import DatasetInternalView
 from phospy.datasets.processing_state import DatasetPreprocessingReport
 from phospy.datasets.protein_aware import (
     ProteinAwarePreparationReport,
     ProteinAwarePreparationResult,
-)
-from phospy.preparation_records.policies import (
-    TotalProteinCorrectionPolicy,
-)
-from phospy.preparation_records.protein_aware import (
-    ProteinAwareSampleAlignmentDiagnostics,
-    ProteinAwareSiteEligibility,
 )
 from phospy.preprocessing.contracts import PreprocessingPlan
 from tests.support.analysis_ready_dataset_factories import (

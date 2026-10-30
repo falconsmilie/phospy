@@ -44,6 +44,7 @@ from phospy.core.provenance.models.batch_correction import BatchCorrectionProven
 from phospy.core.provenance.serialization.batch_correction import (
     batch_correction_provenance_to_payload,
 )
+from phospy.core.run_lineage.models import RunProvenance
 from phospy.io.bundles.kinase import (
     KINASE_BUNDLE_MANIFEST_VERSION,
     KinaseWorkflowConfigSnapshot,
@@ -82,7 +83,6 @@ from phospy.kinase.results import KinaseWorkflowResult
 from phospy.preprocessing.contracts.configuration import (
     DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ALLOW_UNCORRECTED,
 )
-from phospy.run_lineage.models import RunProvenance
 from tests.support.kinase_scoring_state import (
     NONDEFAULT_SCORING_MODES,
     complete_scoring_result_for_mode,

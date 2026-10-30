@@ -24,6 +24,13 @@ from phospy.api.advanced import (
 )
 from phospy.core.errors.input import PhosPyInputError
 from phospy.core.errors.validation import ContractValidationError
+from phospy.core.preparation_records.policies import (
+    MissingDataPolicy,
+    NormalisationPolicy,
+    SiteSequenceConflictPolicy,
+    SiteSequenceResolutionMode,
+    TotalProteinCorrectionPolicy,
+)
 from phospy.kinase.activity.threshold_membership import (
     threshold_membership_mask_array,
 )
@@ -32,13 +39,6 @@ from phospy.kinase.prediction.candidates import build_candidate_substrate_list
 from phospy.kinase.result_boundary import DownstreamScoreSource
 from phospy.kinase.scoring.policies import ProfileSelfInclusionPolicy
 from phospy.kinase.scoring.selection import select_downstream_score_matrix
-from phospy.preparation_records.policies import (
-    MissingDataPolicy,
-    NormalisationPolicy,
-    SiteSequenceConflictPolicy,
-    SiteSequenceResolutionMode,
-    TotalProteinCorrectionPolicy,
-)
 from phospy.preprocessing.contracts import PreprocessingPlan
 from phospy.preprocessing.contracts.policies import (
     ComparisonBuildingPolicy,

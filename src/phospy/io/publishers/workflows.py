@@ -8,6 +8,7 @@ from pathlib import Path
 import pandas as pd
 
 from phospy.core.errors.input import PhosPyInputError
+from phospy.core.run_lineage.serialization import to_payload as provenance_to_payload
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.io.bundles._shared.processing_state import processing_state_to_payload
 from phospy.io.bundles._shared.transactions import write_output_tree_atomically
@@ -16,7 +17,6 @@ from phospy.io.bundles._signalome.diagnostics import (
 )
 from phospy.io.readers.tables import table_suffix_for_format, write_table
 from phospy.kinase.results import KinaseWorkflowResult
-from phospy.run_lineage.serialization import to_payload as provenance_to_payload
 from phospy.signalome.models import SignalomeAlignmentInputDiagnostics
 from phospy.signalome.results import SignalomeWorkflowResult
 

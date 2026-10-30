@@ -23,6 +23,7 @@ from phospy.api.advanced import (
     KinaseScoringConfig,
     ReferenceContextCompatibilityPolicy,
 )
+from phospy.core.run_lineage.serialization import to_payload as provenance_to_payload
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.io.bundles._shared.processing_state import processing_state_to_payload
 from phospy.io.bundles.kinase import (
@@ -30,7 +31,6 @@ from phospy.io.bundles.kinase import (
     save_kinase_workflow_bundle,
 )
 from phospy.io.publishers.workflows import publish_dataset, publish_kinase_workflow
-from phospy.run_lineage.serialization import to_payload as provenance_to_payload
 
 pytestmark = pytest.mark.integration
 

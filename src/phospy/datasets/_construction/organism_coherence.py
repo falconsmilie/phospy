@@ -8,10 +8,10 @@ from typing import TypeVar
 import pandas as pd
 
 from phospy.core.phosphosites.site_keys import decode_site_key, encode_site_key
-from phospy.core.taxonomy.organisms import Organism, normalize_organism
-from phospy.run_lineage.models import (
+from phospy.core.run_lineage.models import (
     RunProvenance,
 )
+from phospy.core.taxonomy.organisms import Organism, normalize_organism
 
 ErrorType = TypeVar("ErrorType", bound=Exception)
 

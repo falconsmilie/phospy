@@ -25,6 +25,8 @@ from phospy.core.provenance.models import (
     ENVIRONMENT_PROVENANCE_SCHEMA_VERSION_V2,
     EnvironmentProvenance,
 )
+from phospy.core.run_lineage.models import RunProvenance
+from phospy.core.run_lineage.serialization import from_payload, to_payload
 from phospy.preprocessing.provenance.models import (
     PREPROCESSING_EXTERNAL_NONDETERMINISM_CAVEAT_CODE,
     PREPROCESSING_STAGE_DETERMINISM_PURE,
@@ -33,8 +35,6 @@ from phospy.preprocessing.provenance.models import (
     PreprocessingStageProvenance,
     ReproducibilityCaveat,
 )
-from phospy.run_lineage.models import RunProvenance
-from phospy.run_lineage.serialization import from_payload, to_payload
 
 
 def _base_table() -> pd.DataFrame:

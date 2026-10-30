@@ -11,6 +11,7 @@ from phospy.core.errors import PhosPyInputError
 from phospy.core.errors.validation import DatasetValidationError
 from phospy.core.provenance.hashing import fingerprint_optional_table_strict
 from phospy.core.provenance.models import TableFingerprint
+from phospy.core.run_lineage.models import RunProvenance
 from phospy.core.taxonomy import Organism
 from phospy.datasets.derived_quantitative import (
     CertifiedDerivedQuantitativeParentState,
@@ -22,7 +23,6 @@ from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.differential.provenance.lineage import (
     build_derived_quantitative_run_provenance,
 )
-from phospy.run_lineage.models import RunProvenance
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

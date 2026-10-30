@@ -18,8 +18,7 @@ from phospy.core.frames.validation import (
     require_unique_columns,
     require_unique_index,
 )
-from phospy.core.provenance.immutability import freeze_json_mapping_with_error_type
-from phospy.preparation_records.protein_aware import (
+from phospy.core.preparation_records.protein_aware import (
     DATASET_PROTEIN_AWARE_PREPARATION_MAPPING_POLICIES,
     DATASET_PROTEIN_AWARE_PREPARATION_MAPPING_POLICY_REQUIRE_UNAMBIGUOUS,
     DATASET_PROTEIN_AWARE_PREPARATION_POLICIES,
@@ -32,8 +31,9 @@ from phospy.preparation_records.protein_aware import (
     ProteinAwareSiteEligibility,
     ProteinAwareTransformationStateDiagnostics,
 )
-from phospy.run_lineage.models import RunProvenance
-from phospy.run_lineage.serialization import to_payload as provenance_to_payload
+from phospy.core.provenance.immutability import freeze_json_mapping_with_error_type
+from phospy.core.run_lineage.models import RunProvenance
+from phospy.core.run_lineage.serialization import to_payload as provenance_to_payload
 
 PROTEIN_AWARE_PREPARATION_SCHEMA_VERSION = 1
 

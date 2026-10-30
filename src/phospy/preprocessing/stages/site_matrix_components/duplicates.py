@@ -11,7 +11,7 @@ from phospy.core.phosphosites.validation import (
     require_no_mixed_site_key_isoform_scope,
     require_site_key_series,
 )
-from phospy.preparation_records.report_schema import (
+from phospy.core.preparation_records.report_schema import (
     DUPLICATE_SITE_RESOLUTION_COLUMNS,
     dataframe_from_duplicate_site_resolution_rows,
 )
