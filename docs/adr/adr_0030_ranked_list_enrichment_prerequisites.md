@@ -278,7 +278,7 @@ Likely future ownership areas are:
 ```text
 src/phospy/enrichment/contracts/
 src/phospy/enrichment/
-src/phospy/provenance/
+src/phospy/core/provenance/
 phospy.enrichment.validation
 tests/
 docs/api/enrichment.md

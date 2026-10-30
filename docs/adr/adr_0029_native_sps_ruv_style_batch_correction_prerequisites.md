@@ -242,8 +242,8 @@ Current ownership areas are:
 
 ```text
 src/phospy/preprocessing/batch_correction/
-src/phospy/provenance/models/batch_correction.py
-src/phospy/provenance/serialization/batch_correction.py
+src/phospy/core/provenance/models/batch_correction.py
+src/phospy/core/provenance/serialization/batch_correction.py
 tests/
 ```
 

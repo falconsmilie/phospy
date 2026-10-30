@@ -1725,7 +1725,7 @@ def test_api_guide_documents_beta_supported_aggregates() -> None:
     text = _read("docs/api/guide.md")
     normalized = _normalized_markdown("docs/api/guide.md")
 
-    assert "three exact aggregate surfaces" in normalized
+    assert "two exact aggregate scientific surfaces" in normalized
     assert "phospy is currently beta software" in normalized
     assert "`phospy.api` is the stable user-facing route" in text
     assert "`phospy.api.advanced` is a supported advanced route" in text

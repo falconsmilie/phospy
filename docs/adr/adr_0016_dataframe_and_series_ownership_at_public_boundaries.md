@@ -246,13 +246,13 @@ but cannot claim deep immutability.
 
 ## Affected Modules
 
-- `src/phospy/frames/ownership.py`
+- `src/phospy/core/frames/ownership.py`
 - `src/phospy/datasets/models.py`
 - `src/phospy/api/results.py`
 - `src/phospy/kinase/activity/results.py`
 - `src/phospy/kinase/prediction/results.py`
 - `src/phospy/signalome/models.py`
-- `src/phospy/provenance/`
+- `src/phospy/core/provenance/`
 - `src/phospy/io/`
 
 ## Testing and Governance Expectations

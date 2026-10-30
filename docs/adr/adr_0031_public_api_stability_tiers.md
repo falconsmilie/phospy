@@ -316,8 +316,8 @@ assemblers, or reference manifest validation internals may be promoted into
 
 ## Inventory
 
-The implementation source of truth is `src/phospy/_api_inventory.py`, surfaced
-by `src/phospy/api/__init__.py` and `src/phospy/advanced/__init__.py`:
+The implementation source of truth is `src/phospy/api/_inventory.py`, surfaced
+by `src/phospy/api/__init__.py` and `src/phospy/api/advanced/__init__.py`:
 
 - `_STABLE_PUBLIC_API`
 - `_ADVANCED_SUPPORTED_API`

@@ -132,7 +132,7 @@ has a unique `site_key`.
 ## Workflow Requirements
 
 Workflow validators must compose shared identity validation through
-`src/phospy/phosphosites/workflow_identity.py`, which delegates to the
+`src/phospy/core/phosphosites/workflow_identity.py`, which delegates to the
 Phosphosites-owned identity and sequence-context contracts, and declare one
 explicit contract.
 
@@ -156,7 +156,7 @@ Ownership boundaries are:
 - **Dataset/table schemas:** structural shape and column contracts.
 - **Workflow identity contract composer:**
   `enforce_workflow_site_identity_contract` in
-  `src/phospy/phosphosites/workflow_identity.py`.
+  `src/phospy/core/phosphosites/workflow_identity.py`.
 - **Workflow validators:** select and apply exactly one workflow identity
   contract; they do not parse identity rows ad hoc.
 - **Executors/interpreters:** consume validated identity; they do not infer or

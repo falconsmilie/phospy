@@ -144,7 +144,7 @@ recursively frozen and serialized from fresh payloads.
 
 ## Implementation Notes
 
-The recursive freezer lives in `src/phospy/provenance/immutability.py`.
+The recursive freezer lives in `src/phospy/core/provenance/immutability.py`.
 Provenance dataclasses with JSON-like mapping fields route those fields through
 the freezer in `__post_init__`. Serialization helpers and selected public JSON
 accessors route frozen provenance through the thawing path before returning

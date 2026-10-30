@@ -147,26 +147,26 @@ when ownership or compatibility routes change.
 
 - Ownership registry: `docs/validation-ownership.md`, enforced by
   `tests/architecture/test_validation_ownership_governance.py`.
-- Shared structural primitives: `src/phospy/frames/validation.py`; internal
+- Shared structural primitives: `src/phospy/core/frames/validation.py`; internal
   consumers import that owner directly, and obsolete compatibility-only routes
-  under `src/phospy/validation/common/` are absent under ADR-0054.
+  under `src/phospy/core/validation/common/` are absent under ADR-0054.
 - Sample-group metadata validation and deterministic resolution:
-  `src/phospy/preparation_records/validation/sample_groups.py` owns
+  `src/phospy/core/preparation_records/validation/sample_groups.py` owns
   `SampleGroupMetadataResolver` and `ResolvedSampleGroups`. The
   coverage-specific composer remains in
   `src/phospy/preprocessing/validation/group_coverage.py`, while
-  `src/phospy/validation/datasets/group_coverage_filter.py` identity-preservingly
+  `src/phospy/core/validation/datasets/group_coverage_filter.py` identity-preservingly
   re-exports its coverage objects. Resolver behavior and compatibility identity
   are covered by `tests/unit/test_sample_group_metadata_resolution.py`; existing
   end-to-end coverage-filter behavior is covered by
   `tests/unit/test_group_coverage_filter_preprocessing.py`.
 - Phosphosite-specific identifier/coherence validation owners:
-  `src/phospy/phosphosites/validation.py`,
-  `src/phospy/phosphosites/metadata_validation.py`,
-  `src/phospy/phosphosites/contracts.py`, and
-  `src/phospy/phosphosites/sequence_context.py`. Dataset localisation and
+  `src/phospy/core/phosphosites/validation.py`,
+  `src/phospy/core/phosphosites/metadata_validation.py`,
+  `src/phospy/core/phosphosites/contracts.py`, and
+  `src/phospy/core/phosphosites/sequence_context.py`. Dataset localisation and
   evidence validation remains in
-  `src/phospy/evidence/site_metadata.py`; it does not re-export the
+  `src/phospy/core/evidence/site_metadata.py`; it does not re-export the
   Phosphosites-owned identity or supplied-window rules.
 - Differential design/contrast validation ownership:
   `src/phospy/differential/validation/design.py` plus
@@ -174,21 +174,21 @@ when ownership or compatibility routes change.
 - Technical-replicate policy owner:
   `src/phospy/differential/planning/replicates.py`.
 - Intensity-scale establishment and dataset construction coherence owners:
-  `src/phospy/quantitative/validation.py`,
+  `src/phospy/core/quantitative/validation.py`,
   `src/phospy/datasets/models.py`,
   `src/phospy/datasets/_construction/validation.py`,
   `src/phospy/datasets/_construction/trusted_assertions.py`, and
   `src/phospy/datasets/_construction/fingerprints.py`.
 - Reference manifest parsing, bundled resource integrity, redistribution
   release-gate policy, and bundle semantics owners:
-  `src/phospy/references/validation/manifest_schema.py`,
-  `src/phospy/references/validation/resource_integrity.py`,
-  `src/phospy/references/validation/redistribution_policy.py`, and
-  `src/phospy/references/validation/bundle_semantics.py`.
+  `src/phospy/core/references/validation/manifest_schema.py`,
+  `src/phospy/core/references/validation/resource_integrity.py`,
+  `src/phospy/core/references/validation/redistribution_policy.py`, and
+  `src/phospy/core/references/validation/bundle_semantics.py`.
 - Reference bundle and Kinase Library resource construction invariants:
-  passive models live in `src/phospy/references/models.py` and
+  passive models live in `src/phospy/core/references/models.py` and
   `src/phospy/kinase/references/models.py`; validator service
-  routes live in `src/phospy/references/validation/bundle.py` and
+  routes live in `src/phospy/core/references/validation/bundle.py` and
   `src/phospy/kinase/references/validation.py`, with
   their respective capability owners providing the sole definitions.
 - Workflow-boundary owners include

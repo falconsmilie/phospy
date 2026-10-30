@@ -548,14 +548,14 @@ Neutral consequences:
 ## Implementation Notes
 
 - Quantitative state and evidence enums:
-  `src/phospy/quantitative/policy.py`
+  `src/phospy/core/quantitative/policy.py`
 - Transformation value models and state transitions:
-  `src/phospy/quantitative/scale_values.py` and
-  `src/phospy/quantitative/scale_state.py`.
+  `src/phospy/core/quantitative/scale_values.py` and
+  `src/phospy/core/quantitative/scale_state.py`.
 - Workflow-visible intensity-scale evidence and declared-scale caveats:
-  `src/phospy/quantitative/evidence.py`
+  `src/phospy/core/quantitative/evidence.py`
 - Provenance payload model:
-  `src/phospy/run_lineage/models.py`
+  `src/phospy/core/run_lineage/models.py`
 - Kinase scoring config and public scoring-mode strings:
   `src/phospy/kinase/scoring/config.py`
 - Kinase reference-projection summary contract:
@@ -564,11 +564,11 @@ Neutral consequences:
 - Internal kinase scoring-mode input contracts:
   `src/phospy/kinase/scoring/contracts.py`
 - Method quantitative input contract models:
-  `src/phospy/activities/contracts.py`
+  `src/phospy/core/activities/contracts.py`
 - Kinase activity method quantitative contracts:
   `src/phospy/kinase/activity/contracts.py`
 - Kinase method-contract validation primitive:
-  `src/phospy/activities/validation.py`
+  `src/phospy/core/activities/validation.py`
 - Kinase scoring execution branches:
   `src/phospy/kinase/scoring/execution.py`
 - Kinase result caveat assembly:
@@ -576,20 +576,20 @@ Neutral consequences:
 - Scoring policy enums:
   `src/phospy/kinase/policies.py`
 - Protein-scoped `site_key` encoding:
-  `src/phospy/phosphosites/site_keys.py`
+  `src/phospy/core/phosphosites/site_keys.py`
 - Reference context and reference bundle models:
-  `src/phospy/references/models.py`; reference manifest value models are split
-  across `src/phospy/references/manifest_policy.py`,
-  `src/phospy/references/manifest_files.py`,
-  `src/phospy/references/redistribution.py`, and
-  `src/phospy/references/manifest_model.py`, with
-  `src/phospy/references/manifest.py` as the owner aggregate.
+  `src/phospy/core/references/models.py`; reference manifest value models are split
+  across `src/phospy/core/references/manifest_policy.py`,
+  `src/phospy/core/references/manifest_files.py`,
+  `src/phospy/core/references/redistribution.py`, and
+  `src/phospy/core/references/manifest_model.py`, with
+  `src/phospy/core/references/manifest.py` as the owner aggregate.
 - Shared phosphosite identity contract implementation:
-  `src/phospy/phosphosites/contracts.py`; reference-context compatibility is
+  `src/phospy/core/phosphosites/contracts.py`; reference-context compatibility is
   owned provisionally by
-  `src/phospy/references/context_compatibility.py`.
+  `src/phospy/core/references/context_compatibility.py`.
 - Workflow phosphosite sequence-context contract implementation:
-  `src/phospy/phosphosites/sequence_context.py`
+  `src/phospy/core/phosphosites/sequence_context.py`
 - Kinase and signalome workflow validators:
   `src/phospy/kinase/validator.py` and
   `src/phospy/signalome/validator.py`

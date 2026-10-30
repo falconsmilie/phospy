@@ -508,6 +508,7 @@ def test_pyright_docs_match_current_include_and_strict_scope() -> None:
         "src/phospy/core/activities",
         "src/phospy/api/advanced",
         "src/phospy/api",
+        "src/phospy/core/__init__.py",
         "src/phospy/datasets",
         "src/phospy/differential",
         "src/phospy/enrichment",

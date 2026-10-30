@@ -62,7 +62,7 @@ def test_phospy_api_all_contains_no_validator_implementations() -> None:
         name
         for name in public_api.__all__
         if getattr(getattr(public_api, name), "__module__", "").startswith(
-            "phospy.validation.datasets"
+            "phospy.datasets.validation"
         )
     )
 
@@ -73,7 +73,7 @@ def test_phospy_api_all_contains_no_validator_implementations() -> None:
 def test_retired_dataset_validation_package_is_absent() -> None:
     with pytest.raises(ModuleNotFoundError) as exc_info:
         importlib.import_module("phospy.validation.datasets")
-    assert exc_info.value.name == "phospy.validation.datasets"
+    assert exc_info.value.name == "phospy.validation"
 
 
 def test_internal_validation_and_evidence_owner_imports_still_work() -> None:
