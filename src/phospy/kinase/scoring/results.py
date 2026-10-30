@@ -27,7 +27,9 @@ from phospy.core.frames.validation import (
     require_unique_columns,
     require_unique_index,
 )
+from phospy.core.phosphosites.validation import require_site_key_index
 from phospy.core.policies import coerce_policy_enum
+from phospy.core.provenance.immutability import freeze_json_mapping_with_error_type
 from phospy.kinase.scoring.config import (
     KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED,
     KINASE_SCORING_MODES,
@@ -46,8 +48,6 @@ from phospy.kinase.scoring.sequence_validation import SequenceValidationResult
 from phospy.kinase.scoring.tables import (
     KinaseProfileScoreDiagnosticTable,
 )
-from phospy.phosphosites.validation import require_site_key_index
-from phospy.provenance.immutability import freeze_json_mapping_with_error_type
 
 if TYPE_CHECKING:
     from phospy.kinase.result_boundary import (

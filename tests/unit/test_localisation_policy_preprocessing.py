@@ -10,13 +10,13 @@ from phospy.api import (
     DatasetPreprocessingConfig,
 )
 from phospy.core.errors.input import PhosPyInputError
+from phospy.core.taxonomy import Organism
 from phospy.datasets.construction.preprocessing import DatasetPreprocessor
 from phospy.preprocessing.contracts import PreprocessingPlan
 from phospy.preprocessing.contracts.configuration import (
     DATASET_LOCALISATION_MODE_ALLOW_MISSING_WITH_WAIVER,
     DATASET_LOCALISATION_MODE_REQUIRE_THRESHOLD,
 )
-from phospy.taxonomy import Organism
 
 
 def _phospho() -> pd.DataFrame:

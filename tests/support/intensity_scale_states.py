@@ -2,17 +2,10 @@ from __future__ import annotations
 
 import pandas as pd
 
-from phospy.datasets.construction.intensity_scale import (
-    DatasetIntensityScaleResolver,
-)
-from phospy.datasets.construction.preprocessing import (
-    build_dataset_processing_state,
-)
-from phospy.preprocessing.contracts import PreprocessingPlan
-from phospy.quantitative.authority import (
+from phospy.core.quantitative.authority import (
     bundle_quantitative_meaning_restoration_authority,
 )
-from phospy.quantitative.models import (
+from phospy.core.quantitative.models import (
     IntensityScaleKind,
     IntensityScaleState,
     MatrixIntensityScaleState,
@@ -20,7 +13,14 @@ from phospy.quantitative.models import (
     QuantitativeMeaningEvidenceMode,
     QuantitativeMeaningTransitionProvenance,
 )
-from phospy.quantitative.transformers import IdentityTransformer
+from phospy.core.quantitative.transformers import IdentityTransformer
+from phospy.datasets.construction.intensity_scale import (
+    DatasetIntensityScaleResolver,
+)
+from phospy.datasets.construction.preprocessing import (
+    build_dataset_processing_state,
+)
+from phospy.preprocessing.contracts import PreprocessingPlan
 
 
 def supported_linear_intensity_scale_state(

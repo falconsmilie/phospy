@@ -7,19 +7,19 @@ from dataclasses import asdict
 
 import pandas as pd
 
-from phospy.kinase.result_boundary import DownstreamScoreSource
-from phospy.provenance.environment import collect_environment_provenance
-from phospy.provenance.hashing import fingerprint_optional_table_normalized_axes
-from phospy.provenance.models import (
+from phospy.core.provenance.environment import collect_environment_provenance
+from phospy.core.provenance.hashing import fingerprint_optional_table_normalized_axes
+from phospy.core.provenance.models import (
     EnvironmentProvenance,
     TableFingerprint,
 )
-from phospy.provenance.scientific_policy_models import (
+from phospy.core.provenance.scientific_policy_models import (
     ScientificPolicyId,
     ScientificPolicyRecord,
 )
-from phospy.provenance.serialization import table_fingerprint_to_payload
-from phospy.quantitative.evidence import input_intensity_scale_evidence_from_state
+from phospy.core.provenance.serialization import table_fingerprint_to_payload
+from phospy.core.quantitative.evidence import input_intensity_scale_evidence_from_state
+from phospy.kinase.result_boundary import DownstreamScoreSource
 from phospy.run_lineage.models import (
     RunProvenance,
 )

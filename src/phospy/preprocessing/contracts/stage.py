@@ -7,6 +7,9 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, cast
 
 from phospy.core.errors.build import DatasetBuildError
+from phospy.core.quantitative.quantitative_contracts import (
+    QuantitativeOperationContract,
+)
 from phospy.preprocessing.contracts.plan import PreprocessingPlan
 from phospy.preprocessing.contracts.state import (
     PREPROCESSING_STATE_TABLE_KEYS,
@@ -16,9 +19,6 @@ from phospy.preprocessing.provenance.models import DeterminismKind
 from phospy.preprocessing.results.execution import PreprocessingStage
 from phospy.preprocessing.results.quantitative_evidence import (
     QuantitativeOperationEvidenceValidator,
-)
-from phospy.quantitative.quantitative_contracts import (
-    QuantitativeOperationContract,
 )
 
 if TYPE_CHECKING:

@@ -4,6 +4,9 @@
 from __future__ import annotations
 
 from phospy.api._inventory import ADVANCED_PUBLIC_API as __all__
+from phospy.core.evidence.config import LocalisationPolicy, LocalisationRequirement
+from phospy.core.references.config import ReferenceContextCompatibilityPolicy
+from phospy.core.statistics.multiple_testing import MultipleTestingCorrection
 from phospy.differential.config import (
     DifferentialAnalysisConfig,
     DifferentialProteinAwareModelConfig,
@@ -34,7 +37,6 @@ from phospy.enrichment.contracts.vocabulary import (
     EnrichmentMethod,
     EnrichmentOutsideBackgroundPolicy,
 )
-from phospy.evidence.config import LocalisationPolicy, LocalisationRequirement
 from phospy.io.bundles.kinase_library import (
     KinaseLibraryResourceLoader,
     load_kinase_library_resource,
@@ -158,7 +160,6 @@ from phospy.preprocessing.control_sites.discovery_results import (
 from phospy.preprocessing.control_sites.workflow import (
     SpsDiscoveryWorkflow,
 )
-from phospy.references.config import ReferenceContextCompatibilityPolicy
 from phospy.signalome.config import (
     SignalomeAssignmentPolicy,
     SignalomeCandidateScoringPolicy,
@@ -172,4 +173,3 @@ from phospy.signalome.config import (
     SignalomeScorePreconditioningPolicy,
     SignalomeValidationConfig,
 )
-from phospy.statistics.multiple_testing import MultipleTestingCorrection

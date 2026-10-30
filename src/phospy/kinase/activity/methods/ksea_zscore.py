@@ -153,7 +153,7 @@ def _prepare_ksea_inputs(
     method: KseaZScoreActivityMethod,
     inputs: KinaseActivityInputs,
 ) -> _KseaPreparedInputs:
-    from phospy.activities.contracts import (
+    from phospy.core.activities.contracts import (
         resolve_activity_input_contract,
     )
 

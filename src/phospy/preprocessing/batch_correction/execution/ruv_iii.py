@@ -17,7 +17,7 @@ import numpy.typing as npt
 import pandas as pd
 
 from phospy.core.errors.input import PhosPyInputError
-from phospy.phosphosites.validation import require_site_key_index
+from phospy.core.phosphosites.validation import require_site_key_index
 
 RUV_III_ALGORITHM_ID = "replicate_aware_ruv_iii_v1"
 RUV_III_METHOD = "ruv_iii"

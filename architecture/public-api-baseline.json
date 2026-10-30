@@ -93,7 +93,7 @@
         {
           "name": "ReferenceBundleBuilder",
           "runtime_type": "builtins.type",
-          "definition": "phospy.references.builder:ReferenceBundleBuilder",
+          "definition": "phospy.core.references.builder:ReferenceBundleBuilder",
           "kind": "callable_or_type"
         },
         {
@@ -249,7 +249,7 @@
         {
           "name": "InputIntensityScaleEvidence",
           "runtime_type": "builtins.type",
-          "definition": "phospy.quantitative.evidence:InputIntensityScaleEvidence",
+          "definition": "phospy.core.quantitative.evidence:InputIntensityScaleEvidence",
           "kind": "callable_or_type"
         },
         {
@@ -363,7 +363,7 @@
         {
           "name": "ResultCaveat",
           "runtime_type": "builtins.type",
-          "definition": "phospy.provenance.result_caveats:ResultCaveat",
+          "definition": "phospy.core.provenance.result_caveats:ResultCaveat",
           "kind": "callable_or_type"
         },
         {
@@ -375,31 +375,31 @@
         {
           "name": "Organism",
           "runtime_type": "enum.EnumType",
-          "definition": "phospy.taxonomy.organisms:Organism",
+          "definition": "phospy.core.taxonomy.organisms:Organism",
           "kind": "callable_or_type"
         },
         {
           "name": "ReferenceBundle",
           "runtime_type": "builtins.type",
-          "definition": "phospy.references.models:ReferenceBundle",
+          "definition": "phospy.core.references.models:ReferenceBundle",
           "kind": "callable_or_type"
         },
         {
           "name": "ReferenceBundleBuildRequest",
           "runtime_type": "builtins.type",
-          "definition": "phospy.references.models:ReferenceBundleBuildRequest",
+          "definition": "phospy.core.references.models:ReferenceBundleBuildRequest",
           "kind": "callable_or_type"
         },
         {
           "name": "ReferencePreset",
           "runtime_type": "enum.EnumType",
-          "definition": "phospy.references.models:ReferencePreset",
+          "definition": "phospy.core.references.models:ReferencePreset",
           "kind": "callable_or_type"
         },
         {
           "name": "IntensityScaleKind",
           "runtime_type": "enum.EnumType",
-          "definition": "phospy.quantitative.policy:IntensityScaleKind",
+          "definition": "phospy.core.quantitative.policy:IntensityScaleKind",
           "kind": "callable_or_type"
         },
         {
@@ -970,7 +970,7 @@
         {
           "name": "MultipleTestingCorrection",
           "runtime_type": "typing._LiteralGenericAlias",
-          "definition": "phospy.statistics.multiple_testing:MultipleTestingCorrection",
+          "definition": "phospy.core.statistics.multiple_testing:MultipleTestingCorrection",
           "kind": "callable_or_type"
         },
         {
@@ -1120,7 +1120,7 @@
         {
           "name": "LocalisationRequirement",
           "runtime_type": "builtins.type",
-          "definition": "phospy.evidence.config:LocalisationRequirement",
+          "definition": "phospy.core.evidence.config:LocalisationRequirement",
           "kind": "callable_or_type"
         },
         {
@@ -1132,7 +1132,7 @@
         {
           "name": "ReferenceContextCompatibilityPolicy",
           "runtime_type": "enum.EnumType",
-          "definition": "phospy.references.config:ReferenceContextCompatibilityPolicy",
+          "definition": "phospy.core.references.config:ReferenceContextCompatibilityPolicy",
           "kind": "callable_or_type"
         },
         {
@@ -1288,7 +1288,7 @@
         {
           "name": "KinaseWorkflowCaveat",
           "runtime_type": "builtins.type",
-          "definition": "phospy.provenance.result_caveats:ResultCaveat",
+          "definition": "phospy.core.provenance.result_caveats:ResultCaveat",
           "kind": "callable_or_type"
         },
         {
@@ -1376,7 +1376,7 @@
     {
       "name": "ReferenceBundleBuilder",
       "runtime_type": "builtins.type",
-      "definition": "phospy.references.builder:ReferenceBundleBuilder",
+      "definition": "phospy.core.references.builder:ReferenceBundleBuilder",
       "kind": "callable_or_type"
     }
   ],

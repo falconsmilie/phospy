@@ -10,16 +10,16 @@ import numpy as np
 import pandas as pd
 
 from phospy.core.errors.provenance import ProvenanceFingerprintError
+from phospy.core.provenance.hashing import (
+    fingerprint_table_normalized_axes,
+    hash_table_tolerance,
+)
 from phospy.preprocessing.evidence.missing_data import (
     hash_imputation_mask as hash_imputation_mask,
 )
 from phospy.preprocessing.results.missing_data import (
     MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V1,
     JsonValue,
-)
-from phospy.provenance.hashing import (
-    fingerprint_table_normalized_axes,
-    hash_table_tolerance,
 )
 
 from .models import MissingDataInputProfile

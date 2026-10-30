@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 
 from phospy.core.errors.input import PhosPyInputError
+from phospy.core.provenance.models.batch_correction import BatchCorrectionProvenance
 from phospy.preparation_records.batch_correction import (
     BATCH_CORRECTION_STATUS_APPLIED,
 )
@@ -23,7 +24,6 @@ from phospy.preprocessing.batch_correction.validation.controls import (
     require_control_site_source_metadata,
     require_unique_selected_control_site_rows,
 )
-from phospy.provenance.models.batch_correction import BatchCorrectionProvenance
 
 _SUPPORTED_EXTERNAL_CORRECTED_OUTPUT_METHODS = frozenset(
     {"sps_ruv_style", "ruv_iii_style"}

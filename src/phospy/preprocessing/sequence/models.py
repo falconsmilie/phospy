@@ -5,12 +5,14 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 
-from phospy.evidence.sequence_resolution import PhosphositeSequenceResolutionRequest
+from phospy.core.evidence.sequence_resolution import (
+    PhosphositeSequenceResolutionRequest,
+)
+from phospy.core.references.sequences import FastaProteinSequenceRepository
 from phospy.preparation_records.policies import (
     SiteSequenceConflictPolicy,
     SiteSequenceResolutionMode,
 )
-from phospy.references.sequences import FastaProteinSequenceRepository
 
 
 @dataclass(frozen=True, slots=True)

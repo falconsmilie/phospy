@@ -19,6 +19,8 @@ from phospy.api.advanced import (
     SpsRuvBatchCorrectionConfig,
 )
 from phospy.core.errors import PhosPyInputError
+from phospy.core.provenance import fingerprint_matrix
+from phospy.core.provenance.models import BatchCorrectionProvenance
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.preprocessing.batch_correction import (
     REPLICATE_METADATA_ROLE,
@@ -46,8 +48,6 @@ from phospy.preprocessing.batch_correction.contracts.workflow import (
 from phospy.preprocessing.control_sites.contracts import (
     ControlSiteSourceMetadata,
 )
-from phospy.provenance import fingerprint_matrix
-from phospy.provenance.models import BatchCorrectionProvenance
 
 _MAPK14_SITE_KEY = (
     "phospy:v1|organism=rat|protein_namespace=protein_id|"

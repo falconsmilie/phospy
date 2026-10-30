@@ -18,7 +18,7 @@ from phospy.api import (
     GeneSetCollection,
     InputIntensityScaleEvidence,
 )
-from phospy.provenance import fingerprint_table
+from phospy.core.provenance import fingerprint_table
 
 
 def _source_result_table() -> pd.DataFrame:

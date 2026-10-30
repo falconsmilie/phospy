@@ -12,6 +12,13 @@ from phospy.api.advanced import (
 )
 from phospy.core.errors.build import DatasetBuildError
 from phospy.core.errors.input import PhosPyInputError
+from phospy.core.quantitative.models import (
+    IntensityScaleKind,
+    IntensityScaleState,
+    MatrixIntensityScaleState,
+    QuantitativeMeaning,
+)
+from phospy.core.quantitative.transformers import IdentityTransformer
 from phospy.datasets.construction.intensity_scale import (
     DatasetIntensityScaleResolver,
 )
@@ -43,13 +50,6 @@ from phospy.preprocessing.provenance.composition import (
     PreprocessingProvenanceAdapter,
 )
 from phospy.preprocessing.results.diagnostics import ProcessingTraceDiagnostics
-from phospy.quantitative.models import (
-    IntensityScaleKind,
-    IntensityScaleState,
-    MatrixIntensityScaleState,
-    QuantitativeMeaning,
-)
-from phospy.quantitative.transformers import IdentityTransformer
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
 )

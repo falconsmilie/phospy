@@ -15,6 +15,7 @@ from phospy.api.advanced import (
     SpsRuvBatchCorrectionConfig,
 )
 from phospy.core.errors import PhosPyInputError
+from phospy.core.quantitative.models import IntensityScaleKind
 from phospy.datasets.construction.contracts import InterpretedDatasetBuildRequest
 from phospy.datasets.construction.executor import DatasetBuildExecutor
 from phospy.preparation_records.batch_correction import (
@@ -33,7 +34,6 @@ from phospy.preprocessing.control_sites.contracts import (
     ControlSiteSet,
     ControlSiteSourceMetadata,
 )
-from phospy.quantitative.models import IntensityScaleKind
 from tests.support.dataset_preprocessor_fakes import (
     ConformingDatasetPreprocessorFake,
 )

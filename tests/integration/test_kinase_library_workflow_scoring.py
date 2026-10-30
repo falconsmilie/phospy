@@ -14,6 +14,8 @@ from phospy.api.advanced import (
     ReferenceContextCompatibilityPolicy,
 )
 from phospy.core.errors import WorkflowBoundaryError, WorkflowValidationError
+from phospy.core.provenance.hashing import fingerprint_table
+from phospy.core.references.models import SequenceWindowDefinition
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.kinase.public import KinaseWorkflow
 from phospy.kinase.references.models import (
@@ -30,8 +32,6 @@ from phospy.kinase.scoring.kinase_library import (
     KINASE_LIBRARY_WORKFLOW_SCORE_SCALE,
 )
 from phospy.kinase.scoring.motif.models import AMINO_ACIDS
-from phospy.provenance.hashing import fingerprint_table
-from phospy.references.models import SequenceWindowDefinition
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

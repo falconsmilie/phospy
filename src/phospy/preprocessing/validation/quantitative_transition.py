@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from phospy.core.errors.build import DatasetBuildError
-from phospy.quantitative.models import (
+from phospy.core.quantitative.models import (
     IntensityTransformationEvent,
     MatrixIntensityScaleState,
 )

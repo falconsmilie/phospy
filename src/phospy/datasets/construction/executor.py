@@ -8,6 +8,8 @@ from dataclasses import replace
 import pandas as pd
 
 from phospy.core.errors.validation import DatasetValidationError
+from phospy.core.quantitative.contracts import Transformer
+from phospy.core.quantitative.transformers import IdentityTransformer
 from phospy.datasets._construction.organism_coherence import (
     normalize_dataset_organism_state,
 )
@@ -46,8 +48,6 @@ from phospy.preprocessing.contracts import (
 from phospy.preprocessing.workflow import (
     AdditivePreprocessingScaleGuard,
 )
-from phospy.quantitative.contracts import Transformer
-from phospy.quantitative.transformers import IdentityTransformer
 from phospy.run_lineage.models import (
     RunProvenance,
 )

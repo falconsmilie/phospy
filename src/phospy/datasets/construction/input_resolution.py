@@ -10,6 +10,26 @@ from typing import NoReturn, Protocol
 import pandas as pd
 
 from phospy.core.errors.input import PhosPyInputError
+from phospy.core.evidence.dataset_resolution.models import (
+    DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
+    DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED,
+    PeptideEvidenceResolutionSummary,
+)
+from phospy.core.evidence.dataset_resolution.policies import (
+    build_multi_site_handling_config_for_dataset_policy,
+)
+from phospy.core.evidence.dataset_resolution.resolver import (
+    PeptideEvidenceDatasetResolver,
+)
+from phospy.core.evidence.models import PeptideEvidenceTable
+from phospy.core.phosphosites.dataset_identity import (
+    enforce_display_id_column,
+    enforce_site_key_column,
+)
+from phospy.core.phosphosites.identifiers import SiteIdentifierNormalisationReport
+from phospy.core.phosphosites.validation import require_no_mixed_site_key_isoform_scope
+from phospy.core.quantitative.models import IntensityScaleKind
+from phospy.core.taxonomy.organisms import Organism
 from phospy.core.validation.common.input_sources import validate_dataframe_or_path
 from phospy.datasets.construction.contracts import (
     DatasetBuildRequestProtocol,
@@ -20,28 +40,10 @@ from phospy.datasets.construction.normalization import (
     NormalizedDatasetInputs,
 )
 from phospy.datasets.construction.site_identity import DatasetSiteIdentityDeriver
-from phospy.evidence.dataset_resolution.models import (
-    DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
-    DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED,
-    PeptideEvidenceResolutionSummary,
-)
-from phospy.evidence.dataset_resolution.policies import (
-    build_multi_site_handling_config_for_dataset_policy,
-)
-from phospy.evidence.dataset_resolution.resolver import PeptideEvidenceDatasetResolver
-from phospy.evidence.models import PeptideEvidenceTable
-from phospy.phosphosites.dataset_identity import (
-    enforce_display_id_column,
-    enforce_site_key_column,
-)
-from phospy.phosphosites.identifiers import SiteIdentifierNormalisationReport
-from phospy.phosphosites.validation import require_no_mixed_site_key_isoform_scope
 from phospy.preprocessing.contracts.policies import (
     SiteMatrixDuplicateSitePolicy,
     SiteMatrixPolicy,
 )
-from phospy.quantitative.models import IntensityScaleKind
-from phospy.taxonomy.organisms import Organism
 
 
 class DatasetInputSourceValidatorProtocol(Protocol):

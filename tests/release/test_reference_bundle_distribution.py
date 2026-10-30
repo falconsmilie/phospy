@@ -10,7 +10,7 @@ from zipfile import ZIP_DEFLATED, ZipFile
 
 import pytest
 
-from phospy.references.validation import validate_bundled_reference_manifests
+from phospy.core.references.validation import validate_bundled_reference_manifests
 from scripts.validate_reference_bundle_distribution import (
     ReferenceBundleDistributionError,
     validate_reference_bundle_archive,

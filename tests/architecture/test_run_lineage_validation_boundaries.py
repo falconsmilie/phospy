@@ -7,9 +7,9 @@ from pathlib import Path
 import phospy
 import phospy.api
 import phospy.api.advanced
+from phospy.core.provenance.models import tables as provenance_tables
+from phospy.core.references.provenance import models as reference_models
 from phospy.preprocessing.provenance import models as preprocessing_models
-from phospy.provenance.models import tables as provenance_tables
-from phospy.references.provenance import models as reference_models
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 RUN_LINEAGE_MODELS = PROJECT_ROOT / "src/phospy/run_lineage/models.py"
@@ -26,11 +26,11 @@ EXPECTED_OWNER_IMPORTS = {
         "PreprocessingStageProvenance",
         "require_preprocessing_stage_sequence",
     },
-    "phospy.provenance.models.tables": {
+    "phospy.core.provenance.models.tables": {
         "TableFingerprint",
         "require_table_fingerprint_sequence",
     },
-    "phospy.references.provenance.models": {
+    "phospy.core.references.provenance.models": {
         "ReferenceProvenance",
         "require_reference_context_organism_coherence",
     },
@@ -62,8 +62,8 @@ def test_run_lineage_has_no_private_helper_imports_from_affected_owners() -> Non
     tree = ast.parse(RUN_LINEAGE_MODELS.read_text(encoding="utf-8"))
     affected_prefixes = (
         "phospy.preprocessing",
-        "phospy.provenance",
-        "phospy.references",
+        "phospy.core.provenance",
+        "phospy.core.references",
     )
     private_imports = sorted(
         f"{node.module}:{alias.name}"

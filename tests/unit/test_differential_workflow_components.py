@@ -33,6 +33,12 @@ from phospy.core.errors import (
     WorkflowBoundaryError,
     WorkflowValidationError,
 )
+from phospy.core.provenance.hashing import fingerprint_optional_table_strict
+from phospy.core.provenance.serialization.tables import table_fingerprint_to_payload
+from phospy.core.quantitative.models import (
+    IntensityScaleState,
+    MatrixIntensityScaleState,
+)
 from phospy.datasets.internal_view import (
     DatasetInternalView,
     ProteinAwarePreparationInternalView,
@@ -110,12 +116,6 @@ from phospy.preparation_records.protein_aware import (
 from phospy.preprocessing.protein_aware.alignment import (
     PROTEIN_AWARE_REASON_AMBIGUOUS_PROTEIN_MAPPING,
     PROTEIN_AWARE_REASON_MISSING_TOTAL_PROTEIN_ROW,
-)
-from phospy.provenance.hashing import fingerprint_optional_table_strict
-from phospy.provenance.serialization.tables import table_fingerprint_to_payload
-from phospy.quantitative.models import (
-    IntensityScaleState,
-    MatrixIntensityScaleState,
 )
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,

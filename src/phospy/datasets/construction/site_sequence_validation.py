@@ -5,7 +5,7 @@ from __future__ import annotations
 import pandas as pd
 
 from phospy.core.errors.input import PhosPyInputError
-from phospy.phosphosites.identifiers import (
+from phospy.core.phosphosites.identifiers import (
     canonicalize_site_components,
     canonicalize_site_identifier,
 )

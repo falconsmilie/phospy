@@ -8,6 +8,14 @@ from itertools import combinations
 import pandas as pd
 
 from phospy.core.errors.input import PhosPyInputError
+from phospy.core.provenance.hashing import hash_table_tolerance
+from phospy.core.quantitative.quantitative_contracts import (
+    NegativeDomainPolicy,
+    QuantitativeEvidenceRequirement,
+    QuantitativeInformationLossKind,
+    QuantitativeReversibilityKind,
+    preserve_quantitative_contract,
+)
 from phospy.preparation_records.report_schema import (
     COMPARISON_GROUP_STATS_COLUMNS,
     COMPARISON_PAIR_STATS_COLUMNS,
@@ -30,14 +38,6 @@ from phospy.preprocessing.contracts.stage import (
 from phospy.preprocessing.results.report_rows import (
     report_rows_from_comparison_group_stats_dataframe,
     report_rows_from_comparison_pair_stats_dataframe,
-)
-from phospy.provenance.hashing import hash_table_tolerance
-from phospy.quantitative.quantitative_contracts import (
-    NegativeDomainPolicy,
-    QuantitativeEvidenceRequirement,
-    QuantitativeInformationLossKind,
-    QuantitativeReversibilityKind,
-    preserve_quantitative_contract,
 )
 
 _COMPARISON_OUTPUT_PREFIX = "p_"

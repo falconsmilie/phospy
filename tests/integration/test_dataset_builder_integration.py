@@ -27,14 +27,14 @@ from phospy.api.advanced import (
     DatasetTotalProteinCorrectionIdentityConfig,
 )
 from phospy.core.errors import PhosPyInputError
+from phospy.core.quantitative.models import (
+    MatrixIntensityScaleState,
+)
+from phospy.core.references.resolution import ReferenceResolver
 from phospy.io.publishers.workflows import publish_dataset
 from phospy.preprocessing.contracts.configuration import (
     DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ALLOW_UNCORRECTED,
 )
-from phospy.quantitative.models import (
-    MatrixIntensityScaleState,
-)
-from phospy.references.resolution import ReferenceResolver
 from tests.support.rewrite_fixture_data import load_rat_l6_phospho, site_metadata_for
 
 pytestmark = pytest.mark.integration

@@ -37,16 +37,16 @@ from phospy.api.advanced import (
     ReferenceContextCompatibilityPolicy,
 )
 from phospy.core.errors.input import PhosPyInputError
+from phospy.core.phosphosites.site_keys import (
+    ProteinScopedPhosphositeKey,
+    encode_site_key,
+)
 from phospy.datasets.internal_view import DatasetInternalView
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.io.bundles.signalome import (
     SignalomeWorkflowConfigSnapshot,
     load_signalome_workflow_bundle,
     save_signalome_workflow_bundle,
-)
-from phospy.phosphosites.site_keys import (
-    ProteinScopedPhosphositeKey,
-    encode_site_key,
 )
 from phospy.signalome.clustering.backends.scipy_hierarchical import (
     ScipyHierarchicalTreeEngine,

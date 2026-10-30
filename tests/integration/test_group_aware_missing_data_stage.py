@@ -25,6 +25,7 @@ from phospy.api.advanced import (
 )
 from phospy.core.errors.input import PhosPyInputError
 from phospy.core.errors.validation import DatasetValidationError
+from phospy.core.quantitative.models import IntensityScaleKind
 from phospy.datasets.construction.preprocessing import (
     DatasetPreprocessor,
     build_dataset_processing_state,
@@ -64,7 +65,6 @@ from phospy.preprocessing.stages.missing_data.stage import (
     MissingDataStage,
     execute_group_aware_imputation,
 )
-from phospy.quantitative.models import IntensityScaleKind
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

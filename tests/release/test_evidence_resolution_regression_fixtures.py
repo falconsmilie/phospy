@@ -11,14 +11,14 @@ import pandas.testing as pdt
 import pytest
 
 from phospy.api import PhosPyInputError
-from phospy.evidence import (
+from phospy.core.evidence import (
     DATASET_PEPTIDE_ALLOCATION_DOMAIN_LINEAR_ABUNDANCE,
     DATASET_PEPTIDE_SIGNAL_CONSERVATION_POLICY_NOT_CONSERVED,
     DATASET_PEPTIDE_TO_SITE_AGGREGATION_POLICY_LINEAR_ALLOCATED_MEAN_V1,
     PeptideEvidenceDatasetResolver,
     PeptideEvidenceTable,
 )
-from phospy.evidence.dataset_resolution.models import (
+from phospy.core.evidence.dataset_resolution.models import (
     DATASET_MULTI_SITE_POLICY_SPLIT,
 )
 

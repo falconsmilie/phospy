@@ -815,7 +815,10 @@ def test_installed_probe_source_avoids_repository_tests_and_fixtures() -> None:
     assert "name.startswith('phospy.run_lineage.')" in INSTALLED_PROBE_SOURCE
     assert "name.startswith('phospy.datasets.')" in INSTALLED_PROBE_SOURCE
     assert "name.startswith('phospy.science.datasets.')" in INSTALLED_PROBE_SOURCE
-    assert "phospy.provenance.serialization.batch_correction" in INSTALLED_PROBE_SOURCE
+    assert (
+        "phospy.core.provenance.serialization.batch_correction"
+        in INSTALLED_PROBE_SOURCE
+    )
     assert (
         "phospy.preprocessing.batch_correction.adapters.preprocessing"
         in INSTALLED_PROBE_SOURCE

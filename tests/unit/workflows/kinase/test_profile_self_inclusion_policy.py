@@ -18,6 +18,7 @@ from phospy.api.advanced import (
     ProfileSelfInclusionPolicy,
     ReferenceContextCompatibilityPolicy,
 )
+from phospy.core.provenance.scientific_policy_models import ScientificPolicyId
 from phospy.datasets.internal_view import DatasetInternalView
 from phospy.kinase.caveats import (
     KINASE_PROFILE_LEAVE_ONE_OUT_CAVEAT_CODE,
@@ -35,7 +36,6 @@ from phospy.kinase.scoring.tables import (
     KINASE_PROFILE_SCORE_DIAGNOSTIC_STATUS_SCORED,
     KINASE_PROFILE_SCORE_DIAGNOSTIC_STATUS_UNSCORED,
 )
-from phospy.provenance.scientific_policy_models import ScientificPolicyId
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

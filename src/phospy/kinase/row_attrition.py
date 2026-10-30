@@ -7,6 +7,14 @@ from dataclasses import dataclass
 
 import pandas as pd
 
+from phospy.core.provenance.models import (
+    RowAttritionRecord,
+    RowAttritionReport,
+)
+from phospy.core.provenance.row_attrition import (
+    make_row_attrition_record,
+    reconcile_row_attrition_report,
+)
 from phospy.kinase.contracts import ResolvedKinaseWorkflowRequest
 from phospy.kinase.scoring.contracts import (
     kinase_scoring_mode_input_contract,
@@ -14,14 +22,6 @@ from phospy.kinase.scoring.contracts import (
 from phospy.kinase.scoring.results import KinaseScoringResult
 from phospy.kinase.scoring.tables import (
     KINASE_PROFILE_SCORE_DIAGNOSTIC_STATUS_UNSCORED,
-)
-from phospy.provenance.models import (
-    RowAttritionRecord,
-    RowAttritionReport,
-)
-from phospy.provenance.row_attrition import (
-    make_row_attrition_record,
-    reconcile_row_attrition_report,
 )
 
 _LOCALISATION_COLUMNS = ("localisation_confidence", "localisation_probability")

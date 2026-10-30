@@ -8,16 +8,39 @@ from typing import cast
 import numpy as np
 import pandas as pd
 
-from phospy.activities.validation import (
+from phospy.core.activities.validation import (
     MethodQuantitativeInputValidator,
 )
 from phospy.core.errors.validation import WorkflowValidationError
-from phospy.core.frames.validation import require_dataframe
-from phospy.datasets.internal_view import DatasetInternalView
-from phospy.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.evidence.site_metadata import (
+from phospy.core.evidence.site_metadata import (
     enforce_localisation_requirement,
 )
+from phospy.core.frames.validation import require_dataframe
+from phospy.core.phosphosites.contracts import (
+    WORKFLOW_SEQUENCE_CONTEXT_IDENTITY_CONTRACT,
+)
+from phospy.core.phosphosites.sequence_context import (
+    enforce_site_sequence_context_contract,
+)
+from phospy.core.phosphosites.workflow_identity import (
+    WorkflowIdentityContract,
+    enforce_workflow_site_identity_contract,
+)
+from phospy.core.quantitative.validation import (
+    WorkflowQuantitativeInputContract,
+    phosphosite_abundance_workflow_input_contract,
+)
+from phospy.core.references.config import ReferenceContextCompatibilityPolicy
+from phospy.core.references.context_compatibility import (
+    validate_reference_context_compatibility,
+)
+from phospy.core.references.models import (
+    ReferenceBundle,
+    ReferencePreset,
+)
+from phospy.core.references.provenance.context import ReferenceContext
+from phospy.datasets.internal_view import DatasetInternalView
+from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.kinase.activity.config import KinaseActivityConfig
 from phospy.kinase.activity.contracts import (
     kinase_activity_method_quantitative_input_contract,
@@ -44,27 +67,6 @@ from phospy.kinase.sequence_contracts import (
 from phospy.kinase.site_sequence_policy import (
     resolve_site_sequence_conflict_policy,
 )
-from phospy.phosphosites.contracts import WORKFLOW_SEQUENCE_CONTEXT_IDENTITY_CONTRACT
-from phospy.phosphosites.sequence_context import (
-    enforce_site_sequence_context_contract,
-)
-from phospy.phosphosites.workflow_identity import (
-    WorkflowIdentityContract,
-    enforce_workflow_site_identity_contract,
-)
-from phospy.quantitative.validation import (
-    WorkflowQuantitativeInputContract,
-    phosphosite_abundance_workflow_input_contract,
-)
-from phospy.references.config import ReferenceContextCompatibilityPolicy
-from phospy.references.context_compatibility import (
-    validate_reference_context_compatibility,
-)
-from phospy.references.models import (
-    ReferenceBundle,
-    ReferencePreset,
-)
-from phospy.references.provenance.context import ReferenceContext
 
 KINASE_IDENTITY_CONTRACT = WorkflowIdentityContract(
     workflow_name="kinase workflow request",

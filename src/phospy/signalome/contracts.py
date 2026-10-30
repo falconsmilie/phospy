@@ -8,9 +8,14 @@ from typing import Protocol
 import pandas as pd
 
 from phospy.core.errors.workflows import WorkflowBoundaryError
+from phospy.core.evidence.config import LocalisationRequirement
+from phospy.core.provenance.models import (
+    RowAttritionRecord,
+)
+from phospy.core.provenance.scientific_policy_models import ScientificPolicyRecord
+from phospy.core.references.config import ReferenceContextCompatibilityPolicy
 from phospy.datasets.internal_view import DatasetInternalView
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.evidence.config import LocalisationRequirement
 from phospy.kinase.prediction.tables import KinasePredictionMatrix
 from phospy.kinase.result_boundary import (
     DownstreamScoreSelectionPolicy,
@@ -18,11 +23,6 @@ from phospy.kinase.result_boundary import (
     KinaseScoreMatrix,
 )
 from phospy.kinase.results import KinaseWorkflowResult
-from phospy.provenance.models import (
-    RowAttritionRecord,
-)
-from phospy.provenance.scientific_policy_models import ScientificPolicyRecord
-from phospy.references.config import ReferenceContextCompatibilityPolicy
 from phospy.signalome.clustering.models import (
     SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL,
 )

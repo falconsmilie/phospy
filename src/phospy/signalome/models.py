@@ -17,7 +17,7 @@ from phospy.core.frames.ownership import (
     own_dataframe,
     own_optional_dataframe,
 )
-from phospy.provenance.models import (
+from phospy.core.provenance.models import (
     TableFingerprint,
 )
 from phospy.signalome.config import (

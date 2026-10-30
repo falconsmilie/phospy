@@ -3,14 +3,14 @@ from __future__ import annotations
 import pytest
 
 from phospy.core.errors.validation import ReferenceValidationError
-from phospy.references.models import (
+from phospy.core.references.models import (
     RedistributionStatus,
     ReferenceContext,
     ReferenceFileManifest,
     ReferenceManifest,
     reference_context_from_provenance,
 )
-from phospy.references.provenance.models import ReferenceProvenance
+from phospy.core.references.provenance.models import ReferenceProvenance
 
 
 def _context(**overrides: object) -> ReferenceContext:

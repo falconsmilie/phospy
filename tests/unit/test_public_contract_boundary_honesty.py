@@ -9,7 +9,7 @@ from phospy.api import (
     Organism,
 )
 from phospy.core.errors import DatasetValidationError
-from phospy.phosphosites.site_keys import (
+from phospy.core.phosphosites.site_keys import (
     build_protein_scoped_site_key,
     encode_site_key,
 )

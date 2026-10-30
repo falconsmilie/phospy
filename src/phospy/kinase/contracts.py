@@ -8,10 +8,11 @@ from typing import TYPE_CHECKING, Final, Protocol, cast
 
 import pandas as pd
 
-from phospy.activities.contracts import (
+from phospy.core.activities.contracts import (
     ResolvedMethodQuantitativeInputContract,
 )
 from phospy.core.errors.workflows import WorkflowBoundaryError
+from phospy.core.evidence.config import LocalisationRequirement
 from phospy.core.frames.validation import (
     require_canonical_string_column,
     require_columns,
@@ -23,10 +24,25 @@ from phospy.core.frames.validation import (
     require_unique_index,
     require_unique_row_pairs,
 )
+from phospy.core.phosphosites.dataset_identity import (
+    enforce_display_id_column,
+    enforce_site_key_column_matches_index,
+)
+from phospy.core.phosphosites.sequence_context import (
+    enforce_site_sequence_context_contract,
+)
+from phospy.core.phosphosites.validation import (
+    require_site_key_index,
+    require_site_key_series,
+)
 from phospy.core.policies import coerce_policy_enum
+from phospy.core.provenance.models import (
+    RowAttritionRecord,
+)
+from phospy.core.references.config import ReferenceContextCompatibilityPolicy
+from phospy.core.references.models import ReferenceBundle
 from phospy.datasets.internal_view import DatasetInternalView
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.evidence.config import LocalisationRequirement
 from phospy.kinase.activity.config import ResolvedKinaseActivityExecutionConfig
 from phospy.kinase.attrition_metrics import (
     KinaseAttritionMetrics,
@@ -64,26 +80,10 @@ from phospy.kinase.sequence_contracts import (
 from phospy.kinase.site_sequence_policy import (
     resolve_site_sequence_conflict_policy,
 )
-from phospy.phosphosites.dataset_identity import (
-    enforce_display_id_column,
-    enforce_site_key_column_matches_index,
-)
-from phospy.phosphosites.sequence_context import (
-    enforce_site_sequence_context_contract,
-)
-from phospy.phosphosites.validation import (
-    require_site_key_index,
-    require_site_key_series,
-)
-from phospy.provenance.models import (
-    RowAttritionRecord,
-)
-from phospy.references.config import ReferenceContextCompatibilityPolicy
-from phospy.references.models import ReferenceBundle
 
 if TYPE_CHECKING:
+    from phospy.core.references.resolution import ReferenceResolverContract
     from phospy.kinase.references.models import KinaseLibraryResource
-    from phospy.references.resolution import ReferenceResolverContract
 
 
 KINASE_SITE_UNIVERSE_MEASURED_QUANTITATIVE: Final = "measured_quantitative_sites"

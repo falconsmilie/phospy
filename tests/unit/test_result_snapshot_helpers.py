@@ -6,7 +6,6 @@ from pathlib import Path
 import pandas as pd
 import pandas.testing as pdt
 
-from phospy.activities.semantics import ActivityInputMatrix
 from phospy.api import (
     AnalysisReadyPhosphoDataset,
     EnrichmentConfig,
@@ -15,6 +14,7 @@ from phospy.api import (
     Organism,
     ReferenceBundle,
 )
+from phospy.core.activities.semantics import ActivityInputMatrix
 from phospy.enrichment.contracts.results import (
     EnrichmentResultRecord,
     EnrichmentWorkflowResult,

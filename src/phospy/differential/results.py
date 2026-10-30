@@ -21,6 +21,8 @@ from phospy.core.frames.ownership import (
     own_dataframe,
     own_series,
 )
+from phospy.core.provenance.immutability import freeze_optional_json_mapping
+from phospy.core.provenance.result_caveats import ResultCaveat, coerce_result_caveats
 from phospy.datasets.processing_state import DatasetPreprocessingReport
 from phospy.differential._payload_codec import encode_differential_result_payload
 from phospy.differential.diagnostics import (
@@ -40,8 +42,6 @@ from phospy.differential.tables import (
     validate_result_status_reason_contract,
     validate_result_table_contract,
 )
-from phospy.provenance.immutability import freeze_optional_json_mapping
-from phospy.provenance.result_caveats import ResultCaveat, coerce_result_caveats
 
 
 @dataclass(frozen=True, slots=True, init=False, eq=False)

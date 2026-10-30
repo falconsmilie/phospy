@@ -9,9 +9,9 @@ from typing import Any
 
 import pytest
 
-from phospy.references.errors import ReferenceManifestError
-from phospy.references.manifest import RedistributionEvidenceType
-from phospy.references.validation import validate_bundled_reference_manifests
+from phospy.core.references.errors import ReferenceManifestError
+from phospy.core.references.manifest import RedistributionEvidenceType
+from phospy.core.references.validation import validate_bundled_reference_manifests
 
 pytestmark = pytest.mark.release_gate
 

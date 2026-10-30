@@ -3,17 +3,17 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from phospy.phosphosites.identity import (
+from phospy.core.phosphosites.identity import (
     PhosphositeIdentity,
     build_phosphosite_identity,
 )
-from phospy.phosphosites.site_keys import (
+from phospy.core.phosphosites.site_keys import (
     ProteinScopedPhosphositeKey,
     build_protein_scoped_site_key,
     decode_site_key,
     encode_site_key,
 )
-from phospy.taxonomy import Organism
+from phospy.core.taxonomy import Organism
 
 
 def test_build_phosphosite_identity_parses_canonical_display_id() -> None:

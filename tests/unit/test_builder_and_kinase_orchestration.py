@@ -4,7 +4,6 @@ from dataclasses import replace
 
 import pandas as pd
 
-from phospy.activities.semantics import ActivityInputMatrix
 from phospy.api import (
     AnalysisReadyDatasetBuilder,
     AnalysisReadyPhosphoDataset,
@@ -31,6 +30,8 @@ from phospy.api.advanced import (
     ReferenceContextCompatibilityPolicy,
     SignalomeConfig,
 )
+from phospy.core.activities.semantics import ActivityInputMatrix
+from phospy.core.references.models import ReferenceContext
 from phospy.datasets.construction.contracts import InterpretedDatasetBuildRequest
 from phospy.datasets.internal_view import DatasetInternalView
 from phospy.kinase.activity.config import ResolvedKinaseActivityExecutionConfig
@@ -41,7 +42,6 @@ from phospy.kinase.contracts import (
 )
 from phospy.kinase.prediction.policies import resolve_prediction_sampling_policy
 from phospy.preprocessing.contracts import PreprocessingPlan
-from phospy.references.models import ReferenceContext
 from phospy.signalome.contracts import (
     ResolvedSignalomeExecutionConfig,
     ResolvedSignalomeWorkflowRequest,

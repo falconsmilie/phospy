@@ -128,7 +128,7 @@ from phospy.preprocessing.contracts.configuration.total_protein import (
 )
 from phospy.preprocessing.protein_aware.mapping import ProteinMappingConfig
 from phospy.preprocessing.stages.protein_aware import ProteinAwarePreparationStage
-from phospy.quantitative.models import IntensityScaleState, MatrixIntensityScaleState
+from phospy.core.quantitative.models import IntensityScaleState, MatrixIntensityScaleState
 
 phospho = pd.DataFrame(
     {"sample_a": [1.0], "sample_b": [2.0]},

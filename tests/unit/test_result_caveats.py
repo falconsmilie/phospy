@@ -29,6 +29,7 @@ from phospy.api.advanced import (
     ReferenceContextCompatibilityPolicy,
 )
 from phospy.core.errors import ContractValidationError
+from phospy.core.provenance.result_caveats import deduplicate_caveats
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.differential.caveats import (
     DIFFERENTIAL_DIRECT_TRUSTED_DATASET_CAVEAT_CODE,
@@ -43,7 +44,6 @@ from phospy.kinase.caveats import (
 from phospy.kinase.result_boundary import (
     KINASE_SCORING_LIMITATION_CAVEAT_CODE,
 )
-from phospy.provenance.result_caveats import deduplicate_caveats
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

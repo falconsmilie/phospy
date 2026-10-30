@@ -14,6 +14,11 @@ from phospy.api import (
     GeneSetCollection,
     WorkflowValidationError,
 )
+from phospy.core.provenance.hashing import fingerprint_table
+from phospy.core.quantitative.evidence import (
+    INPUT_INTENSITY_SCALE_DECLARED_CAVEAT_CODE,
+    InputIntensityScaleEvidence,
+)
 from phospy.enrichment.contracts.identifier_sets import (
     EnrichmentDerivedQuantitativeSetProvenance,
     EnrichmentDerivedSetMissingValueRule,
@@ -27,11 +32,6 @@ from phospy.enrichment.contracts.vocabulary import (
 )
 from phospy.enrichment.interpreter import EnrichmentWorkflowInterpreter
 from phospy.enrichment.validation import EnrichmentWorkflowValidator
-from phospy.provenance.hashing import fingerprint_table
-from phospy.quantitative.evidence import (
-    INPUT_INTENSITY_SCALE_DECLARED_CAVEAT_CODE,
-    InputIntensityScaleEvidence,
-)
 
 InternalEnrichmentWorkflowValidator = EnrichmentWorkflowValidator
 

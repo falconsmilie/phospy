@@ -12,12 +12,12 @@ from phospy.core.errors.validation import PhosPyValidationError
 from phospy.core.frames.ownership import own_dataframe
 from phospy.core.frames.table_schema import TableSchema
 from phospy.core.policies import PolicyEnum
-from phospy.kinase._matrix_validation import (
-    _validate_kinase_score_like_matrix,  # pyright: ignore[reportPrivateUsage] - KinaseScoreMatrix and KinasePredictionMatrix intentionally share this singular Kinase-owned matrix validator.
-)
-from phospy.provenance.scientific_policy_models import (
+from phospy.core.provenance.scientific_policy_models import (
     ScientificPolicyId,
     ScientificPolicyRecord,
+)
+from phospy.kinase._matrix_validation import (
+    _validate_kinase_score_like_matrix,  # pyright: ignore[reportPrivateUsage] - KinaseScoreMatrix and KinasePredictionMatrix intentionally share this singular Kinase-owned matrix validator.
 )
 
 

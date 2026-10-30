@@ -11,8 +11,9 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phospy.activities.semantics import ActivityInputMatrix
-from phospy.evidence import PeptideEvidenceDatasetResolver, PeptideEvidenceTable
+from phospy.core.activities.semantics import ActivityInputMatrix
+from phospy.core.evidence import PeptideEvidenceDatasetResolver, PeptideEvidenceTable
+from phospy.core.provenance.hashing import fingerprint_table_normalized_axes
 from phospy.kinase.activity.inputs import KinaseActivityInputs, PredMatOverlapSummary
 from phospy.kinase.activity.membership import (
     ActivityMembershipSelection,
@@ -52,7 +53,6 @@ from phospy.preprocessing.control_sites.contracts import (
 from phospy.preprocessing.control_sites.validation import (
     ControlSiteEligibilityValidator,
 )
-from phospy.provenance.hashing import fingerprint_table_normalized_axes
 from phospy.signalome.clustering import cluster_sites_with_diagnostics
 from tests.support.fixture_byte_policy import assert_text_fixture_matches_sha256
 from tests.support.site_keys import site_key_index_from_display_ids

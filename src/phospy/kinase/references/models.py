@@ -16,13 +16,13 @@ import pandas as pd
 
 from phospy.core.errors.validation import ReferenceValidationError
 from phospy.core.frames.ownership import export_dataframe, own_dataframe
-from phospy.kinase.references.provenance import KinaseLibraryResourceProvenance
-from phospy.kinase.scoring.motif.models import AMINO_ACIDS
-from phospy.references.models import (
+from phospy.core.references.models import (
     ReferenceBuildPath,
     SequenceWindowDefinition,
 )
-from phospy.taxonomy.organisms import Organism
+from phospy.core.taxonomy.organisms import Organism
+from phospy.kinase.references.provenance import KinaseLibraryResourceProvenance
+from phospy.kinase.scoring.motif.models import AMINO_ACIDS
 
 KinaseLibraryPath = str | Path | PathLike[str]
 

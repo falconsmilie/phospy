@@ -15,9 +15,9 @@ from phospy.core.errors import (
     ReferenceValidationError,
     UnsupportedInputFormatError,
 )
-from phospy.phosphosites.identifiers import canonicalize_site_identifier
-from phospy.references.models import ReferencePreset
-from phospy.references.resolution import ReferenceResolver
+from phospy.core.phosphosites.identifiers import canonicalize_site_identifier
+from phospy.core.references.models import ReferencePreset
+from phospy.core.references.resolution import ReferenceResolver
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

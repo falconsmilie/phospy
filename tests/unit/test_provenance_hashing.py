@@ -12,15 +12,7 @@ import pytest
 
 from phospy.core.errors.input import PhosPyInputError
 from phospy.core.errors.provenance import ProvenanceFingerprintError
-from phospy.preprocessing.provenance.models import (
-    PREPROCESSING_EXTERNAL_NONDETERMINISM_CAVEAT_CODE,
-    PREPROCESSING_STAGE_DETERMINISM_PURE,
-    PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V3,
-    DeterminismKind,
-    PreprocessingStageProvenance,
-    ReproducibilityCaveat,
-)
-from phospy.provenance.hashing import (
+from phospy.core.provenance.hashing import (
     _index_structure,
     _normalize_value,
     _update,
@@ -29,9 +21,17 @@ from phospy.provenance.hashing import (
     hash_table_exact,
     hash_table_tolerance,
 )
-from phospy.provenance.models import (
+from phospy.core.provenance.models import (
     ENVIRONMENT_PROVENANCE_SCHEMA_VERSION_V2,
     EnvironmentProvenance,
+)
+from phospy.preprocessing.provenance.models import (
+    PREPROCESSING_EXTERNAL_NONDETERMINISM_CAVEAT_CODE,
+    PREPROCESSING_STAGE_DETERMINISM_PURE,
+    PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V3,
+    DeterminismKind,
+    PreprocessingStageProvenance,
+    ReproducibilityCaveat,
 )
 from phospy.run_lineage.models import RunProvenance
 from phospy.run_lineage.serialization import from_payload, to_payload

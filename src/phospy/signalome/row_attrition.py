@@ -8,11 +8,11 @@ from dataclasses import dataclass
 import pandas as pd
 
 from phospy.core.errors.workflows import WorkflowStageError
-from phospy.provenance.models import (
+from phospy.core.provenance.models import (
     RowAttritionRecord,
     RowAttritionReport,
 )
-from phospy.provenance.row_attrition import (
+from phospy.core.provenance.row_attrition import (
     make_row_attrition_record,
     reconcile_row_attrition_report,
 )

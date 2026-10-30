@@ -7,12 +7,12 @@ from typing import Protocol
 
 import pandas as pd
 
+from phospy.core.provenance.models.batch_correction import BatchCorrectionProvenance
+from phospy.core.provenance.scalar_validation import JsonValue
 from phospy.preprocessing.batch_correction.contracts.output import (
     CorrectedPreprocessingOutput,
 )
 from phospy.preprocessing.control_sites.contracts import ControlSiteSet
-from phospy.provenance.models.batch_correction import BatchCorrectionProvenance
-from phospy.provenance.scalar_validation import JsonValue
 
 
 class BatchDesignMetadataValidatorProtocol(Protocol):

@@ -5,12 +5,16 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Final
 
-from phospy.activities.contracts import (
+from phospy.core.activities.contracts import (
     MethodQuantitativeInputContract,
 )
-from phospy.activities.semantics import (
+from phospy.core.activities.semantics import (
     ActivityProfileAxis,
     ActivityQuantitativeSemantics,
+)
+from phospy.core.quantitative.models import (
+    IntensityScaleKind,
+    QuantitativeMeaning,
 )
 from phospy.kinase.activity.config import (
     KINASE_ACTIVITY_METHOD_KSEA_ZSCORE,
@@ -23,10 +27,6 @@ from phospy.kinase.activity.models import (
     KSEA_ZSCORE_ACTIVITY_METHOD,
     SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY_METHOD,
     SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY_METHOD,
-)
-from phospy.quantitative.models import (
-    IntensityScaleKind,
-    QuantitativeMeaning,
 )
 
 ACTIVITY_SITE_UNIVERSE_MEASURED_QUANTITATIVE: Final = "measured_quantitative_sites"

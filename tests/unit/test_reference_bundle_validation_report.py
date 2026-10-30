@@ -8,13 +8,13 @@ from phospy.api import (
     ReferenceBundle,
 )
 from phospy.core.errors.validation import ReferenceValidationError
-from phospy.references.models import (
+from phospy.core.references.models import (
     RedistributionStatus,
     ReferenceBundleValidationReport,
     ReferenceFileManifest,
     ReferenceManifest,
 )
-from phospy.references.validation.bundle import ReferenceBundleValidator
+from phospy.core.references.validation.bundle import ReferenceBundleValidator
 
 
 def test_valid_reference_bundle_exposes_structured_validation_report() -> None:

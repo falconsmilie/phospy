@@ -3,8 +3,8 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path
 
-from phospy.references import validation as reference_manifest_validation
-from phospy.references.manifest import RedistributionStatus
+from phospy.core.references import validation as reference_manifest_validation
+from phospy.core.references.manifest import RedistributionStatus
 
 ROOT = Path(__file__).resolve().parents[2]
 README_DOC = ROOT / "README.md"
@@ -505,28 +505,28 @@ def test_pyright_docs_match_current_include_and_strict_scope() -> None:
     expected_include_paths = (
         "src/phospy/__init__.py",
         "src/phospy/api/_inventory.py",
-        "src/phospy/activities",
+        "src/phospy/core/activities",
         "src/phospy/api/advanced",
         "src/phospy/api",
         "src/phospy/datasets",
         "src/phospy/differential",
         "src/phospy/enrichment",
-        "src/phospy/evidence",
+        "src/phospy/core/evidence",
         "src/phospy/core/errors",
         "src/phospy/core/frames",
         "src/phospy/io",
         "src/phospy/kinase",
-        "src/phospy/phosphosites",
+        "src/phospy/core/phosphosites",
         "src/phospy/preparation_records",
         "src/phospy/preprocessing",
         "src/phospy/core/policies",
-        "src/phospy/provenance",
-        "src/phospy/quantitative",
-        "src/phospy/references",
+        "src/phospy/core/provenance",
+        "src/phospy/core/quantitative",
+        "src/phospy/core/references",
         "src/phospy/run_lineage",
         "src/phospy/signalome",
-        "src/phospy/statistics",
-        "src/phospy/taxonomy",
+        "src/phospy/core/statistics",
+        "src/phospy/core/taxonomy",
         "src/phospy/core/validation",
     )
     strict_dataset_model = "src/phospy/datasets/models.py"

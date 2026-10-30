@@ -3,13 +3,13 @@ from __future__ import annotations
 import pytest
 
 from phospy.core.errors import UnsupportedOrganismError
-from phospy.references.models import ReferencePreset
-from phospy.references.resolution import ReferenceResolver
-from phospy.references.resources import (
+from phospy.core.references.models import ReferencePreset
+from phospy.core.references.resolution import ReferenceResolver
+from phospy.core.references.resources import (
     available_bundled_reference_lanes,
     supported_bundled_organisms,
 )
-from phospy.taxonomy import Organism
+from phospy.core.taxonomy import Organism
 
 
 def test_bundled_runtime_support_includes_existing_rat_lane() -> None:

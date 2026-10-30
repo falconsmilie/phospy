@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-from phospy.activities.contracts import ResolvedMethodQuantitativeInputContract
+from phospy.core.activities.contracts import ResolvedMethodQuantitativeInputContract
 from phospy.core.errors.validation import ContractValidationError
 from phospy.core.policies.config_values import (
     require_int_at_least as _require_int_at_least,

@@ -37,7 +37,7 @@ def test_generic_provenance_has_no_batch_correction_capability_dependency() -> N
     offenders = [
         f"{record.source_module}:{record.line} -> {record.target}"
         for record in graph.records
-        if record.source_module.startswith("phospy.provenance")
+        if record.source_module.startswith("phospy.core.provenance")
         if record.target.startswith(CAPABILITY_PREFIX)
     ]
 
@@ -77,7 +77,7 @@ def test_core_output_module_does_not_forward_the_passive_output_type() -> None:
     (
         (
             (
-                "phospy.provenance.serialization.batch_correction",
+                "phospy.core.provenance.serialization.batch_correction",
                 "phospy.preprocessing.batch_correction.provenance.assembly",
             ),
             "provenance",
@@ -85,7 +85,7 @@ def test_core_output_module_does_not_forward_the_passive_output_type() -> None:
         (
             (
                 "phospy.preprocessing.batch_correction.provenance.assembly",
-                "phospy.provenance.serialization.batch_correction",
+                "phospy.core.provenance.serialization.batch_correction",
             ),
             "provenance",
         ),
@@ -116,8 +116,8 @@ for module_name in {module_order!r}:
     importlib.import_module(module_name)
 
 if {identity_assertions!r} == 'provenance':
-    from phospy.provenance.models import BatchCorrectionProvenance as aggregate
-    from phospy.provenance.models.batch_correction import BatchCorrectionProvenance as owner
+    from phospy.core.provenance.models import BatchCorrectionProvenance as aggregate
+    from phospy.core.provenance.models.batch_correction import BatchCorrectionProvenance as owner
     import phospy.preprocessing.provenance.models as preprocessing_provenance
     assert aggregate is owner
     assert preprocessing_provenance._BatchCorrectionProvenance is owner

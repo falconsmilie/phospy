@@ -8,17 +8,17 @@ from dataclasses import dataclass
 import pandas as pd
 
 from phospy.core.errors.input import UnsupportedInputFormatError
-from phospy.phosphosites.identifiers import (
+from phospy.core.phosphosites.identifiers import (
     canonicalize_site_components_series,
     canonicalize_site_index,
     canonicalize_site_series,
 )
-from phospy.references.resources import (
+from phospy.core.references.resources import (
     bundled_reference_name_for_organism,
     load_bundled_reference_manifest,
     load_bundled_site_sequences,
 )
-from phospy.taxonomy.organisms import Organism
+from phospy.core.taxonomy.organisms import Organism
 
 _SITE_SEQUENCE_DERIVATION_SCHEMA_VERSION = 1
 

@@ -516,7 +516,7 @@ def test_ora_kernel_has_no_workflow_or_output_serialization_imports() -> None:
             imported_modules.add(node.module)
 
     assert "pandas" not in imported_modules
-    assert "phospy.provenance" not in imported_modules
+    assert "phospy.core.provenance" not in imported_modules
     assert "phospy.contracts.results" not in imported_modules
     assert not any(module.startswith("phospy.workflows") for module in imported_modules)
 

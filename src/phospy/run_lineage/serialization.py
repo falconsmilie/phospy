@@ -4,19 +4,15 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-from phospy.evidence.serialization.historical_peptide import (
+from phospy.core.evidence.serialization.historical_peptide import (
     normalise_historical_workflow_parameters,
 )
-from phospy.preprocessing.provenance.serialization import (
-    stage_from_payload,
-    stage_to_payload,
-)
-from phospy.provenance.scientific_policy_models import ScientificPolicyRecord
-from phospy.provenance.serialization.environment import (
+from phospy.core.provenance.scientific_policy_models import ScientificPolicyRecord
+from phospy.core.provenance.serialization.environment import (
     environment_from_payload,
     environment_to_payload,
 )
-from phospy.provenance.serialization.payload import (
+from phospy.core.provenance.serialization.payload import (
     optional_int,
     optional_mapping,
     optional_str,
@@ -25,14 +21,18 @@ from phospy.provenance.serialization.payload import (
     to_json_safe,
     to_json_value,
 )
-from phospy.provenance.serialization.tables import (
+from phospy.core.provenance.serialization.tables import (
     table_fingerprint_from_payload,
     table_fingerprint_to_payload,
 )
-from phospy.references.provenance.context import ReferenceContext
-from phospy.references.provenance.serialization import (
+from phospy.core.references.provenance.context import ReferenceContext
+from phospy.core.references.provenance.serialization import (
     reference_from_payload,
     reference_to_payload,
+)
+from phospy.preprocessing.provenance.serialization import (
+    stage_from_payload,
+    stage_to_payload,
 )
 from phospy.run_lineage.models import RunProvenance
 

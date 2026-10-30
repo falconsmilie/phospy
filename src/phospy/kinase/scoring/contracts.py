@@ -4,10 +4,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from phospy.activities.contracts import (
+from phospy.core.activities.contracts import (
     MethodQuantitativeInputContract,
 )
 from phospy.core.errors.workflows import PhosPyWorkflowError
+from phospy.core.quantitative.models import (
+    IntensityScaleKind,
+    QuantitativeMeaning,
+)
 from phospy.kinase.scoring.config import (
     KINASE_SCORING_MODE_COMBINED_PROFILE_MOTIF,
     KINASE_SCORING_MODE_KINASE_LIBRARY_CONTEXTUAL_MOTIF,
@@ -15,10 +19,6 @@ from phospy.kinase.scoring.config import (
     KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED,
     KinaseScoringMode,
     normalize_kinase_scoring_mode,
-)
-from phospy.quantitative.models import (
-    IntensityScaleKind,
-    QuantitativeMeaning,
 )
 
 KINASE_ANALYSIS_READY_SITE_METADATA_COLUMNS = (

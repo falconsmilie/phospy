@@ -190,34 +190,34 @@ Pyright is the configured type checker. The checked scope is listed in
 
 - `src/phospy/__init__.py`
 - `src/phospy/api/_inventory.py`
-- `src/phospy/activities`
+- `src/phospy/core/activities`
 - `src/phospy/api/advanced`
 - `src/phospy/api`
 - `src/phospy/core/__init__.py`
 - `src/phospy/datasets`
 - `src/phospy/differential`
 - `src/phospy/enrichment`
-- `src/phospy/evidence`
+- `src/phospy/core/evidence`
 - `src/phospy/core/errors`
 - `src/phospy/core/frames`
 - `src/phospy/io`
 - `src/phospy/kinase`
-- `src/phospy/phosphosites`
+- `src/phospy/core/phosphosites`
 - `src/phospy/preparation_records`
 - `src/phospy/preprocessing`
 - `src/phospy/core/policies`
-- `src/phospy/provenance`
-- `src/phospy/quantitative`
-- `src/phospy/references`
+- `src/phospy/core/provenance`
+- `src/phospy/core/quantitative`
+- `src/phospy/core/references`
 - `src/phospy/run_lineage`
 - `src/phospy/signalome`
-- `src/phospy/statistics`
-- `src/phospy/taxonomy`
+- `src/phospy/core/statistics`
+- `src/phospy/core/taxonomy`
 - `src/phospy/core/validation`
 
 Strict checking is enabled for selected stable scientific/core modules listed
 under `[tool.pyright].strict`. This strict list currently includes
-`src/phospy/datasets/models.py`, `src/phospy/taxonomy`, and
+`src/phospy/datasets/models.py`, `src/phospy/core/taxonomy`, and
 `src/phospy/io/importers`; those paths are already strict-checked, not
 future targets. Strict scope can be expanded incrementally. The strict coverage
 policy check fails if any declared strict path is missing or outside the

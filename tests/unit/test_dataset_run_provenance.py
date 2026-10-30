@@ -20,10 +20,15 @@ from phospy.api.advanced import (
     DatasetMissingDataConfig,
 )
 from phospy.core.errors.input import PhosPyInputError
-from phospy.phosphosites.site_keys import (
+from phospy.core.phosphosites.site_keys import (
     ProteinScopedPhosphositeKey,
     encode_site_key,
 )
+from phospy.core.provenance import environment as provenance_environment
+from phospy.core.provenance.environment import (
+    collect_environment_provenance,
+)
+from phospy.core.provenance.scientific_policy_models import ScientificPolicyId
 from phospy.preprocessing.batch_correction.environment import (
     collect_batch_correction_environment_provenance,
 )
@@ -31,11 +36,6 @@ from phospy.preprocessing.contracts import (
     PREPROCESSING_STAGE_ORDER_RATIONALE_MINPROB_MISSING_DATA,
     PREPROCESSING_STAGE_ORDER_RATIONALE_NON_MINPROB_MISSING_DATA,
 )
-from phospy.provenance import environment as provenance_environment
-from phospy.provenance.environment import (
-    collect_environment_provenance,
-)
-from phospy.provenance.scientific_policy_models import ScientificPolicyId
 from phospy.run_lineage.serialization import from_payload, to_payload
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,

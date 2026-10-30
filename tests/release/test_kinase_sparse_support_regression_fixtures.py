@@ -9,7 +9,6 @@ from typing import Any
 import pandas as pd
 import pytest
 
-from phospy.activities.semantics import ActivityInputMatrix
 from phospy.api import (
     KinaseWorkflow,
     KinaseWorkflowRequest,
@@ -22,7 +21,10 @@ from phospy.api.advanced import (
     ProfileSelfInclusionPolicy,
     ReferenceContextCompatibilityPolicy,
 )
+from phospy.core.activities.semantics import ActivityInputMatrix
 from phospy.core.errors.validation import WorkflowValidationError
+from phospy.core.references.models import ReferenceContext
+from phospy.core.references.provenance.models import ReferenceProvenance
 from phospy.kinase.activity.methods.ssgsea_substrate_enrichment import (
     SSGSEA_SIGNIFICANCE_STATUS_AVAILABLE,
     SSGSEA_SIGNIFICANCE_STATUS_UNAVAILABLE_NO_PERMUTATIONS,
@@ -32,8 +34,6 @@ from phospy.kinase.scoring.tables import (
     KINASE_PROFILE_SCORE_DIAGNOSTIC_REASON_INSUFFICIENT_SUBSTRATES_AFTER_LEAVE_ONE_OUT,
     KINASE_PROFILE_SCORE_DIAGNOSTIC_STATUS_UNSCORED,
 )
-from phospy.references.models import ReferenceContext
-from phospy.references.provenance.models import ReferenceProvenance
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

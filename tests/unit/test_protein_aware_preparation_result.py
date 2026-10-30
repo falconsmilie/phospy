@@ -3,6 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pandas.testing as pdt
 
+from phospy.core.provenance.models import EnvironmentProvenance
 from phospy.datasets.protein_aware import (
     ProteinAwarePreparationReport,
     ProteinAwarePreparationResult,
@@ -15,7 +16,6 @@ from phospy.preparation_records.protein_aware import (
     ProteinAwareTransformationStateDiagnostics,
     ProteinMappingStatus,
 )
-from phospy.provenance.models import EnvironmentProvenance
 from phospy.run_lineage import RunProvenance
 
 

@@ -11,6 +11,8 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 
+from phospy.core.provenance.immutability import thaw_json_mapping
+from phospy.core.provenance.result_caveats import ResultCaveat
 from phospy.differential.diagnostics import (
     DifferentialModelDiagnostics,
     MeanVarianceTrendDiagnostics,
@@ -18,8 +20,6 @@ from phospy.differential.diagnostics import (
     QuantificationDepthTrendDiagnostics,
 )
 from phospy.differential.provenance.models import DifferentialPolicyProvenance
-from phospy.provenance.immutability import thaw_json_mapping
-from phospy.provenance.result_caveats import ResultCaveat
 
 
 class _DifferentialResultPayloadSource(Protocol):

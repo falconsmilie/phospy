@@ -154,14 +154,14 @@ import phospy
 import phospy.api.advanced as advanced
 import phospy.api as api
 import phospy.api._inventory as api_inventory
-import phospy.evidence.config as evidence_config
+import phospy.core.evidence.config as evidence_config
 import phospy.kinase.activity.config as kinase_activity_config
 import phospy.kinase.prediction.config as kinase_prediction_config
 import phospy.kinase.scoring.config as kinase_scoring_config
 import phospy.preprocessing.batch_correction.contracts.configuration as batch_config
 import phospy.preprocessing.batch_correction.contracts.missingness as missingness_config
 import phospy.preprocessing.contracts.configuration as preprocessing_config
-import phospy.references.config as references_config
+import phospy.core.references.config as references_config
 import phospy.signalome.config as signalome_config
 import phospy.kinase.policies as kinase_policies
 import phospy.kinase.caveats as kinase_caveats
@@ -240,20 +240,20 @@ from phospy.io.bundles.kinase import save_kinase_workflow_bundle
 from phospy.io.bundles.signalome import SignalomeWorkflowConfigSnapshot
 from phospy.io.bundles.signalome import load_signalome_workflow_bundle
 from phospy.io.bundles.signalome import save_signalome_workflow_bundle
-from phospy.references.resources import load_bundled_kinase_substrate_map
-from phospy.references.resources import load_bundled_motif_scores
-from phospy.references.resources import load_bundled_motif_sizes
-from phospy.references.resources import load_bundled_reference_manifest
-from phospy.references.resources import load_bundled_site_sequences
-from phospy.references.builder import ReferenceBundleBuilder as OwnerReferenceBundleBuilder
-from phospy.references.provenance.serialization import (
+from phospy.core.references.resources import load_bundled_kinase_substrate_map
+from phospy.core.references.resources import load_bundled_motif_scores
+from phospy.core.references.resources import load_bundled_motif_sizes
+from phospy.core.references.resources import load_bundled_reference_manifest
+from phospy.core.references.resources import load_bundled_site_sequences
+from phospy.core.references.builder import ReferenceBundleBuilder as OwnerReferenceBundleBuilder
+from phospy.core.references.provenance.serialization import (
     reference_from_payload,
     reference_to_payload,
 )
 from phospy.preprocessing.provenance.models import PreprocessingStageProvenance
-from phospy.provenance.models.environment import EnvironmentProvenance
-from phospy.provenance.hashing import hash_json_payload
-from phospy.provenance.serialization.tables import table_fingerprint_to_payload
+from phospy.core.provenance.models.environment import EnvironmentProvenance
+from phospy.core.provenance.hashing import hash_json_payload
+from phospy.core.provenance.serialization.tables import table_fingerprint_to_payload
 from phospy.run_lineage.models import RunProvenance
 from phospy.run_lineage.serialization import (
     from_payload as run_provenance_from_payload,
@@ -286,7 +286,7 @@ from phospy.preprocessing.control_sites.discovery_results import (
 from phospy.preprocessing.control_sites.workflow import (
     SpsDiscoveryWorkflow as OwnerSpsDiscoveryWorkflow,
 )
-from phospy.provenance.serialization.batch_correction import (
+from phospy.core.provenance.serialization.batch_correction import (
     batch_correction_provenance_from_payload,
     batch_correction_provenance_to_payload,
 )
@@ -773,7 +773,7 @@ def _verify_direct_aggregate_identities() -> None:
         "EnrichmentOutsideBackgroundPolicy": (
             "phospy.enrichment.contracts.vocabulary"
         ),
-        "MultipleTestingCorrection": "phospy.statistics.multiple_testing",
+        "MultipleTestingCorrection": "phospy.core.statistics.multiple_testing",
         "DatasetBatchCorrectionMethod": (
             "phospy.preprocessing.batch_correction.contracts.configuration"
         ),
@@ -1383,15 +1383,15 @@ def _verify_references_evidence_import_orders(
 ) -> list[dict[str, object]]:
     owner_modules = {
         "references": (
-            "phospy.references.builder",
-            "phospy.references.models",
-            "phospy.references.tables",
-            "phospy.references.sequences.repository",
+            "phospy.core.references.builder",
+            "phospy.core.references.models",
+            "phospy.core.references.tables",
+            "phospy.core.references.sequences.repository",
         ),
         "evidence": (
-            "phospy.evidence.localisation",
-            "phospy.evidence.sequence_resolution",
-            "phospy.evidence.quantification_depth",
+            "phospy.core.evidence.localisation",
+            "phospy.core.evidence.sequence_resolution",
+            "phospy.core.evidence.quantification_depth",
         ),
     }
     reports: list[dict[str, object]] = []
@@ -1419,9 +1419,9 @@ def _verify_references_evidence_import_orders(
                 "        pass",
                 "    else:",
                 "        raise AssertionError(f'checkout import origin: {origin}')",
-                "from phospy.references.builder import ReferenceBundleBuilder",
-                "from phospy.references.tables import KinaseSubstrateReference",
-                "from phospy.evidence.quantification_depth import validate_quantification_depth_series",
+                "from phospy.core.references.builder import ReferenceBundleBuilder",
+                "from phospy.core.references.tables import KinaseSubstrateReference",
+                "from phospy.core.evidence.quantification_depth import validate_quantification_depth_series",
                 "assert tuple(inspect.signature(ReferenceBundleBuilder).parameters) == ()",
                 "assert isinstance(ReferenceBundleBuilder(), ReferenceBundleBuilder)",
                 "table = KinaseSubstrateReference(frame=pd.DataFrame({"
@@ -1477,14 +1477,14 @@ def _verify_enrichment_import_orders(
             "phospy.api",
         ),
         (
-            "phospy.provenance",
+            "phospy.core.provenance",
             "phospy.enrichment.provenance",
             "phospy.enrichment.contracts.results",
         ),
         (
             "phospy.enrichment.contracts.results",
             "phospy.enrichment.provenance",
-            "phospy.provenance",
+            "phospy.core.provenance",
         ),
     )
     reports: list[dict[str, object]] = []
@@ -1723,7 +1723,7 @@ from phospy.preprocessing.contracts.configuration.total_protein import DatasetPr
 from phospy.preprocessing.protein_aware.mapping import ProteinMappingConfig
 from phospy.preprocessing.results.protein_aware import ProteinAwarePreparationStageOutput
 from phospy.preprocessing.stages.protein_aware import ProteinAwarePreparationStage
-from phospy.quantitative.models import IntensityScaleState, MatrixIntensityScaleState
+from phospy.core.quantitative.models import IntensityScaleState, MatrixIntensityScaleState
 
 phospho = pd.DataFrame(
     {'sample_a': [1.0], 'sample_b': [2.0]},
@@ -1886,12 +1886,12 @@ def _verify_batch_correction_boundary_import_orders(
 ) -> list[dict[str, object]]:
     orders = (
         (
-            "phospy.provenance.serialization.batch_correction",
+            "phospy.core.provenance.serialization.batch_correction",
             "phospy.preprocessing.batch_correction.provenance.assembly",
         ),
         (
             "phospy.preprocessing.batch_correction.provenance.assembly",
-            "phospy.provenance.serialization.batch_correction",
+            "phospy.core.provenance.serialization.batch_correction",
         ),
         (
             "phospy.preprocessing.batch_correction.adapters.preprocessing",
@@ -1923,8 +1923,8 @@ def _verify_batch_correction_boundary_import_orders(
                 "    else:",
                 "        raise AssertionError(f'checkout import origin: {origin}')",
                 "if 'serialization' in module_names[0] or 'serialization' in module_names[1]:",
-                "    from phospy.provenance.models import BatchCorrectionProvenance as aggregate",
-                "    from phospy.provenance.models.batch_correction import BatchCorrectionProvenance as owner",
+                "    from phospy.core.provenance.models import BatchCorrectionProvenance as aggregate",
+                "    from phospy.core.provenance.models.batch_correction import BatchCorrectionProvenance as owner",
                 "    import phospy.preprocessing.provenance.models as preprocessing_provenance",
                 "    assert aggregate is owner",
                 "    assert preprocessing_provenance._BatchCorrectionProvenance is owner",

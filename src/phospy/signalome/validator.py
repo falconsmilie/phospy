@@ -5,6 +5,11 @@ from __future__ import annotations
 import pandas as pd
 
 from phospy.core.errors.validation import WorkflowValidationError
+from phospy.core.evidence.config import (
+    LOCALISATION_PRODUCTION_MINIMUM_PROBABILITY,
+    LocalisationRequirement,
+)
+from phospy.core.evidence.site_metadata import enforce_localisation_requirement
 from phospy.core.frames.validation import (
     require_dataframe,
     require_exact_index_match,
@@ -14,37 +19,32 @@ from phospy.core.frames.validation import (
     require_unique_columns,
     require_unique_index,
 )
-from phospy.core.validation.frame_columns import (
-    enforce_required_non_empty_string_column,
-)
-from phospy.datasets.internal_view import DatasetInternalView
-from phospy.evidence.config import (
-    LOCALISATION_PRODUCTION_MINIMUM_PROBABILITY,
-    LocalisationRequirement,
-)
-from phospy.evidence.site_metadata import enforce_localisation_requirement
-from phospy.kinase.result_boundary import DownstreamScoreSource
-from phospy.kinase.results import KinaseWorkflowResult
-from phospy.phosphosites.contracts import (
+from phospy.core.phosphosites.contracts import (
     WORKFLOW_CENTERED_SEQUENCE_CONTEXT_CONTRACT,
     WORKFLOW_PROTEIN_SEQUENCE_CONTEXT_IDENTITY_CONTRACT,
 )
-from phospy.phosphosites.workflow_identity import (
+from phospy.core.phosphosites.workflow_identity import (
     WorkflowIdentityContract,
     enforce_workflow_site_identity_contract,
 )
-from phospy.quantitative.models import QuantitativeMeaning
-from phospy.quantitative.validation import (
+from phospy.core.quantitative.models import QuantitativeMeaning
+from phospy.core.quantitative.validation import (
     WorkflowQuantitativeInputContract,
     WorkflowQuantitativeInputValidator,
     is_mixed_quantitative_meaning,
     phosphosite_abundance_workflow_input_contract,
 )
-from phospy.references.config import ReferenceContextCompatibilityPolicy
-from phospy.references.context_compatibility import (
+from phospy.core.references.config import ReferenceContextCompatibilityPolicy
+from phospy.core.references.context_compatibility import (
     validate_reference_context_compatibility,
 )
-from phospy.references.provenance.context import ReferenceContext
+from phospy.core.references.provenance.context import ReferenceContext
+from phospy.core.validation.frame_columns import (
+    enforce_required_non_empty_string_column,
+)
+from phospy.datasets.internal_view import DatasetInternalView
+from phospy.kinase.result_boundary import DownstreamScoreSource
+from phospy.kinase.results import KinaseWorkflowResult
 from phospy.signalome.config import (
     SIGNALOME_MODE_PRODUCTION,
     SIGNALOME_NETWORK_MIN_PAIRED_FINITE_OBSERVATIONS_DEFAULT,

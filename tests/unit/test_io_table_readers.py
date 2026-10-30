@@ -12,6 +12,7 @@ from phospy.api import (
     DatasetBuildRequest,
 )
 from phospy.core.errors import PhosPyInputError
+from phospy.core.taxonomy import Organism
 from phospy.io.readers.tables import (
     read_contrast_matrix,
     read_design_matrix,
@@ -19,7 +20,6 @@ from phospy.io.readers.tables import (
     read_sample_metadata,
     read_site_metadata,
 )
-from phospy.taxonomy import Organism
 from tests.support.site_keys import protein_site_key
 
 

@@ -7,6 +7,10 @@ from dataclasses import dataclass, field
 import pandas as pd
 
 from phospy.core.errors.validation import DatasetValidationError
+from phospy.core.evidence.localisation import (
+    validate_localisation_confidence_column,
+    validate_localisation_probability_column,
+)
 from phospy.core.frames.table_schema import (
     TableSchema,
 )
@@ -19,23 +23,19 @@ from phospy.core.frames.validation import (
     require_unique_columns,
     require_unique_index,
 )
-from phospy.evidence.localisation import (
-    validate_localisation_confidence_column,
-    validate_localisation_probability_column,
-)
-from phospy.phosphosites.contracts import (
+from phospy.core.phosphosites.contracts import (
     ANALYSIS_READY_DATASET_BASE_IDENTITY_CONTRACT,
 )
-from phospy.phosphosites.dataset_identity import (
+from phospy.core.phosphosites.dataset_identity import (
     enforce_analysis_ready_site_key_index,
     enforce_phosphosite_identity_contract,
     enforce_site_key_matches_metadata,
 )
-from phospy.phosphosites.identifiers import (
+from phospy.core.phosphosites.identifiers import (
     canonicalize_site_components_series,
     canonicalize_site_identifier,
 )
-from phospy.phosphosites.metadata_validation import (
+from phospy.core.phosphosites.metadata_validation import (
     enforce_site_identity_rows,
     validate_site_identity_metadata,
     validate_site_sequence_column,

@@ -31,9 +31,12 @@ from phospy.api.advanced import (
     SignalomeValidationConfig,
 )
 from phospy.core.errors import ContractValidationError, PhosPyInputError
-from phospy.evidence.config import (
+from phospy.core.evidence.config import (
     LOCALISATION_POLICY_REQUIRE_THRESHOLD,
     LOCALISATION_PRODUCTION_MINIMUM_PROBABILITY,
+)
+from phospy.core.references.config import (
+    REFERENCE_CONTEXT_COMPATIBILITY_POLICY_REQUIRE_KNOWN_MATCH,
 )
 from phospy.kinase.activity.config import (
     KINASE_ACTIVITY_METHOD_SSGSEA_SUBSTRATE_ENRICHMENT,
@@ -59,9 +62,6 @@ from phospy.preprocessing.contracts.configuration import (
     DATASET_SITE_MATRIX_POLICY_AS_INPUT,
     DATASET_SITE_MATRIX_POLICY_BUILD_FROM_METADATA,
     DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE,
-)
-from phospy.references.config import (
-    REFERENCE_CONTEXT_COMPATIBILITY_POLICY_REQUIRE_KNOWN_MATCH,
 )
 from phospy.signalome.config import (
     SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,

@@ -8,24 +8,24 @@ from pathlib import Path
 
 import pandas as pd
 
-from phospy.evidence.dataset_resolution.models import (
+from phospy.core.evidence.dataset_resolution.models import (
     DATASET_MULTI_SITE_POLICY_EXCLUDE_FROM_SEQUENCE_SCORING,
     DATASET_MULTI_SITE_POLICY_REJECT,
     DATASET_MULTI_SITE_POLICY_SPLIT,
     DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
     DATASET_SITE_RESOLUTION_MODE_SITE_LEVEL_RESOLVED,
 )
+from phospy.core.quantitative.models import (
+    IntensityScaleKind,
+    QuantitativeMeaning,
+)
+from phospy.core.taxonomy.organisms import Organism
 from phospy.preprocessing.contracts.configuration.dataset import (
     DatasetPreprocessingConfig,
 )
 from phospy.preprocessing.dataset_construction import (
     CorrectedPreprocessingOutput,
 )
-from phospy.quantitative.models import (
-    IntensityScaleKind,
-    QuantitativeMeaning,
-)
-from phospy.taxonomy.organisms import Organism
 
 DatasetInput = pd.DataFrame | str | Path | PathLike[str]
 

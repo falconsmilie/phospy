@@ -10,6 +10,10 @@ import pytest
 
 from phospy.core.errors import DatasetProcessingStateError, DatasetValidationError
 from phospy.core.errors.input import PhosPyInputError
+from phospy.core.provenance.hashing import hash_json_payload
+from phospy.core.provenance.immutability import FrozenJsonMapping
+from phospy.core.quantitative.models import QuantitativeMeaning
+from phospy.core.taxonomy import Organism
 from phospy.datasets.processing_state import (
     JsonValue,
     MissingDataDiagnostics,
@@ -27,10 +31,6 @@ from phospy.preparation_records.policies import (
     NormalisationPolicy,
     TotalProteinCorrectionPolicy,
 )
-from phospy.provenance.hashing import hash_json_payload
-from phospy.provenance.immutability import FrozenJsonMapping
-from phospy.quantitative.models import QuantitativeMeaning
-from phospy.taxonomy import Organism
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

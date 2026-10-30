@@ -12,6 +12,7 @@ import pytest
 
 from phospy.api import DatasetBuildRequest, Organism, ReferenceBundle
 from phospy.core.errors import PhosPyInputError
+from phospy.core.provenance.immutability import FrozenJsonMapping, thaw_json_mapping
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.differential.diagnostics import (
     EmpiricalBayesPriorDiagnostics,
@@ -25,7 +26,6 @@ from phospy.differential.results import (
     DifferentialAnalysisResult,
 )
 from phospy.kinase.activity.tables import ActivityMatrix
-from phospy.provenance.immutability import FrozenJsonMapping, thaw_json_mapping
 from phospy.run_lineage.models import RunProvenance
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
@@ -47,7 +47,7 @@ _PUBLIC_PANDAS_CONTAINER_PATHS = (
     "src/phospy/kinase/activity/diagnostics.py",
     "src/phospy/kinase/activity/inputs.py",
     "src/phospy/kinase/activity/results.py",
-    "src/phospy/activities/semantics.py",
+    "src/phospy/core/activities/semantics.py",
     "src/phospy/datasets/models.py",
     "src/phospy/datasets/imputation_metadata.py",
     "src/phospy/preprocessing/results/protein_aware.py",
@@ -60,12 +60,12 @@ _PUBLIC_PANDAS_CONTAINER_PATHS = (
     "src/phospy/differential/results.py",
     "src/phospy/kinase/prediction/diagnostics.py",
     "src/phospy/kinase/prediction/results.py",
-    "src/phospy/references/models.py",
+    "src/phospy/core/references/models.py",
     "src/phospy/signalome/models.py",
     "src/phospy/datasets/schemas.py",
     "src/phospy/kinase/prediction/tables.py",
     "src/phospy/kinase/scoring/tables.py",
-    "src/phospy/references/tables.py",
+    "src/phospy/core/references/tables.py",
     "src/phospy/signalome/tables/assignments.py",
     "src/phospy/signalome/tables/context.py",
     "src/phospy/signalome/tables/modules.py",

@@ -16,6 +16,7 @@ from phospy.api.advanced import (
     DatasetSiteMatrixConfig,
 )
 from phospy.core.errors.build import DatasetBuildError
+from phospy.core.taxonomy import Organism
 from phospy.datasets.processing_state import DatasetPreprocessingReport
 from phospy.preparation_records.report_schema import (
     COMPARISON_GROUP_STATS_COLUMNS,
@@ -40,7 +41,6 @@ from phospy.preprocessing.contracts import PreprocessingReportRow
 from phospy.preprocessing.results.report_rows import (
     validate_preprocessing_report_row,
 )
-from phospy.taxonomy import Organism
 
 
 def test_row_count_rows_convert_to_dataframe_with_schema_order() -> None:

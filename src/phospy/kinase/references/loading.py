@@ -11,6 +11,13 @@ import pandas as pd
 
 from phospy.core.errors.references import ReferenceResolutionError
 from phospy.core.errors.validation import ReferenceValidationError
+from phospy.core.provenance.hashing import fingerprint_table
+from phospy.core.provenance.models import (
+    JsonValue,
+)
+from phospy.core.references.fingerprints import fingerprint_local_reference_source_file
+from phospy.core.references.models import SequenceWindowDefinition
+from phospy.core.taxonomy.organisms import Organism
 from phospy.kinase.references.models import (
     KinaseLibraryMatrix,
     KinaseLibraryPath,
@@ -28,13 +35,6 @@ from phospy.kinase.references.models import (
 )
 from phospy.kinase.references.provenance import KinaseLibraryResourceProvenance
 from phospy.kinase.scoring.motif.models import AMINO_ACIDS
-from phospy.provenance.hashing import fingerprint_table
-from phospy.provenance.models import (
-    JsonValue,
-)
-from phospy.references.fingerprints import fingerprint_local_reference_source_file
-from phospy.references.models import SequenceWindowDefinition
-from phospy.taxonomy.organisms import Organism
 
 _COLUMN_TOKEN_PATTERN = re.compile(r"[^a-z0-9+-]+")
 

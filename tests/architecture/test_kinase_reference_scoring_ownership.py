@@ -289,7 +289,7 @@ def test_supported_and_retired_routes_are_import_order_independent(order: str) -
 def test_general_references_do_not_import_kinase_implementation() -> None:
     offenders = sorted(
         f"{path.relative_to(PROJECT_ROOT).as_posix()} -> {target}"
-        for path in (SRC_ROOT / "phospy" / "references").rglob("*.py")
+        for path in (SRC_ROOT / "phospy" / "core/references").rglob("*.py")
         for target in _absolute_imports(path)
         if target == "phospy.kinase" or target.startswith("phospy.kinase.")
     )
@@ -319,9 +319,12 @@ def test_signalome_consumes_only_published_kinase_contracts() -> None:
 
 
 def test_scoring_reference_definitions_remain_references_owned_once() -> None:
-    references = importlib.import_module("phospy.references.tables")
-    assert references.KinaseSubstrateReference.__module__ == "phospy.references.tables"
-    source = (SRC_ROOT / "phospy" / "references" / "tables.py").read_text(
+    references = importlib.import_module("phospy.core.references.tables")
+    assert (
+        references.KinaseSubstrateReference.__module__
+        == "phospy.core.references.tables"
+    )
+    source = (SRC_ROOT / "phospy" / "core/references" / "tables.py").read_text(
         encoding="utf-8"
     )
     tree = ast.parse(source)

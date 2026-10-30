@@ -5,20 +5,20 @@ import pytest
 
 from phospy.core.errors import PhosPyInputError
 from phospy.core.errors.validation import PhosPyValidationError
-from phospy.phosphosites.contracts import (
+from phospy.core.phosphosites.contracts import (
     ANALYSIS_READY_DATASET_IDENTITY_CONTRACT,
     SITE_SEQUENCE_COLUMN,
     PhosphositeIdentityContract,
     SequenceContextRequirement,
 )
-from phospy.phosphosites.dataset_identity import (
+from phospy.core.phosphosites.dataset_identity import (
     enforce_analysis_ready_site_key_index,
     enforce_display_id_column,
     enforce_phosphosite_identity_contract,
     enforce_site_key_column,
     enforce_site_key_column_matches_index,
 )
-from phospy.phosphosites.parsing import (
+from phospy.core.phosphosites.parsing import (
     looks_like_display_site_index,
     parse_row_site_token,
     parse_site_token,
@@ -26,15 +26,15 @@ from phospy.phosphosites.parsing import (
     resolve_row_position,
     resolve_row_residue,
 )
-from phospy.phosphosites.result_identity import (
+from phospy.core.phosphosites.result_identity import (
     enforce_result_table_identity_contract,
 )
-from phospy.references.context_compatibility import (
+from phospy.core.references.context_compatibility import (
     REFERENCE_CONTEXT_UNKNOWN_CAVEAT_CODE,
     ReferenceContextCompatibilityWarning,
     validate_reference_context_compatibility,
 )
-from phospy.references.models import ReferenceContext
+from phospy.core.references.models import ReferenceContext
 from tests.support.site_keys import (
     protein_site_key,
     site_key_context_columns,

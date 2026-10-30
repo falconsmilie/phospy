@@ -15,6 +15,9 @@ from phospy.core.frames.ownership import (
     own_dataframe,
     own_optional_dataframe,
 )
+from phospy.core.provenance.hashing import fingerprint_matrix
+from phospy.core.provenance.models.batch_correction import BatchCorrectionProvenance
+from phospy.core.provenance.scalar_validation import JsonValue
 from phospy.preparation_records.batch_correction import (
     BATCH_CORRECTION_CONFOUNDING_NOT_CHECKED,
     BATCH_CORRECTION_CONFOUNDING_PASSED,
@@ -28,9 +31,6 @@ from phospy.preprocessing.control_sites.contracts import ControlSiteSet
 from phospy.preprocessing.control_sites.validation import (
     ControlSiteEligibilityValidator,
 )
-from phospy.provenance.hashing import fingerprint_matrix
-from phospy.provenance.models.batch_correction import BatchCorrectionProvenance
-from phospy.provenance.scalar_validation import JsonValue
 
 _BATCH_CORRECTION_STAGE = "batch_correction"
 _DOWNSTREAM_WORKFLOWS_STAGE = "downstream_workflows"

@@ -9,8 +9,8 @@ from collections.abc import Mapping, Sequence
 import pandas as pd
 
 from phospy.core.errors.input import PhosPyInputError
-from phospy.evidence.modified_peptides import ModifiedResidue
-from phospy.evidence.multi_site import parse_phospho_site_tokens
+from phospy.core.evidence.modified_peptides import ModifiedResidue
+from phospy.core.evidence.multi_site import parse_phospho_site_tokens
 from phospy.io.importers.fragpipe_validation import (
     FRAGPIPE_PTMPROPHET_POSITION_REFERENCE_PEPTIDE,
     FRAGPIPE_PTMPROPHET_POSITION_REFERENCE_PROTEIN,

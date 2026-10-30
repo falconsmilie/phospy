@@ -5,7 +5,8 @@ from __future__ import annotations
 from collections.abc import Mapping
 
 from phospy.core.errors.input import PhosPyInputError
-from phospy.evidence.config import LocalisationRequirement
+from phospy.core.evidence.config import LocalisationRequirement
+from phospy.core.references.config import ReferenceContextCompatibilityPolicy
 from phospy.io.bundles._shared.primitives import (
     require_bool,
     require_float,
@@ -18,7 +19,6 @@ from phospy.io.bundles._signalome.primitives import (
     _require_fields,
     _require_int,
 )
-from phospy.references.config import ReferenceContextCompatibilityPolicy
 from phospy.signalome.config import (
     SIGNALOME_ASSIGNMENT_POLICIES,
     SIGNALOME_CANDIDATE_SCORING_POLICIES,

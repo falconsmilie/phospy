@@ -3,12 +3,13 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy.activities.semantics import ActivityInputMatrix
 from phospy.api import (
     Organism,
     ReferenceBundle,
 )
+from phospy.core.activities.semantics import ActivityInputMatrix
 from phospy.core.errors.workflows import WorkflowBoundaryError
+from phospy.core.provenance.row_attrition import make_row_attrition_record
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.kinase.activity.config import ResolvedKinaseActivityExecutionConfig
 from phospy.kinase.activity.contracts import (
@@ -44,7 +45,6 @@ from phospy.kinase.prediction.results import KinasePredictionResult
 from phospy.kinase.references.projection_contracts import (
     KinaseReferenceProjectionSummary,
 )
-from phospy.provenance.row_attrition import make_row_attrition_record
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

@@ -3,6 +3,10 @@
 from __future__ import annotations
 
 from phospy.core.errors.input import PhosPyInputError
+from phospy.core.provenance.serialization import (
+    table_fingerprint_from_payload,
+    table_fingerprint_to_payload,
+)
 from phospy.io.bundles._shared.primitives import (
     require_bool,
     require_float,
@@ -14,10 +18,6 @@ from phospy.io.bundles._signalome.primitives import (
     _reject_unsupported_fields,
     _require_fields,
     _require_int,
-)
-from phospy.provenance.serialization import (
-    table_fingerprint_from_payload,
-    table_fingerprint_to_payload,
 )
 from phospy.signalome.config import SIGNALOME_SCORE_PRECONDITIONING_POLICIES
 from phospy.signalome.models import (

@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from phospy.enrichment.contracts.vocabulary import ENRICHMENT_METHOD_OVER_REPRESENTATION
-from phospy.enrichment.planning import InterpretedEnrichmentWorkflowRequest
-from phospy.provenance.result_caveats import ResultCaveat, deduplicate_caveats
-from phospy.quantitative.evidence import (
+from phospy.core.provenance.result_caveats import ResultCaveat, deduplicate_caveats
+from phospy.core.quantitative.evidence import (
     build_declared_input_intensity_scale_evidence_caveat,
 )
+from phospy.enrichment.contracts.vocabulary import ENRICHMENT_METHOD_OVER_REPRESENTATION
+from phospy.enrichment.planning import InterpretedEnrichmentWorkflowRequest
 
 ENRICHMENT_OFFLINE_ORA_ONLY_SCOPE_CAVEAT_CODE = "enrichment_offline_ora_only_scope"
 ENRICHMENT_BACKGROUND_UNIVERSE_ASSUMPTION_CAVEAT_CODE = (

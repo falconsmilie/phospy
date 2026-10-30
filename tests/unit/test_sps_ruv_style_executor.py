@@ -9,6 +9,8 @@ import pytest
 
 from phospy.core.errors import PhosPyInputError
 from phospy.core.errors.validation import DatasetValidationError
+from phospy.core.provenance import BatchCorrectionProvenance, fingerprint_matrix
+from phospy.core.taxonomy import Organism
 from phospy.datasets.builder import AnalysisReadyDatasetBuilder
 from phospy.datasets.contracts import DatasetBuildRequest
 from phospy.preparation_records.batch_correction import (
@@ -59,8 +61,6 @@ from phospy.preprocessing.control_sites.contracts import (
 from phospy.preprocessing.control_sites.validation import (
     ControlSiteEligibilityValidator,
 )
-from phospy.provenance import BatchCorrectionProvenance, fingerprint_matrix
-from phospy.taxonomy import Organism
 
 
 def test_sps_ruv_style_executor_produces_stable_expected_corrected_values() -> None:

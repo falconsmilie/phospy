@@ -7,13 +7,13 @@ import pytest
 
 from phospy.core.errors.input import PhosPyInputError
 from phospy.core.errors.validation import ReferenceValidationError
+from phospy.core.provenance.models.environment import EnvironmentProvenance
+from phospy.core.provenance.models.tables import TableFingerprint
+from phospy.core.references.provenance.context import ReferenceContext
+from phospy.core.references.provenance.models import ReferenceProvenance
+from phospy.core.taxonomy.organisms import Organism
 from phospy.preprocessing.provenance.models import PreprocessingStageProvenance
-from phospy.provenance.models.environment import EnvironmentProvenance
-from phospy.provenance.models.tables import TableFingerprint
-from phospy.references.provenance.context import ReferenceContext
-from phospy.references.provenance.models import ReferenceProvenance
 from phospy.run_lineage.models import RunProvenance
-from phospy.taxonomy.organisms import Organism
 
 
 def test_run_lineage_owner_contracts_preserve_sequence_order() -> None:

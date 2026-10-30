@@ -170,36 +170,36 @@ def test_retired_package_roots_are_absent_from_git_and_pyright() -> None:
         path.split("/")[2] for path in tracked if len(path.split("/")) > 3
     }
     retired = {
+        "activities",
         "contracts",
         "errors",
+        "evidence",
         "frames",
+        "phosphosites",
         "policies",
+        "provenance",
+        "quantitative",
+        "references",
         "science",
+        "statistics",
         "tables",
+        "taxonomy",
         "validation",
         "workflows",
     }
     expected_intermediate_roots = {
-        "activities",
         "api",
         "core",
         "data",
         "datasets",
         "differential",
         "enrichment",
-        "evidence",
         "io",
         "kinase",
-        "phosphosites",
         "preparation_records",
         "preprocessing",
-        "provenance",
-        "quantitative",
-        "references",
         "run_lineage",
         "signalome",
-        "statistics",
-        "taxonomy",
     }
     assert not production_roots & retired
     assert production_roots == expected_intermediate_roots
@@ -207,10 +207,18 @@ def test_retired_package_roots_are_absent_from_git_and_pyright() -> None:
     configuration = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     includes = configuration["tool"]["pyright"]["include"]
     assert {
+        "src/phospy/activities",
         "src/phospy/errors",
+        "src/phospy/evidence",
         "src/phospy/frames",
+        "src/phospy/phosphosites",
         "src/phospy/policies",
+        "src/phospy/provenance",
+        "src/phospy/quantitative",
+        "src/phospy/references",
+        "src/phospy/statistics",
         "src/phospy/tables",
+        "src/phospy/taxonomy",
         "src/phospy/validation",
     }.isdisjoint(includes)
     assert "src/phospy/core/__init__.py" in includes

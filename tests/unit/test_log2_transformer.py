@@ -7,6 +7,14 @@ import pandas.testing as pdt
 import pytest
 
 from phospy.core.errors.input import PhosPyInputError
+from phospy.core.quantitative.contracts import TransformationResult
+from phospy.core.quantitative.models import (
+    IntensityScaleEvidenceLevel,
+    IntensityScaleKind,
+    IntensityScaleState,
+    IntensityTransformationEvent,
+)
+from phospy.core.quantitative.transformers import Log2Transformer
 from phospy.preprocessing.contracts import (
     PreprocessingPlan,
     PreprocessingState,
@@ -14,14 +22,6 @@ from phospy.preprocessing.contracts import (
 from phospy.preprocessing.stages.intensity import (
     IntensityTransformStage,
 )
-from phospy.quantitative.contracts import TransformationResult
-from phospy.quantitative.models import (
-    IntensityScaleEvidenceLevel,
-    IntensityScaleKind,
-    IntensityScaleState,
-    IntensityTransformationEvent,
-)
-from phospy.quantitative.transformers import Log2Transformer
 
 
 def _phospho() -> pd.DataFrame:

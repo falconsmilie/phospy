@@ -1,9 +1,9 @@
 """Run-lineage composition for Differential-derived quantitative datasets."""
 
+from phospy.core.provenance.environment import collect_environment_provenance
+from phospy.core.provenance.models import EnvironmentProvenance
+from phospy.core.references.provenance.context import ReferenceContext
 from phospy.datasets.derived_quantitative import DerivedQuantitativeDataProvenance
-from phospy.provenance.environment import collect_environment_provenance
-from phospy.provenance.models import EnvironmentProvenance
-from phospy.references.provenance.context import ReferenceContext
 from phospy.run_lineage.models import RunProvenance
 
 

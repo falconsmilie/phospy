@@ -18,6 +18,10 @@ from phospy.core.frames.validation import (
     require_unique_columns,
     require_unique_index,
 )
+from phospy.core.phosphosites.contracts import RESULT_IDENTITY_COLUMNS
+from phospy.core.phosphosites.result_identity import (
+    enforce_result_table_identity_contract,
+)
 from phospy.differential.validation.result_tables import (
     require_boolean,
     require_column_name,
@@ -26,10 +30,6 @@ from phospy.differential.validation.result_tables import (
     require_non_negative_threshold,
     require_numeric_result_column,
     require_probability_threshold,
-)
-from phospy.phosphosites.contracts import RESULT_IDENTITY_COLUMNS
-from phospy.phosphosites.result_identity import (
-    enforce_result_table_identity_contract,
 )
 
 _RESULT_STATISTIC_COLUMNS: tuple[str, ...] = ("logFC", "t", "P.Value", "adj.P.Val")

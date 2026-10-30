@@ -5,7 +5,6 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phospy.activities.semantics import ActivityInputMatrix
 from phospy.api import (
     AnalysisReadyPhosphoDataset,
     KinasePredictionResult,
@@ -18,6 +17,9 @@ from phospy.api import (
 from phospy.api.advanced import (
     ReferenceContextCompatibilityPolicy,
 )
+from phospy.core.activities.semantics import ActivityInputMatrix
+from phospy.core.provenance.hashing import hash_table_tolerance
+from phospy.core.references.models import ReferenceBundle
 from phospy.kinase.activity.execution import compute_activity_from_inputs
 from phospy.kinase.activity.inputs import KinaseActivityInputs, PredMatOverlapSummary
 from phospy.kinase.prediction.outputs import rank_kinases_for_prediction
@@ -39,8 +41,6 @@ from phospy.preprocessing.stages.normalisation import (
 from phospy.preprocessing.stages.site_matrix_components import (
     DuplicateSiteResolver,
 )
-from phospy.provenance.hashing import hash_table_tolerance
-from phospy.references.models import ReferenceBundle
 from phospy.signalome.assignments import build_module_assignments
 from phospy.signalome.clustering.candidate_scoring import (
     compute_candidate_cluster_scores,

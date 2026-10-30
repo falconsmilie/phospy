@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING
 
+from phospy.core.provenance.result_caveats import ResultCaveat, ResultCaveatSeverity
 from phospy.datasets.direct_construction import (
     DIRECT_CONSTRUCTION_SOURCE,
     DIRECT_CONSTRUCTION_WORKFLOW_NAME,
@@ -12,7 +13,6 @@ from phospy.datasets.direct_construction import (
 from phospy.datasets.trusted_assertions import (
     TrustedDatasetConstructionAssertions,
 )
-from phospy.provenance.result_caveats import ResultCaveat, ResultCaveatSeverity
 
 if TYPE_CHECKING:
     from phospy.datasets.models import AnalysisReadyPhosphoDataset

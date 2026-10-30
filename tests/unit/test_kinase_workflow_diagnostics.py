@@ -3,7 +3,6 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy.activities.semantics import ActivityInputMatrix
 from phospy.api import (
     AnalysisReadyDatasetBuilder,
     AnalysisReadyPhosphoDataset,
@@ -20,7 +19,9 @@ from phospy.api.advanced import (
     KinaseScoringConfig,
     ReferenceContextCompatibilityPolicy,
 )
+from phospy.core.activities.semantics import ActivityInputMatrix
 from phospy.core.errors import WorkflowBoundaryError
+from phospy.core.references.resolution import ReferenceResolver
 from phospy.datasets.internal_view import DatasetInternalView
 from phospy.kinase.activity.config import ResolvedKinaseActivityExecutionConfig
 from phospy.kinase.activity.inputs import KinaseActivityInputs, PredMatOverlapSummary
@@ -32,7 +33,6 @@ from phospy.kinase.contracts import (
 )
 from phospy.kinase.interpreter import KinaseWorkflowInterpreter
 from phospy.kinase.prediction.results import KinasePredictionResult
-from phospy.references.resolution import ReferenceResolver
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

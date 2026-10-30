@@ -17,6 +17,15 @@ from phospy.api.advanced import (
     KinaseScoringConfig,
 )
 from phospy.core.errors import ReferenceCompatibilityError
+from phospy.core.phosphosites.site_keys import (
+    build_protein_scoped_site_key,
+    encode_site_key,
+)
+from phospy.core.references.compatibility import ReferenceCompatibilityValidator
+from phospy.core.references.models import ReferenceBundle, ReferencePreset
+from phospy.core.references.resolution import ReferenceResolver
+from phospy.core.references.validation.bundle import ReferenceBundleValidator
+from phospy.core.taxonomy import Organism
 from phospy.core.validation.ownership import VALIDATION_RULE_OWNERS
 from phospy.datasets._construction.service import (
     _AnalysisReadyDatasetConstructionService,
@@ -27,15 +36,6 @@ from phospy.datasets.validation.model_boundary import (
 )
 from phospy.kinase.public import KinaseWorkflow
 from phospy.kinase.validator import KinaseWorkflowValidator
-from phospy.phosphosites.site_keys import (
-    build_protein_scoped_site_key,
-    encode_site_key,
-)
-from phospy.references.compatibility import ReferenceCompatibilityValidator
-from phospy.references.models import ReferenceBundle, ReferencePreset
-from phospy.references.resolution import ReferenceResolver
-from phospy.references.validation.bundle import ReferenceBundleValidator
-from phospy.taxonomy import Organism
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )
@@ -143,7 +143,7 @@ def test_reference_compatibility_validator_is_single_owner_for_compatibility_rul
 
 
 def test_reference_bundle_contract_validation_has_single_owner() -> None:
-    from phospy.references import models as reference_models
+    from phospy.core.references import models as reference_models
 
     bundle_source = inspect.getsource(ReferenceBundle._init_reference_bundle)
     validation_source = inspect.getsource(
@@ -217,6 +217,6 @@ def test_major_validation_rules_have_documented_owners() -> None:
     assert documented["dataset/intensity-scale-state coherence"]
     assert (
         documented["sequence-aware workflow centred site-sequence context"]
-        == "phospy.phosphosites.sequence_context.enforce_site_sequence_context_contract"
+        == "phospy.core.phosphosites.sequence_context.enforce_site_sequence_context_contract"
     )
     assert documented["signalome result expanded_signalome field type/ownership"]

@@ -8,16 +8,16 @@ from phospy.api import (
     Organism,
 )
 from phospy.core.errors import WorkflowValidationError
-from phospy.differential.validation.dataset import (
-    DifferentialDatasetEligibilityValidator,
-)
-from phospy.phosphosites.site_keys import (
+from phospy.core.phosphosites.site_keys import (
     build_protein_scoped_site_key,
     encode_site_key,
 )
-from phospy.quantitative.models import (
+from phospy.core.quantitative.models import (
     IntensityScaleState,
     MatrixIntensityScaleState,
+)
+from phospy.differential.validation.dataset import (
+    DifferentialDatasetEligibilityValidator,
 )
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,

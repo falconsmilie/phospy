@@ -7,6 +7,15 @@ import pytest
 
 from phospy.api import AnalysisReadyDatasetBuilder, DatasetBuildRequest
 from phospy.core.errors.input import PhosPyInputError
+from phospy.core.evidence.dataset_resolution import (
+    PeptideEvidenceResolutionSummary,
+)
+from phospy.core.evidence.dataset_resolution.models import (
+    DATASET_MULTI_SITE_POLICY_REJECT,
+    DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
+)
+from phospy.core.phosphosites.site_keys import decode_site_key
+from phospy.core.taxonomy import Organism
 from phospy.datasets.construction.contracts import (
     InterpretedDatasetBuildRequest,
     PreprocessedDatasetBuildTables,
@@ -30,16 +39,7 @@ from phospy.datasets.construction.site_identity import (
 from phospy.datasets.construction.site_sequence_validation import (
     AnalysisReadySiteSequenceValidator,
 )
-from phospy.evidence.dataset_resolution import (
-    PeptideEvidenceResolutionSummary,
-)
-from phospy.evidence.dataset_resolution.models import (
-    DATASET_MULTI_SITE_POLICY_REJECT,
-    DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
-)
-from phospy.phosphosites.site_keys import decode_site_key
 from phospy.preprocessing.contracts import PreprocessingPlan
-from phospy.taxonomy import Organism
 
 
 class _InjectedFailure(RuntimeError):

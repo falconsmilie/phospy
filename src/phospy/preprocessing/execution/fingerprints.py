@@ -9,16 +9,16 @@ from dataclasses import dataclass
 import pandas as pd
 
 from phospy.core.errors.build import DatasetBuildError
-from phospy.preprocessing.contracts import (
-    PreprocessingState,
-    PreprocessingStateTableKey,
-)
-from phospy.provenance.hashing import (
+from phospy.core.provenance.hashing import (
     fingerprint_optional_table,
     hash_table_tolerance,
 )
-from phospy.provenance.models import (
+from phospy.core.provenance.models import (
     TableFingerprint,
+)
+from phospy.preprocessing.contracts import (
+    PreprocessingState,
+    PreprocessingStateTableKey,
 )
 
 

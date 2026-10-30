@@ -5,6 +5,9 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 
 from phospy.core.errors.build import DatasetBuildError
+from phospy.core.quantitative.quantitative_contracts import (
+    QuantitativeOperationContract,
+)
 from phospy.preprocessing.contracts import (
     PreprocessingPlan,
     PreprocessingStage,
@@ -25,9 +28,6 @@ from phospy.preprocessing.stages import (
     SITE_MATRIX_STAGE_CONTRACT,
     SITE_SEQUENCE_RESOLUTION_STAGE_CONTRACT,
     TOTAL_PROTEIN_CORRECTION_STAGE_CONTRACT,
-)
-from phospy.quantitative.quantitative_contracts import (
-    QuantitativeOperationContract,
 )
 
 PREPROCESSING_STAGE_REGISTRY: tuple[PreprocessingStageContract, ...] = (

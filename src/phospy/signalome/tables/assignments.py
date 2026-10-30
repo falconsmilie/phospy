@@ -13,7 +13,7 @@ from phospy.core.frames.validation import (
     require_string_index,
     require_unique_index,
 )
-from phospy.phosphosites.dataset_identity import (
+from phospy.core.phosphosites.dataset_identity import (
     enforce_analysis_ready_site_key_index,
     enforce_site_key_column_matches_index,
 )

@@ -31,6 +31,14 @@ from phospy.api.advanced import (
     TechnicalReplicatePolicy,
 )
 from phospy.core.errors import WorkflowBoundaryError
+from phospy.core.evidence.quantification_depth import (
+    QUANTIFICATION_DEPTH_KIND_PSM_COUNT,
+)
+from phospy.core.provenance.hashing import fingerprint_table_strict
+from phospy.core.statistics.multiple_testing import (
+    MULTIPLE_TESTING_CORRECTION_BONFERRONI,
+    adjust_p_values,
+)
 from phospy.differential.execution.linear_model import (
     DIFFERENTIAL_LINEAR_MODEL_MAX_CONDITION_NUMBER,
 )
@@ -68,12 +76,6 @@ from phospy.differential.tables import (
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_AUGMENTED_DESIGN_INVALID,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_COVARIATE_INVALID,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_PREPARATION_INELIGIBLE,
-)
-from phospy.evidence.quantification_depth import QUANTIFICATION_DEPTH_KIND_PSM_COUNT
-from phospy.provenance.hashing import fingerprint_table_strict
-from phospy.statistics.multiple_testing import (
-    MULTIPLE_TESTING_CORRECTION_BONFERRONI,
-    adjust_p_values,
 )
 from tests.support.unsafe_dataset_states import (
     unsafe_mark_dataset_total_protein_correction_applied,

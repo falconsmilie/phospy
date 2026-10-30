@@ -13,6 +13,10 @@ import pandas as pd
 from scipy import stats
 
 from phospy.core.errors.input import PhosPyInputError
+from phospy.core.evidence.quantification_depth import (
+    validate_quantification_depth_series,
+)
+from phospy.core.statistics.multiple_testing import adjust_p_values
 from phospy.differential.diagnostics import (
     EmpiricalBayesPriorDiagnostics,
     MeanVarianceTrendDiagnostics,
@@ -63,8 +67,6 @@ from phospy.differential.tables import (
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_COVARIATE_INVALID,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_MODEL_FIT_INVALID,
 )
-from phospy.evidence.quantification_depth import validate_quantification_depth_series
-from phospy.statistics.multiple_testing import adjust_p_values
 
 PROTEIN_AWARE_COVARIATE_COEFFICIENT_NAME = "protein_covariate"
 PROTEIN_AWARE_CENTERING_POLICY = "mean_centered_no_standardization"

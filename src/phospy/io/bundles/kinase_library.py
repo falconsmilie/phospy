@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from phospy.core.references.acquisition import ReferenceSourceTableReader
 from phospy.kinase.references.loading import (
     KinaseLibraryResourceLoader as _KinaseLibraryResourceLoader,
 )
@@ -10,7 +11,6 @@ from phospy.kinase.references.models import (
     KinaseLibraryResource,
     KinaseLibraryResourceLoadRequest,
 )
-from phospy.references.acquisition import ReferenceSourceTableReader
 
 
 class KinaseLibraryResourceLoader(_KinaseLibraryResourceLoader):

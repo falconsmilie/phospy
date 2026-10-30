@@ -8,18 +8,18 @@ from pathlib import Path
 import pytest
 
 from phospy.core.errors.validation import PhosPyValidationError
-from phospy.phosphosites.site_keys import (
+from phospy.core.phosphosites.site_keys import (
     ProteinScopedPhosphositeKey,
     decode_site_key,
     encode_site_key,
 )
-from phospy.references.context_compatibility import (
+from phospy.core.references.context_compatibility import (
     REFERENCE_CONTEXT_UNKNOWN_CAVEAT_CODE,
     ReferenceContextCompatibilityWarning,
     validate_reference_context_compatibility,
 )
-from phospy.references.provenance.context import ReferenceContext
-from phospy.taxonomy import Organism
+from phospy.core.references.provenance.context import ReferenceContext
+from phospy.core.taxonomy import Organism
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SRC_ROOT = PROJECT_ROOT / "src"
@@ -208,14 +208,14 @@ def test_reference_context_operation_validation(operation: object) -> None:
     "imports",
     [
         (
-            "from phospy.phosphosites.site_keys import encode_site_key\n"
-            "from phospy.references.context_compatibility import "
+            "from phospy.core.phosphosites.site_keys import encode_site_key\n"
+            "from phospy.core.references.context_compatibility import "
             "validate_reference_context_compatibility"
         ),
         (
-            "from phospy.references.context_compatibility import "
+            "from phospy.core.references.context_compatibility import "
             "validate_reference_context_compatibility\n"
-            "from phospy.phosphosites.site_keys import encode_site_key"
+            "from phospy.core.phosphosites.site_keys import encode_site_key"
         ),
     ],
 )

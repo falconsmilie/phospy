@@ -7,6 +7,23 @@ from dataclasses import dataclass, field
 from typing import cast
 
 from phospy.core.errors.input import PhosPyInputError
+from phospy.core.provenance.models import (
+    TableFingerprint,
+)
+from phospy.core.provenance.serialization.tables import (
+    table_fingerprint_from_payload,
+    table_fingerprint_to_payload,
+)
+from phospy.core.quantitative.models import (
+    IntensityScaleEstablishmentMode,
+    IntensityScaleEstablishmentProvenance,
+    IntensityScaleEstablishmentSource,
+    IntensityScaleEvidenceLevel,
+    IntensityScaleKind,
+    QuantitativeMeaning,
+    QuantitativeMeaningTransitionProvenance,
+)
+from phospy.core.taxonomy.organisms import Organism, normalize_optional_organism
 from phospy.preprocessing.control_sites._discovery_payload import (
     optional_payload_int,
     optional_payload_string,
@@ -32,23 +49,6 @@ from phospy.preprocessing.control_sites.discovery_contracts import (
     sps_reference_intensity_fingerprint,
     sps_scale_evidence_matches_matrix,
 )
-from phospy.provenance.models import (
-    TableFingerprint,
-)
-from phospy.provenance.serialization.tables import (
-    table_fingerprint_from_payload,
-    table_fingerprint_to_payload,
-)
-from phospy.quantitative.models import (
-    IntensityScaleEstablishmentMode,
-    IntensityScaleEstablishmentProvenance,
-    IntensityScaleEstablishmentSource,
-    IntensityScaleEvidenceLevel,
-    IntensityScaleKind,
-    QuantitativeMeaning,
-    QuantitativeMeaningTransitionProvenance,
-)
-from phospy.taxonomy.organisms import Organism, normalize_optional_organism
 
 
 @dataclass(frozen=True, slots=True)

@@ -7,10 +7,10 @@ from pathlib import Path
 
 import pytest
 
-from phospy.activities.contracts import MethodQuantitativeInputContract
-from phospy.activities.semantics import ActivityInputMatrix
 from phospy.api import KinaseActivityResult as FacadeKinaseActivityResult
 from phospy.api.advanced import KinaseActivityConfig as FacadeKinaseActivityConfig
+from phospy.core.activities.contracts import MethodQuantitativeInputContract
+from phospy.core.activities.semantics import ActivityInputMatrix
 from phospy.kinase.activity.config import KinaseActivityConfig
 from phospy.kinase.activity.results import KinaseActivityResult
 
@@ -88,5 +88,7 @@ def test_supported_activity_facades_share_the_concrete_owner_definitions() -> No
     assert FacadeKinaseActivityResult is KinaseActivityResult
     assert KinaseActivityConfig.__module__ == "phospy.kinase.activity.config"
     assert KinaseActivityResult.__module__ == "phospy.kinase.activity.results"
-    assert ActivityInputMatrix.__module__ == "phospy.activities.semantics"
-    assert MethodQuantitativeInputContract.__module__ == "phospy.activities.contracts"
+    assert ActivityInputMatrix.__module__ == "phospy.core.activities.semantics"
+    assert (
+        MethodQuantitativeInputContract.__module__ == "phospy.core.activities.contracts"
+    )

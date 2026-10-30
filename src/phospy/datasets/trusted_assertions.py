@@ -9,8 +9,8 @@ from dataclasses import dataclass, field
 from typing import cast
 
 from phospy.core.errors.input import PhosPyInputError
-from phospy.provenance.immutability import freeze_json_mapping, thaw_json_mapping
-from phospy.provenance.scalar_validation import (
+from phospy.core.provenance.immutability import freeze_json_mapping, thaw_json_mapping
+from phospy.core.provenance.scalar_validation import (
     JsonValue,
     optional_provenance_float,
     optional_provenance_text,

@@ -10,7 +10,7 @@ from phospy.api import (
     PhosphositeImportResult,
 )
 from phospy.core.errors import PhosPyInputError
-from phospy.evidence import DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE
+from phospy.core.evidence import DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE
 from phospy.io.importers.contracts import (
     IMPORTER_QUALITY_STATUS_NOT_APPLICABLE,
     IMPORTER_QUALITY_STATUS_REPORTED,

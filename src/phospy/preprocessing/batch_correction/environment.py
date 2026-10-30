@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from phospy.provenance.environment import collect_environment_provenance
-from phospy.provenance.models.environment import EnvironmentProvenance
+from phospy.core.provenance.environment import collect_environment_provenance
+from phospy.core.provenance.models.environment import EnvironmentProvenance
 
 BATCH_CORRECTION_ENVIRONMENT_DEPENDENCIES = (
     "numpy",

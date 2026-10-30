@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import pandas as pd
 
-from phospy.activities.semantics import ActivityInputMatrix
+from phospy.core.activities.semantics import ActivityInputMatrix
 from phospy.core.errors.workflows import WorkflowBoundaryError
+from phospy.core.quantitative.models import QuantitativeMeaning
 from phospy.kinase.activity.config import (
     KINASE_ACTIVITY_METHOD_KSEA_ZSCORE,
     KINASE_ACTIVITY_METHOD_SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY,
@@ -34,7 +35,6 @@ from phospy.kinase.activity.validation import KinaseActivityInputValidator
 from phospy.kinase.prediction.internal_view import KinasePredictionInternalView
 from phospy.kinase.prediction.results import KinasePredictionResult
 from phospy.kinase.scoring.results import KinaseScoringRunResult
-from phospy.quantitative.models import QuantitativeMeaning
 
 
 class KinaseActivityRunner:

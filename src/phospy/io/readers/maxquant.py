@@ -11,8 +11,8 @@ from typing import cast
 import pandas as pd
 
 from phospy.core.errors.input import PhosPyInputError
-from phospy.evidence.multi_site import parse_phospho_site_tokens
-from phospy.evidence.quantification_depth import (
+from phospy.core.evidence.multi_site import parse_phospho_site_tokens
+from phospy.core.evidence.quantification_depth import (
     QUANTIFICATION_DEPTH_COLUMN,
     QUANTIFICATION_DEPTH_INTEGER_TOLERANCE,
     SUPPORTED_QUANTIFICATION_DEPTH_KINDS,

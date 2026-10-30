@@ -12,6 +12,9 @@ import numpy.typing as npt
 import pandas as pd
 
 from phospy.core.errors.input import PhosPyInputError
+from phospy.core.evidence.quantification_depth import (
+    SUPPORTED_QUANTIFICATION_DEPTH_KINDS,
+)
 from phospy.core.frames.comparison import (
     dataframe_equals,
     series_equals,
@@ -50,7 +53,6 @@ from phospy.differential.tables import (
     DIFFERENTIAL_RESULT_WITHHELD_STATUSES,
     validate_result_status_reason_contract,
 )
-from phospy.evidence.quantification_depth import SUPPORTED_QUANTIFICATION_DEPTH_KINDS
 
 PROTEIN_AWARE_DIFFERENTIAL_CLAIM_STATUS_EXPERIMENTAL = "experimental"
 PROTEIN_AWARE_DIFFERENTIAL_MODEL_TYPE = "protein_covariate_adjusted_moderated_ols"

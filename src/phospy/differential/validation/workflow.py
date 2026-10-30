@@ -8,6 +8,13 @@ import pandas as pd
 
 from phospy.core.errors.validation import WorkflowValidationError
 from phospy.core.frames.validation import require_dataframe
+from phospy.core.phosphosites.contracts import (
+    WORKFLOW_PROTEIN_CONTEXT_IDENTITY_CONTRACT,
+)
+from phospy.core.phosphosites.workflow_identity import (
+    WorkflowIdentityContract,
+    enforce_workflow_site_identity_contract,
+)
 from phospy.datasets.internal_view import DatasetInternalView
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.differential.config import (
@@ -44,13 +51,6 @@ from phospy.differential.validation.dataset import (
 from phospy.differential.validation.reliability import (
     resolved_minimum_condition_replicates,
     validate_differential_reliability_config,
-)
-from phospy.phosphosites.contracts import (
-    WORKFLOW_PROTEIN_CONTEXT_IDENTITY_CONTRACT,
-)
-from phospy.phosphosites.workflow_identity import (
-    WorkflowIdentityContract,
-    enforce_workflow_site_identity_contract,
 )
 
 DIFFERENTIAL_IDENTITY_CONTRACT = WorkflowIdentityContract(

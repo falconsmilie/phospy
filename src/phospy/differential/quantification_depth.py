@@ -7,7 +7,9 @@ from typing import Final
 import numpy as np
 import pandas as pd
 
-from phospy.evidence.quantification_depth import validate_quantification_depth_series
+from phospy.core.evidence.quantification_depth import (
+    validate_quantification_depth_series,
+)
 
 QUANTIFICATION_DEPTH_LOG2_TREND_COVARIATE_NAME: Final[str] = "log2_quantification_depth"
 QUANTIFICATION_DEPTH_TREND_TRANSFORMATION: Final[str] = "log2"

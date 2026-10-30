@@ -4,6 +4,10 @@ import pandas as pd
 import pytest
 
 from phospy.core.errors.input import PhosPyInputError
+from phospy.core.quantitative.models import (
+    IntensityScaleState,
+    MatrixIntensityScaleState,
+)
 from phospy.preparation_records.protein_aware import (
     ProteinAwarePreparationEligibility,
 )
@@ -19,10 +23,6 @@ from phospy.preprocessing.protein_aware.alignment import (
 from phospy.preprocessing.protein_aware.mapping import (
     ProteinMappingConfig,
     ProteinMappingResolver,
-)
-from phospy.quantitative.models import (
-    IntensityScaleState,
-    MatrixIntensityScaleState,
 )
 
 

@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from phospy.activities.semantics import ActivityInputMatrix
+from phospy.core.activities.semantics import ActivityInputMatrix
+from phospy.core.provenance.scientific_policy_models import (
+    ScientificPolicyRecord,
+)
 from phospy.kinase.activity.inputs import KinaseActivityInputs
 from phospy.kinase.activity.methods.ssgsea_substrate_enrichment import (
     SsgseaSubstrateEnrichmentActivityMethod,
@@ -17,9 +20,6 @@ from phospy.kinase.activity.policies import (
     build_ssgsea_substrate_enrichment_activity_policy,
 )
 from phospy.kinase.activity.results import KinaseActivityResult
-from phospy.provenance.scientific_policy_models import (
-    ScientificPolicyRecord,
-)
 
 
 def compute_activity_from_inputs(inputs: KinaseActivityInputs) -> KinaseActivityResult:

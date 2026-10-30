@@ -6,7 +6,7 @@ import math
 
 import pandas as pd
 
-from phospy.statistics.multiple_testing import benjamini_hochberg
+from phospy.core.statistics.multiple_testing import benjamini_hochberg
 
 
 def two_sided_normal_p_value(z_score: float) -> float:

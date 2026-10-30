@@ -10,6 +10,10 @@ import numpy as np
 import pandas as pd
 
 from phospy.core.errors.input import PhosPyInputError
+from phospy.core.provenance import fingerprint_matrix
+from phospy.core.provenance.models import (
+    TableFingerprint,
+)
 from phospy.preprocessing.batch_correction.contracts.missingness import (
     TemporaryImputationMethod,
 )
@@ -24,10 +28,6 @@ from phospy.preprocessing.batch_correction.execution.ruv_iii import (
     RuvIIIDiagnostics,
     RuvIIIKernel,
     RuvIIIReplicateStructure,
-)
-from phospy.provenance import fingerprint_matrix
-from phospy.provenance.models import (
-    TableFingerprint,
 )
 
 RUV_III_STYLE_METHOD = "ruv_iii_style"

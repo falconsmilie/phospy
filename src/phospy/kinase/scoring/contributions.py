@@ -8,6 +8,7 @@ from typing import SupportsFloat, cast
 
 import pandas as pd
 
+from phospy.core.references.models import ReferenceBundle
 from phospy.kinase.scoring.tables import (
     KINASE_SUBSTRATE_CONTRIBUTION_COLUMNS,
     KINASE_SUBSTRATE_CONTRIBUTION_EXCLUDED_BELOW_MIN_SUBSTRATES,
@@ -18,7 +19,6 @@ from phospy.kinase.scoring.tables import (
     KINASE_SUBSTRATE_CONTRIBUTION_STATUS_EXCLUDED,
     KINASE_SUBSTRATE_CONTRIBUTION_STATUS_INCLUDED,
 )
-from phospy.references.models import ReferenceBundle
 
 
 @dataclass(frozen=True, slots=True)

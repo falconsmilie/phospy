@@ -9,12 +9,12 @@ import pytest
 
 from phospy.core.errors.references import ReferenceResolutionError
 from phospy.core.errors.validation import ReferenceValidationError
-from phospy.provenance.models import EnvironmentProvenance
-from phospy.references import resolution as reference_resolution
-from phospy.references.acquisition import ReferenceSourceTableReader
-from phospy.references.builder import ReferenceBundleBuilder
-from phospy.references.errors import ReferenceManifestError
-from phospy.references.models import (
+from phospy.core.provenance.models import EnvironmentProvenance
+from phospy.core.references import resolution as reference_resolution
+from phospy.core.references.acquisition import ReferenceSourceTableReader
+from phospy.core.references.builder import ReferenceBundleBuilder
+from phospy.core.references.errors import ReferenceManifestError
+from phospy.core.references.models import (
     RedistributionStatus,
     ReferenceBundleBuildRequest,
     ReferenceContext,
@@ -24,15 +24,15 @@ from phospy.references.models import (
     SequenceWindowDefinition,
     reference_context_from_provenance,
 )
-from phospy.references.provenance.models import ReferenceProvenance
-from phospy.references.resolution import (
+from phospy.core.references.provenance.models import ReferenceProvenance
+from phospy.core.references.resolution import (
     BundledReferenceProvider,
     ReferenceResolver,
 )
-from phospy.references.validation import load_reference_manifest
+from phospy.core.references.validation import load_reference_manifest
+from phospy.core.taxonomy import Organism
 from phospy.run_lineage.models import RunProvenance
 from phospy.run_lineage.serialization import from_payload, to_payload
-from phospy.taxonomy import Organism
 
 LOCAL_REFERENCE_VERSION = "local-snapshot-v1"
 UPSTREAM_SOURCE_VERSION = "upstream-source-v1"

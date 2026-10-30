@@ -12,6 +12,7 @@ import pandas as pd
 
 from phospy.core.errors.input import PhosPyInputError
 from phospy.core.errors.validation import PhosPyValidationError
+from phospy.core.provenance.immutability import thaw_json_mapping
 from phospy.io.bundles._shared.primitives import (
     require_int,
     require_mapping,
@@ -42,7 +43,6 @@ from phospy.kinase.scoring.sequence_validation import (
     SequenceValidationRow,
     SequenceValidationStatus,
 )
-from phospy.provenance.immutability import thaw_json_mapping
 
 
 @dataclass(frozen=True, slots=True)

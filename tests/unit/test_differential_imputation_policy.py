@@ -14,6 +14,8 @@ from phospy.api import (
 )
 from phospy.api.advanced import DifferentialAnalysisConfig
 from phospy.core.errors import WorkflowValidationError
+from phospy.core.provenance.result_caveats import result_caveats_from_payloads
+from phospy.core.statistics.multiple_testing import adjust_p_values
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.differential.caveats import (
     DIFFERENTIAL_IMPUTATION_WITHHOLDING_POLICY_CAVEAT_CODE,
@@ -31,8 +33,6 @@ from phospy.differential.tables import (
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_HIGH_IMPUTATION,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_INSUFFICIENT_OBSERVED,
 )
-from phospy.provenance.result_caveats import result_caveats_from_payloads
-from phospy.statistics.multiple_testing import adjust_p_values
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

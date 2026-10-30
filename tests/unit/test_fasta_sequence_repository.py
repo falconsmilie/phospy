@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from phospy.core.errors.input import PhosPyInputError
-from phospy.references.sequences.repository import FastaProteinSequenceRepository
+from phospy.core.references.sequences.repository import FastaProteinSequenceRepository
 
 
 def test_uniprot_header_parsing(tmp_path: Path) -> None:

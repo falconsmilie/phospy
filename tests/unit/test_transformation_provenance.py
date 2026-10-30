@@ -8,12 +8,9 @@ import pandas as pd
 import pytest
 
 from phospy.core.errors.transformations import InvalidTransformationStateError
-from phospy.datasets.construction.intensity_scale import (
-    DatasetIntensityScaleResolver,
-)
-from phospy.provenance.hashing import hash_json_payload
-from phospy.provenance.models import JsonValue
-from phospy.quantitative.authority import (
+from phospy.core.provenance.hashing import hash_json_payload
+from phospy.core.provenance.models import JsonValue
+from phospy.core.quantitative.authority import (
     bundle_quantitative_meaning_restoration_authority,
     bundle_reconstruction_establishment_authority,
     dataset_quantitative_meaning_transition_authority,
@@ -24,7 +21,7 @@ from phospy.quantitative.authority import (
     sps_reference_establishment_authority,
     sps_reference_quantitative_meaning_transition_authority,
 )
-from phospy.quantitative.models import (
+from phospy.core.quantitative.models import (
     QUANTITATIVE_MEANING_OPERATION_SCALE_CONTRACT_INFERENCE,
     IntensityScaleEstablishmentMode,
     IntensityScaleEstablishmentProvenance,
@@ -36,7 +33,10 @@ from phospy.quantitative.models import (
     QuantitativeMeaningEvidenceMode,
     QuantitativeMeaningTransitionProvenance,
 )
-from phospy.quantitative.transformers import IdentityTransformer
+from phospy.core.quantitative.transformers import IdentityTransformer
+from phospy.datasets.construction.intensity_scale import (
+    DatasetIntensityScaleResolver,
+)
 
 
 @pytest.mark.parametrize(

@@ -11,16 +11,16 @@ import pandas as pd
 
 from phospy.core.errors.workflows import WorkflowBoundaryError
 from phospy.core.policies import PolicyEnum, coerce_policy_enum
-from phospy.provenance.hashing import fingerprint_table_normalized_axes
-from phospy.provenance.immutability import (
+from phospy.core.provenance.hashing import fingerprint_table_normalized_axes
+from phospy.core.provenance.immutability import (
     FrozenJsonMapping,
     freeze_json_mapping_with_error_type,
     thaw_json_mapping,
 )
-from phospy.provenance.models import (
+from phospy.core.provenance.models import (
     TableFingerprint,
 )
-from phospy.provenance.serialization import (
+from phospy.core.provenance.serialization import (
     table_fingerprint_from_payload,
     table_fingerprint_to_payload,
 )

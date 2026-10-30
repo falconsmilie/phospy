@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from phospy.activities.semantics import (
+from phospy.core.activities.semantics import (
     ActivityInputMatrix,
     ActivityInputSemantics,
     ActivityProfileMetadata,

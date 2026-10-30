@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from phospy.statistics.multiple_testing import (
+from phospy.core.statistics.multiple_testing import (
     MULTIPLE_TESTING_CORRECTION_BENJAMINI_HOCHBERG,
     MULTIPLE_TESTING_CORRECTION_BENJAMINI_YEKUTIELI,
     MULTIPLE_TESTING_CORRECTION_BONFERRONI,

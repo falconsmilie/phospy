@@ -15,13 +15,13 @@ def test_science_package_is_retired() -> None:
 @pytest.mark.parametrize(
     "module_name",
     [
-        "phospy.activities",
+        "phospy.core.activities",
         "phospy.kinase.activity",
         "phospy.differential.design",
         "phospy.differential",
-        "phospy.evidence",
+        "phospy.core.evidence",
         "phospy.kinase.prediction",
-        "phospy.references",
+        "phospy.core.references",
         "phospy.kinase.scoring",
         "phospy.signalome",
     ],
@@ -48,7 +48,7 @@ def test_old_root_science_packages_are_removed(module_name: str) -> None:
 
 
 def test_phosphosites_owner_package_is_importable() -> None:
-    import phospy.phosphosites  # noqa: F401
+    import phospy.core.phosphosites  # noqa: F401
 
 
 def test_datasets_owner_package_is_importable() -> None:
@@ -56,8 +56,8 @@ def test_datasets_owner_package_is_importable() -> None:
 
 
 def test_quantitative_and_statistics_owner_packages_are_importable() -> None:
-    import phospy.quantitative  # noqa: F401
-    import phospy.statistics  # noqa: F401
+    import phospy.core.quantitative  # noqa: F401
+    import phospy.core.statistics  # noqa: F401
 
 
 def test_public_api_contract_remains_stable() -> None:
@@ -106,17 +106,20 @@ def test_representative_moved_object_ownership() -> None:
         ReferenceBundle,
     )
     from phospy.api.advanced import TechnicalReplicatePolicy
-    from phospy.kinase.policies import ThresholdMode
-    from phospy.phosphosites.identifiers import canonicalize_site_identifier
-    from phospy.quantitative.models import IntensityScaleState
-    from phospy.quantitative.scale_state import (
+    from phospy.core.phosphosites.identifiers import canonicalize_site_identifier
+    from phospy.core.quantitative.models import IntensityScaleState
+    from phospy.core.quantitative.scale_state import (
         IntensityScaleState as OwnedIntensityScaleState,
     )
+    from phospy.kinase.policies import ThresholdMode
 
     assert AnalysisReadyPhosphoDataset.__module__ == "phospy.datasets.models"
-    assert ReferenceBundle.__module__ == "phospy.references.models"
+    assert ReferenceBundle.__module__ == "phospy.core.references.models"
     assert TechnicalReplicatePolicy.__module__ == "phospy.differential.policies"
     assert ThresholdMode.__module__ == "phospy.kinase.policies"
-    assert canonicalize_site_identifier.__module__ == "phospy.phosphosites.identifiers"
-    assert IntensityScaleState.__module__ == "phospy.quantitative.scale_state"
+    assert (
+        canonicalize_site_identifier.__module__
+        == "phospy.core.phosphosites.identifiers"
+    )
+    assert IntensityScaleState.__module__ == "phospy.core.quantitative.scale_state"
     assert IntensityScaleState is OwnedIntensityScaleState

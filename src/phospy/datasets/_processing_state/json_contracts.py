@@ -6,7 +6,7 @@ from collections.abc import Mapping
 from typing import TypeAlias, cast
 
 from phospy.core.errors.input import PhosPyInputError
-from phospy.provenance.immutability import (
+from phospy.core.provenance.immutability import (
     FrozenJsonMapping,
     FrozenJsonValue,
     freeze_json_mapping,

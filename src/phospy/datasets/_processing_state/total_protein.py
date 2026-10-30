@@ -6,11 +6,11 @@ from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
 
 from phospy.core.errors.input import PhosPyInputError
+from phospy.core.quantitative.models import QuantitativeMeaning
 from phospy.preparation_records.policies import (
     TotalProteinCorrectionIdentityMatchingPolicy,
     TotalProteinCorrectionPolicy,
 )
-from phospy.quantitative.models import QuantitativeMeaning
 
 from .json_contracts import (
     TOTAL_PROTEIN_CORRECTION_DIAGNOSTICS_SCHEMA_VERSION_V1,

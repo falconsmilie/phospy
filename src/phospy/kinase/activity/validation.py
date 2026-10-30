@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from phospy.activities.semantics import (
+from phospy.core.activities.semantics import (
     ActivityInputMatrix,
 )
 from phospy.core.errors.workflows import WorkflowBoundaryError

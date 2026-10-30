@@ -52,6 +52,7 @@ EXPECTED_WORKFLOW_CAVEATS = {
 
 
 def test_regression_harness_uses_exact_provenance_owners() -> None:
+    from phospy.core.provenance.models import EnvironmentProvenance
     from phospy.preparation_records.batch_correction import (
         BATCH_CORRECTION_CONFOUNDING_NOT_APPLICABLE,
         BATCH_CORRECTION_STATUS_DISABLED,
@@ -62,7 +63,6 @@ def test_regression_harness_uses_exact_provenance_owners() -> None:
     from phospy.preprocessing.provenance.models import (
         PreprocessingStageProvenance as CurrentPreprocessingStageProvenance,
     )
-    from phospy.provenance.models import EnvironmentProvenance
     from phospy.run_lineage.models import RunProvenance as CurrentRunProvenance
     from phospy.run_lineage.serialization import (
         from_payload as current_from_payload,

@@ -17,6 +17,9 @@ from phospy.api import (
     WorkflowValidationError,
 )
 from phospy.api.advanced import MultipleTestingCorrection
+from phospy.core.statistics.multiple_testing import (
+    run as run_multiple_testing_correction,
+)
 from phospy.enrichment.contracts.vocabulary import (
     ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
     ENRICHMENT_IDENTIFIER_KIND_SITE_KEY,
@@ -27,9 +30,6 @@ from phospy.enrichment.execution import EnrichmentWorkflowExecutor
 from phospy.enrichment.interpreter import EnrichmentWorkflowInterpreter
 from phospy.enrichment.ora import OraEngine
 from phospy.enrichment.validation import EnrichmentWorkflowValidator
-from phospy.statistics.multiple_testing import (
-    run as run_multiple_testing_correction,
-)
 
 
 def _gene_collection() -> GeneSetCollection:

@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Literal
 
-from phospy.provenance.scientific_policy_models import (
+from phospy.core.provenance.scientific_policy_models import (
     ScientificPolicyId,
     ScientificPolicyRecord,
 )

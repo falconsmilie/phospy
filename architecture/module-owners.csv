@@ -1,9 +1,9 @@
 source_path,module,owner,rationale
 src/phospy/__init__.py,phospy,public_facades,Metadata-only package root
-src/phospy/activities/__init__.py,phospy.activities,activities,Passive activity quantitative contract package
-src/phospy/activities/contracts.py,phospy.activities.contracts,activities,Generic activity quantitative method contract
-src/phospy/activities/semantics.py,phospy.activities.semantics,activities,Generic activity profile and quantitative semantics
-src/phospy/activities/validation.py,phospy.activities.validation,activities,Generic activity quantitative contract validation
+src/phospy/core/activities/__init__.py,phospy.core.activities,activities,Passive activity quantitative contract package
+src/phospy/core/activities/contracts.py,phospy.core.activities.contracts,activities,Generic activity quantitative method contract
+src/phospy/core/activities/semantics.py,phospy.core.activities.semantics,activities,Generic activity profile and quantitative semantics
+src/phospy/core/activities/validation.py,phospy.core.activities.validation,activities,Generic activity quantitative contract validation
 src/phospy/api/__init__.py,phospy.api,public_facades,Supported or compatibility aggregate adapter
 src/phospy/api/_inventory.py,phospy.api._inventory,public_facades,Supported aggregate inventory
 src/phospy/api/advanced/__init__.py,phospy.api.advanced,public_facades,Supported specialist aggregate adapter
@@ -147,26 +147,26 @@ src/phospy/core/errors/references.py,phospy.core.errors.references,errors,Shared
 src/phospy/core/errors/transformations.py,phospy.core.errors.transformations,errors,Shared exception taxonomy
 src/phospy/core/errors/validation.py,phospy.core.errors.validation,errors,Shared exception taxonomy
 src/phospy/core/errors/workflows.py,phospy.core.errors.workflows,errors,Shared exception taxonomy
-src/phospy/evidence/__init__.py,phospy.evidence,evidence,"Evidence policy, records, allocation, or structural resolution"
-src/phospy/evidence/caveats.py,phospy.evidence.caveats,evidence,"Evidence policy, records, allocation, or structural resolution"
-src/phospy/evidence/config.py,phospy.evidence.config,evidence,"Evidence policy, records, allocation, or structural resolution"
-src/phospy/evidence/dataset_resolution/__init__.py,phospy.evidence.dataset_resolution,evidence,"Evidence policy, records, allocation, or structural resolution"
-src/phospy/evidence/dataset_resolution/allocation.py,phospy.evidence.dataset_resolution.allocation,evidence,"Evidence policy, records, allocation, or structural resolution"
-src/phospy/evidence/dataset_resolution/mapping.py,phospy.evidence.dataset_resolution.mapping,evidence,"Evidence policy, records, allocation, or structural resolution"
-src/phospy/evidence/dataset_resolution/models.py,phospy.evidence.dataset_resolution.models,evidence,"Evidence policy, records, allocation, or structural resolution"
-src/phospy/evidence/dataset_resolution/policies.py,phospy.evidence.dataset_resolution.policies,evidence,"Evidence policy, records, allocation, or structural resolution"
-src/phospy/evidence/dataset_resolution/resolver.py,phospy.evidence.dataset_resolution.resolver,evidence,"Evidence policy, records, allocation, or structural resolution"
-src/phospy/evidence/dataset_resolution/site_metadata.py,phospy.evidence.dataset_resolution.site_metadata,evidence,"Evidence policy, records, allocation, or structural resolution"
-src/phospy/evidence/dataset_resolution/site_sequence.py,phospy.evidence.dataset_resolution.site_sequence,evidence,"Evidence policy, records, allocation, or structural resolution"
-src/phospy/evidence/dataset_resolution/summary.py,phospy.evidence.dataset_resolution.summary,evidence,"Evidence policy, records, allocation, or structural resolution"
-src/phospy/evidence/localisation.py,phospy.evidence.localisation,evidence,"Evidence policy, records, allocation, or structural resolution"
-src/phospy/evidence/models.py,phospy.evidence.models,evidence,"Evidence policy, records, allocation, or structural resolution"
-src/phospy/evidence/modified_peptides.py,phospy.evidence.modified_peptides,evidence,"Evidence policy, records, allocation, or structural resolution"
-src/phospy/evidence/multi_site.py,phospy.evidence.multi_site,evidence,"Evidence policy, records, allocation, or structural resolution"
-src/phospy/evidence/quantification_depth.py,phospy.evidence.quantification_depth,evidence,"Evidence policy, records, allocation, or structural resolution"
-src/phospy/evidence/sequence_resolution.py,phospy.evidence.sequence_resolution,evidence,"Evidence policy, records, allocation, or structural resolution"
-src/phospy/evidence/serialization/historical_peptide.py,phospy.evidence.serialization.historical_peptide,evidence,Historical peptide evidence compatibility codec
-src/phospy/evidence/site_metadata.py,phospy.evidence.site_metadata,evidence,"Evidence policy, records, allocation, or structural resolution"
+src/phospy/core/evidence/__init__.py,phospy.core.evidence,evidence,"Evidence policy, records, allocation, or structural resolution"
+src/phospy/core/evidence/caveats.py,phospy.core.evidence.caveats,evidence,"Evidence policy, records, allocation, or structural resolution"
+src/phospy/core/evidence/config.py,phospy.core.evidence.config,evidence,"Evidence policy, records, allocation, or structural resolution"
+src/phospy/core/evidence/dataset_resolution/__init__.py,phospy.core.evidence.dataset_resolution,evidence,"Evidence policy, records, allocation, or structural resolution"
+src/phospy/core/evidence/dataset_resolution/allocation.py,phospy.core.evidence.dataset_resolution.allocation,evidence,"Evidence policy, records, allocation, or structural resolution"
+src/phospy/core/evidence/dataset_resolution/mapping.py,phospy.core.evidence.dataset_resolution.mapping,evidence,"Evidence policy, records, allocation, or structural resolution"
+src/phospy/core/evidence/dataset_resolution/models.py,phospy.core.evidence.dataset_resolution.models,evidence,"Evidence policy, records, allocation, or structural resolution"
+src/phospy/core/evidence/dataset_resolution/policies.py,phospy.core.evidence.dataset_resolution.policies,evidence,"Evidence policy, records, allocation, or structural resolution"
+src/phospy/core/evidence/dataset_resolution/resolver.py,phospy.core.evidence.dataset_resolution.resolver,evidence,"Evidence policy, records, allocation, or structural resolution"
+src/phospy/core/evidence/dataset_resolution/site_metadata.py,phospy.core.evidence.dataset_resolution.site_metadata,evidence,"Evidence policy, records, allocation, or structural resolution"
+src/phospy/core/evidence/dataset_resolution/site_sequence.py,phospy.core.evidence.dataset_resolution.site_sequence,evidence,"Evidence policy, records, allocation, or structural resolution"
+src/phospy/core/evidence/dataset_resolution/summary.py,phospy.core.evidence.dataset_resolution.summary,evidence,"Evidence policy, records, allocation, or structural resolution"
+src/phospy/core/evidence/localisation.py,phospy.core.evidence.localisation,evidence,"Evidence policy, records, allocation, or structural resolution"
+src/phospy/core/evidence/models.py,phospy.core.evidence.models,evidence,"Evidence policy, records, allocation, or structural resolution"
+src/phospy/core/evidence/modified_peptides.py,phospy.core.evidence.modified_peptides,evidence,"Evidence policy, records, allocation, or structural resolution"
+src/phospy/core/evidence/multi_site.py,phospy.core.evidence.multi_site,evidence,"Evidence policy, records, allocation, or structural resolution"
+src/phospy/core/evidence/quantification_depth.py,phospy.core.evidence.quantification_depth,evidence,"Evidence policy, records, allocation, or structural resolution"
+src/phospy/core/evidence/sequence_resolution.py,phospy.core.evidence.sequence_resolution,evidence,"Evidence policy, records, allocation, or structural resolution"
+src/phospy/core/evidence/serialization/historical_peptide.py,phospy.core.evidence.serialization.historical_peptide,evidence,Historical peptide evidence compatibility codec
+src/phospy/core/evidence/site_metadata.py,phospy.core.evidence.site_metadata,evidence,"Evidence policy, records, allocation, or structural resolution"
 src/phospy/core/frames/__init__.py,phospy.core.frames,frames,Generic dataframe ownership or schema mechanics
 src/phospy/core/frames/comparison.py,phospy.core.frames.comparison,frames,Generic dataframe ownership or schema mechanics
 src/phospy/core/frames/missing_values.py,phospy.core.frames.missing_values,frames,Generic dataframe ownership or schema mechanics
@@ -322,20 +322,20 @@ src/phospy/kinase/site_attrition.py,phospy.kinase.site_attrition,kinase,Kinase c
 src/phospy/kinase/site_sequence_policy.py,phospy.kinase.site_sequence_policy,kinase,Kinase capability package
 src/phospy/kinase/site_sequence_support.py,phospy.kinase.site_sequence_support,kinase,Kinase capability package
 src/phospy/kinase/validator.py,phospy.kinase.validator,kinase,Kinase capability package
-src/phospy/phosphosites/__init__.py,phospy.phosphosites,phosphosites,Shared phosphosite identity or supplied-window rule
-src/phospy/phosphosites/contracts.py,phospy.phosphosites.contracts,phosphosites,Shared phosphosite identity or supplied-window rule
-src/phospy/phosphosites/dataset_identity.py,phospy.phosphosites.dataset_identity,phosphosites,Shared phosphosite identity or supplied-window rule
-src/phospy/phosphosites/display_identity.py,phospy.phosphosites.display_identity,phosphosites,Shared phosphosite identity or supplied-window rule
-src/phospy/phosphosites/identifiers.py,phospy.phosphosites.identifiers,phosphosites,Shared phosphosite identity or supplied-window rule
-src/phospy/phosphosites/identity.py,phospy.phosphosites.identity,phosphosites,Shared phosphosite identity or supplied-window rule
-src/phospy/phosphosites/messages.py,phospy.phosphosites.messages,phosphosites,Shared phosphosite identity or supplied-window rule
-src/phospy/phosphosites/metadata_validation.py,phospy.phosphosites.metadata_validation,phosphosites,Shared phosphosite identity or supplied-window rule
-src/phospy/phosphosites/parsing.py,phospy.phosphosites.parsing,phosphosites,Shared phosphosite identity or supplied-window rule
-src/phospy/phosphosites/result_identity.py,phospy.phosphosites.result_identity,phosphosites,Shared phosphosite identity or supplied-window rule
-src/phospy/phosphosites/sequence_context.py,phospy.phosphosites.sequence_context,phosphosites,Shared phosphosite identity or supplied-window rule
-src/phospy/phosphosites/site_keys.py,phospy.phosphosites.site_keys,phosphosites,Shared phosphosite identity or supplied-window rule
-src/phospy/phosphosites/validation.py,phospy.phosphosites.validation,phosphosites,Shared phosphosite identity or supplied-window rule
-src/phospy/phosphosites/workflow_identity.py,phospy.phosphosites.workflow_identity,phosphosites,Shared phosphosite identity or supplied-window rule
+src/phospy/core/phosphosites/__init__.py,phospy.core.phosphosites,phosphosites,Shared phosphosite identity or supplied-window rule
+src/phospy/core/phosphosites/contracts.py,phospy.core.phosphosites.contracts,phosphosites,Shared phosphosite identity or supplied-window rule
+src/phospy/core/phosphosites/dataset_identity.py,phospy.core.phosphosites.dataset_identity,phosphosites,Shared phosphosite identity or supplied-window rule
+src/phospy/core/phosphosites/display_identity.py,phospy.core.phosphosites.display_identity,phosphosites,Shared phosphosite identity or supplied-window rule
+src/phospy/core/phosphosites/identifiers.py,phospy.core.phosphosites.identifiers,phosphosites,Shared phosphosite identity or supplied-window rule
+src/phospy/core/phosphosites/identity.py,phospy.core.phosphosites.identity,phosphosites,Shared phosphosite identity or supplied-window rule
+src/phospy/core/phosphosites/messages.py,phospy.core.phosphosites.messages,phosphosites,Shared phosphosite identity or supplied-window rule
+src/phospy/core/phosphosites/metadata_validation.py,phospy.core.phosphosites.metadata_validation,phosphosites,Shared phosphosite identity or supplied-window rule
+src/phospy/core/phosphosites/parsing.py,phospy.core.phosphosites.parsing,phosphosites,Shared phosphosite identity or supplied-window rule
+src/phospy/core/phosphosites/result_identity.py,phospy.core.phosphosites.result_identity,phosphosites,Shared phosphosite identity or supplied-window rule
+src/phospy/core/phosphosites/sequence_context.py,phospy.core.phosphosites.sequence_context,phosphosites,Shared phosphosite identity or supplied-window rule
+src/phospy/core/phosphosites/site_keys.py,phospy.core.phosphosites.site_keys,phosphosites,Shared phosphosite identity or supplied-window rule
+src/phospy/core/phosphosites/validation.py,phospy.core.phosphosites.validation,phosphosites,Shared phosphosite identity or supplied-window rule
+src/phospy/core/phosphosites/workflow_identity.py,phospy.core.phosphosites.workflow_identity,phosphosites,Shared phosphosite identity or supplied-window rule
 src/phospy/core/policies/__init__.py,phospy.core.policies,policies,Generic parsing and scalar policy
 src/phospy/core/policies/config_values.py,phospy.core.policies.config_values,policies,Generic parsing and scalar policy
 src/phospy/core/policies/policy_base.py,phospy.core.policies.policy_base,policies,Generic parsing and scalar policy
@@ -485,79 +485,79 @@ src/phospy/preprocessing/validation/group_coverage.py,phospy.preprocessing.valid
 src/phospy/preprocessing/validation/quantitative_evidence.py,phospy.preprocessing.validation.quantitative_evidence,preprocessing,Preprocessing control-site capability lifecycle
 src/phospy/preprocessing/validation/quantitative_transition.py,phospy.preprocessing.validation.quantitative_transition,preprocessing,Preprocessing control-site capability lifecycle
 src/phospy/preprocessing/workflow.py,phospy.preprocessing.workflow,preprocessing,Preprocessing control-site capability lifecycle
-src/phospy/provenance/__init__.py,phospy.provenance,provenance,Generic immutable provenance infrastructure
-src/phospy/provenance/environment.py,phospy.provenance.environment,provenance,Generic immutable provenance infrastructure
-src/phospy/provenance/hashing.py,phospy.provenance.hashing,provenance,Generic immutable provenance infrastructure
-src/phospy/provenance/immutability.py,phospy.provenance.immutability,provenance,Generic immutable provenance infrastructure
-src/phospy/provenance/models/__init__.py,phospy.provenance.models,provenance,Generic immutable provenance infrastructure
-src/phospy/provenance/scalar_validation.py,phospy.provenance.scalar_validation,provenance,Owner-internal provenance scalar-validation contract
-src/phospy/provenance/models/batch_correction.py,phospy.provenance.models.batch_correction,provenance,Immutable batch-correction audit wire contract
-src/phospy/provenance/models/environment.py,phospy.provenance.models.environment,provenance,Generic immutable provenance infrastructure
-src/phospy/provenance/models/tables.py,phospy.provenance.models.tables,provenance,Generic immutable provenance infrastructure
-src/phospy/provenance/result_caveats.py,phospy.provenance.result_caveats,provenance,Generic immutable provenance infrastructure
-src/phospy/provenance/row_attrition.py,phospy.provenance.row_attrition,provenance,Generic immutable provenance infrastructure
-src/phospy/provenance/scientific_policy_models.py,phospy.provenance.scientific_policy_models,provenance,Generic immutable provenance infrastructure
-src/phospy/provenance/serialization/__init__.py,phospy.provenance.serialization,provenance,Generic immutable provenance infrastructure
-src/phospy/provenance/serialization/payload.py,phospy.provenance.serialization.payload,provenance,Owner-internal provenance payload coercion contract
-src/phospy/provenance/serialization/batch_correction.py,phospy.provenance.serialization.batch_correction,provenance,Direct historical batch-correction provenance codec
-src/phospy/provenance/serialization/environment.py,phospy.provenance.serialization.environment,provenance,Generic immutable provenance infrastructure
-src/phospy/provenance/serialization/tables.py,phospy.provenance.serialization.tables,provenance,Generic immutable provenance infrastructure
-src/phospy/quantitative/__init__.py,phospy.quantitative,quantitative,"Shared quantitative state, transformation, validation, or serialization contract"
-src/phospy/quantitative/authority.py,phospy.quantitative.authority,quantitative,"Owner-internal quantitative authority contract"
-src/phospy/quantitative/_payloads.py,phospy.quantitative._payloads,quantitative,"Shared quantitative state, transformation, validation, or serialization contract"
-src/phospy/quantitative/assertions.py,phospy.quantitative.assertions,quantitative,"Shared quantitative state, transformation, validation, or serialization contract"
-src/phospy/quantitative/contracts.py,phospy.quantitative.contracts,quantitative,"Shared quantitative state, transformation, validation, or serialization contract"
-src/phospy/quantitative/declared_scale_diagnostics.py,phospy.quantitative.declared_scale_diagnostics,quantitative,"Shared quantitative state, transformation, validation, or serialization contract"
-src/phospy/quantitative/evidence.py,phospy.quantitative.evidence,quantitative,"Shared quantitative state, transformation, validation, or serialization contract"
-src/phospy/quantitative/models.py,phospy.quantitative.models,quantitative,"Shared quantitative state, transformation, validation, or serialization contract"
-src/phospy/quantitative/policy.py,phospy.quantitative.policy,quantitative,"Shared quantitative state, transformation, validation, or serialization contract"
-src/phospy/quantitative/provenance.py,phospy.quantitative.provenance,quantitative,"Shared quantitative state, transformation, validation, or serialization contract"
-src/phospy/quantitative/quantitative_contracts.py,phospy.quantitative.quantitative_contracts,quantitative,"Shared quantitative state, transformation, validation, or serialization contract"
-src/phospy/quantitative/scale_state.py,phospy.quantitative.scale_state,quantitative,"Shared quantitative state, transformation, validation, or serialization contract"
-src/phospy/quantitative/scale_values.py,phospy.quantitative.scale_values,quantitative,"Shared quantitative state, transformation, validation, or serialization contract"
-src/phospy/quantitative/serialization.py,phospy.quantitative.serialization,quantitative,"Shared quantitative state, transformation, validation, or serialization contract"
-src/phospy/quantitative/state_coherence.py,phospy.quantitative.state_coherence,quantitative,"Shared quantitative state, transformation, validation, or serialization contract"
-src/phospy/quantitative/transformers/__init__.py,phospy.quantitative.transformers,quantitative,"Shared quantitative state, transformation, validation, or serialization contract"
-src/phospy/quantitative/transformers/identifiers.py,phospy.quantitative.transformers.identifiers,quantitative,"Owner-internal quantitative transformer identifier contract"
-src/phospy/quantitative/transformers/identity.py,phospy.quantitative.transformers.identity,quantitative,"Shared quantitative state, transformation, validation, or serialization contract"
-src/phospy/quantitative/transformers/log2.py,phospy.quantitative.transformers.log2,quantitative,"Shared quantitative state, transformation, validation, or serialization contract"
-src/phospy/quantitative/validation.py,phospy.quantitative.validation,quantitative,"Shared quantitative state, transformation, validation, or serialization contract"
-src/phospy/references/__init__.py,phospy.references,references,"General reference identity, resources, sequences, or construction"
-src/phospy/references/acquisition.py,phospy.references.acquisition,references,"General reference identity, resources, sequences, or construction"
-src/phospy/references/builder.py,phospy.references.builder,references,"General reference identity, resources, sequences, or construction"
-src/phospy/references/builder_validation.py,phospy.references.builder_validation,references,"General reference identity, resources, sequences, or construction"
-src/phospy/references/compatibility.py,phospy.references.compatibility,references,"General reference identity, resources, sequences, or construction"
-src/phospy/references/config.py,phospy.references.config,references,"General reference identity, resources, sequences, or construction"
-src/phospy/references/context_compatibility.py,phospy.references.context_compatibility,references,"General reference identity, resources, sequences, or construction"
-src/phospy/references/errors.py,phospy.references.errors,references,"General reference identity, resources, sequences, or construction"
-src/phospy/references/fingerprints.py,phospy.references.fingerprints,references,"General reference identity, resources, sequences, or construction"
-src/phospy/references/identifiers.py,phospy.references.identifiers,references,"General reference identity, resources, sequences, or construction"
-src/phospy/references/manifest.py,phospy.references.manifest,references,"General reference identity, resources, sequences, or construction"
-src/phospy/references/manifest_common.py,phospy.references.manifest_common,references,"General reference identity, resources, sequences, or construction"
-src/phospy/references/manifest_files.py,phospy.references.manifest_files,references,"General reference identity, resources, sequences, or construction"
-src/phospy/references/manifest_model.py,phospy.references.manifest_model,references,"General reference identity, resources, sequences, or construction"
-src/phospy/references/manifest_policy.py,phospy.references.manifest_policy,references,"General reference identity, resources, sequences, or construction"
-src/phospy/references/models.py,phospy.references.models,references,"General reference identity, resources, sequences, or construction"
-src/phospy/references/provenance/context.py,phospy.references.provenance.context,references,Reference provenance record or direct codec
-src/phospy/references/provenance/identifiers.py,phospy.references.provenance.identifiers,references,Reference provenance record or direct codec
-src/phospy/references/provenance/models.py,phospy.references.provenance.models,references,Reference provenance record or direct codec
-src/phospy/references/provenance/serialization.py,phospy.references.provenance.serialization,references,Reference provenance record or direct codec
-src/phospy/references/redistribution.py,phospy.references.redistribution,references,"General reference identity, resources, sequences, or construction"
-src/phospy/references/resolution.py,phospy.references.resolution,references,"General reference identity, resources, sequences, or construction"
-src/phospy/references/resources.py,phospy.references.resources,references,"General reference identity, resources, sequences, or construction"
-src/phospy/references/sequences/__init__.py,phospy.references.sequences,references,"General reference identity, resources, sequences, or construction"
-src/phospy/references/sequences/fasta.py,phospy.references.sequences.fasta,references,"General reference identity, resources, sequences, or construction"
-src/phospy/references/sequences/models.py,phospy.references.sequences.models,references,"General reference identity, resources, sequences, or construction"
-src/phospy/references/sequences/repository.py,phospy.references.sequences.repository,references,"General reference identity, resources, sequences, or construction"
-src/phospy/references/sequences/validation.py,phospy.references.sequences.validation,references,"General reference identity, resources, sequences, or construction"
-src/phospy/references/tables.py,phospy.references.tables,references,"General reference identity, resources, sequences, or construction"
-src/phospy/references/validation/__init__.py,phospy.references.validation,references,"General reference identity, resources, sequences, or construction"
-src/phospy/references/validation/_diagnostics.py,phospy.references.validation._diagnostics,references,"General reference identity, resources, sequences, or construction"
-src/phospy/references/validation/bundle.py,phospy.references.validation.bundle,references,"General reference identity, resources, sequences, or construction"
-src/phospy/references/validation/bundle_semantics.py,phospy.references.validation.bundle_semantics,references,"General reference identity, resources, sequences, or construction"
-src/phospy/references/validation/manifest_schema.py,phospy.references.validation.manifest_schema,references,"General reference identity, resources, sequences, or construction"
-src/phospy/references/validation/redistribution_policy.py,phospy.references.validation.redistribution_policy,references,"General reference identity, resources, sequences, or construction"
-src/phospy/references/validation/resource_integrity.py,phospy.references.validation.resource_integrity,references,"General reference identity, resources, sequences, or construction"
+src/phospy/core/provenance/__init__.py,phospy.core.provenance,provenance,Generic immutable provenance infrastructure
+src/phospy/core/provenance/environment.py,phospy.core.provenance.environment,provenance,Generic immutable provenance infrastructure
+src/phospy/core/provenance/hashing.py,phospy.core.provenance.hashing,provenance,Generic immutable provenance infrastructure
+src/phospy/core/provenance/immutability.py,phospy.core.provenance.immutability,provenance,Generic immutable provenance infrastructure
+src/phospy/core/provenance/models/__init__.py,phospy.core.provenance.models,provenance,Generic immutable provenance infrastructure
+src/phospy/core/provenance/scalar_validation.py,phospy.core.provenance.scalar_validation,provenance,Owner-internal provenance scalar-validation contract
+src/phospy/core/provenance/models/batch_correction.py,phospy.core.provenance.models.batch_correction,provenance,Immutable batch-correction audit wire contract
+src/phospy/core/provenance/models/environment.py,phospy.core.provenance.models.environment,provenance,Generic immutable provenance infrastructure
+src/phospy/core/provenance/models/tables.py,phospy.core.provenance.models.tables,provenance,Generic immutable provenance infrastructure
+src/phospy/core/provenance/result_caveats.py,phospy.core.provenance.result_caveats,provenance,Generic immutable provenance infrastructure
+src/phospy/core/provenance/row_attrition.py,phospy.core.provenance.row_attrition,provenance,Generic immutable provenance infrastructure
+src/phospy/core/provenance/scientific_policy_models.py,phospy.core.provenance.scientific_policy_models,provenance,Generic immutable provenance infrastructure
+src/phospy/core/provenance/serialization/__init__.py,phospy.core.provenance.serialization,provenance,Generic immutable provenance infrastructure
+src/phospy/core/provenance/serialization/payload.py,phospy.core.provenance.serialization.payload,provenance,Owner-internal provenance payload coercion contract
+src/phospy/core/provenance/serialization/batch_correction.py,phospy.core.provenance.serialization.batch_correction,provenance,Direct historical batch-correction provenance codec
+src/phospy/core/provenance/serialization/environment.py,phospy.core.provenance.serialization.environment,provenance,Generic immutable provenance infrastructure
+src/phospy/core/provenance/serialization/tables.py,phospy.core.provenance.serialization.tables,provenance,Generic immutable provenance infrastructure
+src/phospy/core/quantitative/__init__.py,phospy.core.quantitative,quantitative,"Shared quantitative state, transformation, validation, or serialization contract"
+src/phospy/core/quantitative/authority.py,phospy.core.quantitative.authority,quantitative,"Owner-internal quantitative authority contract"
+src/phospy/core/quantitative/_payloads.py,phospy.core.quantitative._payloads,quantitative,"Shared quantitative state, transformation, validation, or serialization contract"
+src/phospy/core/quantitative/assertions.py,phospy.core.quantitative.assertions,quantitative,"Shared quantitative state, transformation, validation, or serialization contract"
+src/phospy/core/quantitative/contracts.py,phospy.core.quantitative.contracts,quantitative,"Shared quantitative state, transformation, validation, or serialization contract"
+src/phospy/core/quantitative/declared_scale_diagnostics.py,phospy.core.quantitative.declared_scale_diagnostics,quantitative,"Shared quantitative state, transformation, validation, or serialization contract"
+src/phospy/core/quantitative/evidence.py,phospy.core.quantitative.evidence,quantitative,"Shared quantitative state, transformation, validation, or serialization contract"
+src/phospy/core/quantitative/models.py,phospy.core.quantitative.models,quantitative,"Shared quantitative state, transformation, validation, or serialization contract"
+src/phospy/core/quantitative/policy.py,phospy.core.quantitative.policy,quantitative,"Shared quantitative state, transformation, validation, or serialization contract"
+src/phospy/core/quantitative/provenance.py,phospy.core.quantitative.provenance,quantitative,"Shared quantitative state, transformation, validation, or serialization contract"
+src/phospy/core/quantitative/quantitative_contracts.py,phospy.core.quantitative.quantitative_contracts,quantitative,"Shared quantitative state, transformation, validation, or serialization contract"
+src/phospy/core/quantitative/scale_state.py,phospy.core.quantitative.scale_state,quantitative,"Shared quantitative state, transformation, validation, or serialization contract"
+src/phospy/core/quantitative/scale_values.py,phospy.core.quantitative.scale_values,quantitative,"Shared quantitative state, transformation, validation, or serialization contract"
+src/phospy/core/quantitative/serialization.py,phospy.core.quantitative.serialization,quantitative,"Shared quantitative state, transformation, validation, or serialization contract"
+src/phospy/core/quantitative/state_coherence.py,phospy.core.quantitative.state_coherence,quantitative,"Shared quantitative state, transformation, validation, or serialization contract"
+src/phospy/core/quantitative/transformers/__init__.py,phospy.core.quantitative.transformers,quantitative,"Shared quantitative state, transformation, validation, or serialization contract"
+src/phospy/core/quantitative/transformers/identifiers.py,phospy.core.quantitative.transformers.identifiers,quantitative,"Owner-internal quantitative transformer identifier contract"
+src/phospy/core/quantitative/transformers/identity.py,phospy.core.quantitative.transformers.identity,quantitative,"Shared quantitative state, transformation, validation, or serialization contract"
+src/phospy/core/quantitative/transformers/log2.py,phospy.core.quantitative.transformers.log2,quantitative,"Shared quantitative state, transformation, validation, or serialization contract"
+src/phospy/core/quantitative/validation.py,phospy.core.quantitative.validation,quantitative,"Shared quantitative state, transformation, validation, or serialization contract"
+src/phospy/core/references/__init__.py,phospy.core.references,references,"General reference identity, resources, sequences, or construction"
+src/phospy/core/references/acquisition.py,phospy.core.references.acquisition,references,"General reference identity, resources, sequences, or construction"
+src/phospy/core/references/builder.py,phospy.core.references.builder,references,"General reference identity, resources, sequences, or construction"
+src/phospy/core/references/builder_validation.py,phospy.core.references.builder_validation,references,"General reference identity, resources, sequences, or construction"
+src/phospy/core/references/compatibility.py,phospy.core.references.compatibility,references,"General reference identity, resources, sequences, or construction"
+src/phospy/core/references/config.py,phospy.core.references.config,references,"General reference identity, resources, sequences, or construction"
+src/phospy/core/references/context_compatibility.py,phospy.core.references.context_compatibility,references,"General reference identity, resources, sequences, or construction"
+src/phospy/core/references/errors.py,phospy.core.references.errors,references,"General reference identity, resources, sequences, or construction"
+src/phospy/core/references/fingerprints.py,phospy.core.references.fingerprints,references,"General reference identity, resources, sequences, or construction"
+src/phospy/core/references/identifiers.py,phospy.core.references.identifiers,references,"General reference identity, resources, sequences, or construction"
+src/phospy/core/references/manifest.py,phospy.core.references.manifest,references,"General reference identity, resources, sequences, or construction"
+src/phospy/core/references/manifest_common.py,phospy.core.references.manifest_common,references,"General reference identity, resources, sequences, or construction"
+src/phospy/core/references/manifest_files.py,phospy.core.references.manifest_files,references,"General reference identity, resources, sequences, or construction"
+src/phospy/core/references/manifest_model.py,phospy.core.references.manifest_model,references,"General reference identity, resources, sequences, or construction"
+src/phospy/core/references/manifest_policy.py,phospy.core.references.manifest_policy,references,"General reference identity, resources, sequences, or construction"
+src/phospy/core/references/models.py,phospy.core.references.models,references,"General reference identity, resources, sequences, or construction"
+src/phospy/core/references/provenance/context.py,phospy.core.references.provenance.context,references,Reference provenance record or direct codec
+src/phospy/core/references/provenance/identifiers.py,phospy.core.references.provenance.identifiers,references,Reference provenance record or direct codec
+src/phospy/core/references/provenance/models.py,phospy.core.references.provenance.models,references,Reference provenance record or direct codec
+src/phospy/core/references/provenance/serialization.py,phospy.core.references.provenance.serialization,references,Reference provenance record or direct codec
+src/phospy/core/references/redistribution.py,phospy.core.references.redistribution,references,"General reference identity, resources, sequences, or construction"
+src/phospy/core/references/resolution.py,phospy.core.references.resolution,references,"General reference identity, resources, sequences, or construction"
+src/phospy/core/references/resources.py,phospy.core.references.resources,references,"General reference identity, resources, sequences, or construction"
+src/phospy/core/references/sequences/__init__.py,phospy.core.references.sequences,references,"General reference identity, resources, sequences, or construction"
+src/phospy/core/references/sequences/fasta.py,phospy.core.references.sequences.fasta,references,"General reference identity, resources, sequences, or construction"
+src/phospy/core/references/sequences/models.py,phospy.core.references.sequences.models,references,"General reference identity, resources, sequences, or construction"
+src/phospy/core/references/sequences/repository.py,phospy.core.references.sequences.repository,references,"General reference identity, resources, sequences, or construction"
+src/phospy/core/references/sequences/validation.py,phospy.core.references.sequences.validation,references,"General reference identity, resources, sequences, or construction"
+src/phospy/core/references/tables.py,phospy.core.references.tables,references,"General reference identity, resources, sequences, or construction"
+src/phospy/core/references/validation/__init__.py,phospy.core.references.validation,references,"General reference identity, resources, sequences, or construction"
+src/phospy/core/references/validation/_diagnostics.py,phospy.core.references.validation._diagnostics,references,"General reference identity, resources, sequences, or construction"
+src/phospy/core/references/validation/bundle.py,phospy.core.references.validation.bundle,references,"General reference identity, resources, sequences, or construction"
+src/phospy/core/references/validation/bundle_semantics.py,phospy.core.references.validation.bundle_semantics,references,"General reference identity, resources, sequences, or construction"
+src/phospy/core/references/validation/manifest_schema.py,phospy.core.references.validation.manifest_schema,references,"General reference identity, resources, sequences, or construction"
+src/phospy/core/references/validation/redistribution_policy.py,phospy.core.references.validation.redistribution_policy,references,"General reference identity, resources, sequences, or construction"
+src/phospy/core/references/validation/resource_integrity.py,phospy.core.references.validation.resource_integrity,references,"General reference identity, resources, sequences, or construction"
 src/phospy/run_lineage/__init__.py,phospy.run_lineage,run_lineage,Cross-capability run-lineage composition owner
 src/phospy/run_lineage/models.py,phospy.run_lineage.models,run_lineage,Cross-capability run-lineage composition owner
 src/phospy/run_lineage/serialization.py,phospy.run_lineage.serialization,run_lineage,Cross-capability run-lineage composition owner
@@ -627,10 +627,10 @@ src/phospy/signalome/tables/context.py,phospy.signalome.tables.context,signalome
 src/phospy/signalome/tables/modules.py,phospy.signalome.tables.modules,signalome,Complete Signalome capability lifecycle
 src/phospy/signalome/tables/network.py,phospy.signalome.tables.network,signalome,Complete Signalome capability lifecycle
 src/phospy/signalome/validator.py,phospy.signalome.validator,signalome,Complete Signalome capability lifecycle
-src/phospy/statistics/__init__.py,phospy.statistics,statistics,Reusable statistical kernel or generic correction value
-src/phospy/statistics/multiple_testing.py,phospy.statistics.multiple_testing,statistics,Reusable statistical kernel or generic correction value
-src/phospy/taxonomy/__init__.py,phospy.taxonomy,taxonomy,Typed organism vocabulary and normalisation
-src/phospy/taxonomy/organisms.py,phospy.taxonomy.organisms,taxonomy,Typed organism vocabulary and normalisation
+src/phospy/core/statistics/__init__.py,phospy.core.statistics,statistics,Reusable statistical kernel or generic correction value
+src/phospy/core/statistics/multiple_testing.py,phospy.core.statistics.multiple_testing,statistics,Reusable statistical kernel or generic correction value
+src/phospy/core/taxonomy/__init__.py,phospy.core.taxonomy,taxonomy,Typed organism vocabulary and normalisation
+src/phospy/core/taxonomy/organisms.py,phospy.core.taxonomy.organisms,taxonomy,Typed organism vocabulary and normalisation
 src/phospy/core/validation/__init__.py,phospy.core.validation,validation,Reusable validation mechanics
 src/phospy/core/validation/common/__init__.py,phospy.core.validation.common,validation,Reusable validation mechanics
 src/phospy/core/validation/common/config_values.py,phospy.core.validation.common.config_values,validation,Reusable validation mechanics

@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from phospy.activities.semantics import ActivityInputMatrix
+from phospy.core.activities.semantics import ActivityInputMatrix
 from phospy.kinase.activity.methods.ssgsea_substrate_enrichment import (
     SSGSEA_STATUS_COMPUTED,
     SsgseaSubstrateEnrichmentActivityMethod,

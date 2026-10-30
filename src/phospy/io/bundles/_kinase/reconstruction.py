@@ -10,7 +10,7 @@ from typing import NoReturn, TypeGuard, cast
 
 import pandas as pd
 
-from phospy.activities.semantics import (
+from phospy.core.activities.semantics import (
     ActivityInputSemantics,
     ActivityProfileAxis,
     ActivityProfileMetadata,
@@ -19,6 +19,16 @@ from phospy.activities.semantics import (
 from phospy.core.errors.input import PhosPyInputError
 from phospy.core.errors.validation import PhosPyValidationError
 from phospy.core.errors.workflows import WorkflowBoundaryError
+from phospy.core.provenance.result_caveats import (
+    ResultCaveat,
+    result_caveats_from_payloads,
+)
+from phospy.core.quantitative.models import IntensityScaleState
+from phospy.core.quantitative.serialization import (
+    intensity_scale_state_from_payload,
+)
+from phospy.core.references.models import ReferenceBundle
+from phospy.core.taxonomy.organisms import Organism
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.datasets.processing_state import DatasetProcessingState
 from phospy.io.bundles._kinase.manifest import KinaseManifestSections
@@ -62,17 +72,10 @@ from phospy.kinase.results import (
     KinaseWorkflowResult,
 )
 from phospy.kinase.scoring.results import KinaseScoringResult
-from phospy.provenance.result_caveats import ResultCaveat, result_caveats_from_payloads
-from phospy.quantitative.models import IntensityScaleState
-from phospy.quantitative.serialization import (
-    intensity_scale_state_from_payload,
-)
-from phospy.references.models import ReferenceBundle
 from phospy.run_lineage.models import (
     RunProvenance,
 )
 from phospy.run_lineage.serialization import from_payload as provenance_from_payload
-from phospy.taxonomy.organisms import Organism
 
 _LEGACY_KINASE_BUNDLE_SCHEMA_ERROR = (
     "Legacy kinase bundle schemas are no longer supported. Regenerate the bundle "

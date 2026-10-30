@@ -6,6 +6,10 @@ import pandas as pd
 
 from phospy.core.errors.input import PhosPyInputError
 from phospy.core.errors.workflows import WorkflowBoundaryError
+from phospy.core.evidence.quantification_depth import (
+    QUANTIFICATION_DEPTH_COLUMN,
+    validate_quantification_depth_series,
+)
 from phospy.core.frames.pandas_typing import (
     dataframe_column,
     dataframe_copy,
@@ -14,6 +18,13 @@ from phospy.core.frames.pandas_typing import (
     index_as_strings,
     series_as_strings,
 )
+from phospy.core.phosphosites.contracts import RESULT_IDENTITY_COLUMNS
+from phospy.core.phosphosites.dataset_identity import (
+    enforce_display_id_column,
+    enforce_site_key_column,
+    enforce_site_key_column_raw_matches_index,
+)
+from phospy.core.quantitative.evidence import input_intensity_scale_evidence_from_state
 from phospy.datasets.internal_view import DatasetInternalView
 from phospy.differential.caveats import build_differential_result_caveats
 from phospy.differential.config import DifferentialAnalysisConfig
@@ -58,17 +69,6 @@ from phospy.differential.validation.reliability import (
     resolved_minimum_condition_replicates,
     resolved_reliability_profile,
 )
-from phospy.evidence.quantification_depth import (
-    QUANTIFICATION_DEPTH_COLUMN,
-    validate_quantification_depth_series,
-)
-from phospy.phosphosites.contracts import RESULT_IDENTITY_COLUMNS
-from phospy.phosphosites.dataset_identity import (
-    enforce_display_id_column,
-    enforce_site_key_column,
-    enforce_site_key_column_raw_matches_index,
-)
-from phospy.quantitative.evidence import input_intensity_scale_evidence_from_state
 
 
 class DifferentialAnalysisInterpreter:

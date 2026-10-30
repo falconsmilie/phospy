@@ -5,6 +5,10 @@ import importlib
 import pandas as pd
 import pytest
 
+from phospy.core.provenance.scientific_policy_models import (
+    ScientificPolicyId,
+    ScientificPolicyRecord,
+)
 from phospy.kinase.activity.policies import (
     build_ksea_zscore_activity_policy,
     build_simplified_weighted_substrate_activity_policy,
@@ -26,10 +30,6 @@ from phospy.preprocessing.provenance.policies import (
     DUPLICATE_SITE_RESOLUTION_AGGREGATE_MEAN_POLICY,
     PreprocessingStageOrderPolicy,
     build_duplicate_site_resolution_policy,
-)
-from phospy.provenance.scientific_policy_models import (
-    ScientificPolicyId,
-    ScientificPolicyRecord,
 )
 from phospy.signalome.clustering import derive_protein_modules
 from phospy.signalome.clustering.policies import (
@@ -96,10 +96,13 @@ def test_scientific_policy_ids_are_stable() -> None:
 
 
 def test_scientific_policy_model_ownership_is_explicit() -> None:
-    assert ScientificPolicyId.__module__ == "phospy.provenance.scientific_policy_models"
+    assert (
+        ScientificPolicyId.__module__
+        == "phospy.core.provenance.scientific_policy_models"
+    )
     assert (
         ScientificPolicyRecord.__module__
-        == "phospy.provenance.scientific_policy_models"
+        == "phospy.core.provenance.scientific_policy_models"
     )
 
 

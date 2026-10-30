@@ -10,6 +10,10 @@ import pandas as pd
 
 import phospy.api as public_api
 import phospy.api as public_results
+from phospy.core.provenance.hashing import hash_json_payload
+from phospy.core.provenance.immutability import FrozenJsonMapping
+from phospy.core.provenance.models import JsonValue
+from phospy.core.provenance.result_caveats import ResultCaveat
 from phospy.datasets.protein_aware import ProteinAwarePreparationReport
 from phospy.differential.diagnostics import (
     EmpiricalBayesPriorDiagnostics,
@@ -37,10 +41,6 @@ from phospy.preparation_records.protein_aware import (
     ProteinAwareSiteEligibility,
     ProteinMappingStatus,
 )
-from phospy.provenance.hashing import hash_json_payload
-from phospy.provenance.immutability import FrozenJsonMapping
-from phospy.provenance.models import JsonValue
-from phospy.provenance.result_caveats import ResultCaveat
 from tests.support.site_keys import protein_site_key_index, site_key_context_columns
 
 _IMMUTABLE_JSON_FIELDS = {
@@ -84,7 +84,7 @@ _IMMUTABLE_JSON_FIELDS = {
     "phospy.kinase.scoring.results.KinaseScoringResult.score_scale_metadata": (
         "kinase score-scale evidence metadata; recursively frozen"
     ),
-    "phospy.provenance.result_caveats.ResultCaveat.details": (
+    "phospy.core.provenance.result_caveats.ResultCaveat.details": (
         "common result caveat JSON details; recursively frozen"
     ),
 }
@@ -344,7 +344,7 @@ def test_exported_frozen_json_fields_are_registered_and_protected() -> None:
         "workflow_provenance": differential_result.workflow_provenance,
         "phospy.kinase.scoring.results.KinaseScoringResult."
         "score_scale_metadata": kinase_scoring_result.score_scale_metadata,
-        "phospy.provenance.result_caveats.ResultCaveat.details": caveat.details,
+        "phospy.core.provenance.result_caveats.ResultCaveat.details": caveat.details,
     }
 
     assert set(protected_values) == set(_IMMUTABLE_JSON_FIELDS)

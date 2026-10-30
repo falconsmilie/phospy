@@ -4,8 +4,8 @@ import inspect
 
 import phospy.kinase.interpreter as kinase_interpreter_module
 import phospy.signalome.interpreter as signalome_interpreter_module
+from phospy.core.references.models import ReferenceBundle
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.references.models import ReferenceBundle
 
 
 def test_dataset_boundary_constructor_has_no_canonicalization_or_default_repair() -> (

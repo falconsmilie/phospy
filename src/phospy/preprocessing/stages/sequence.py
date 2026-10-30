@@ -7,9 +7,16 @@ from dataclasses import replace
 import pandas as pd
 
 from phospy.core.errors.input import PhosPyInputError
-from phospy.evidence.sequence_resolution import (
+from phospy.core.evidence.sequence_resolution import (
     RESOLUTION_STATUS_RESOLVED,
     PhosphositeSequenceResolver,
+)
+from phospy.core.quantitative.quantitative_contracts import (
+    NegativeDomainPolicy,
+    QuantitativeEvidenceRequirement,
+    QuantitativeInformationLossKind,
+    QuantitativeReversibilityKind,
+    preserve_quantitative_contract,
 )
 from phospy.preprocessing.contracts import (
     DATASET_PREPROCESSING_STAGE_SITE_SEQUENCE_RESOLUTION,
@@ -29,13 +36,6 @@ from phospy.preprocessing.sequence import (
     SiteSequenceMetadataUpdater,
     SiteSequenceReferenceLoader,
     SiteSequenceResolutionRequestBuilder,
-)
-from phospy.quantitative.quantitative_contracts import (
-    NegativeDomainPolicy,
-    QuantitativeEvidenceRequirement,
-    QuantitativeInformationLossKind,
-    QuantitativeReversibilityKind,
-    preserve_quantitative_contract,
 )
 
 

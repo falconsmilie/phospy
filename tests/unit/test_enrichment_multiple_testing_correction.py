@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import pytest
 
+from phospy.core.statistics.multiple_testing import (
+    run as run_multiple_testing_correction,
+)
 from phospy.enrichment.contracts.collections import (
     EnrichmentSet,
     EnrichmentSetCollection,
@@ -13,9 +16,6 @@ from phospy.enrichment.contracts.vocabulary import (
 )
 from phospy.enrichment.ora import OraConfig
 from phospy.enrichment.ora import run as run_ora
-from phospy.statistics.multiple_testing import (
-    run as run_multiple_testing_correction,
-)
 
 
 def _collection(sets: dict[str, tuple[str, ...]]) -> EnrichmentSetCollection:

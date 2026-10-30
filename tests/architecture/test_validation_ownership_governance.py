@@ -34,12 +34,12 @@ class ConcreteSymbolOwner:
 FRAME_SEARCH_ROOTS = (
     PACKAGE_ROOT / "core" / "frames",
     PACKAGE_ROOT / "core" / "validation" / "common",
-    PACKAGE_ROOT / "phosphosites",
+    PACKAGE_ROOT / "core/phosphosites",
     PACKAGE_ROOT / "workflows",
 )
 SITE_IDENTITY_SEARCH_ROOTS = (
-    PACKAGE_ROOT / "phosphosites",
-    PACKAGE_ROOT / "references",
+    PACKAGE_ROOT / "core/phosphosites",
+    PACKAGE_ROOT / "core/references",
     PACKAGE_ROOT / "core" / "validation",
     PACKAGE_ROOT / "workflows",
 )
@@ -67,7 +67,7 @@ CONCRETE_VALIDATION_SYMBOL_OWNERS = (
     *(
         ConcreteSymbolOwner(
             symbol_name=symbol_name,
-            owner_path=PACKAGE_ROOT / "phosphosites" / "identity.py",
+            owner_path=PACKAGE_ROOT / "core/phosphosites" / "identity.py",
             search_roots=SITE_IDENTITY_SEARCH_ROOTS,
         )
         for symbol_name in ("build_phosphosite_identity",)
@@ -75,7 +75,7 @@ CONCRETE_VALIDATION_SYMBOL_OWNERS = (
     *(
         ConcreteSymbolOwner(
             symbol_name=symbol_name,
-            owner_path=PACKAGE_ROOT / "phosphosites" / "validation.py",
+            owner_path=PACKAGE_ROOT / "core/phosphosites" / "validation.py",
             search_roots=SITE_IDENTITY_SEARCH_ROOTS,
         )
         for symbol_name in (
@@ -87,7 +87,7 @@ CONCRETE_VALIDATION_SYMBOL_OWNERS = (
     *(
         ConcreteSymbolOwner(
             symbol_name=symbol_name,
-            owner_path=PACKAGE_ROOT / "phosphosites" / "metadata_validation.py",
+            owner_path=PACKAGE_ROOT / "core/phosphosites" / "metadata_validation.py",
             search_roots=SITE_IDENTITY_SEARCH_ROOTS,
         )
         for symbol_name in (
@@ -99,7 +99,7 @@ CONCRETE_VALIDATION_SYMBOL_OWNERS = (
     *(
         ConcreteSymbolOwner(
             symbol_name=symbol_name,
-            owner_path=PACKAGE_ROOT / "phosphosites" / "sequence_context.py",
+            owner_path=PACKAGE_ROOT / "core/phosphosites" / "sequence_context.py",
             search_roots=SITE_IDENTITY_SEARCH_ROOTS,
         )
         for symbol_name in (
@@ -111,25 +111,25 @@ CONCRETE_VALIDATION_SYMBOL_OWNERS = (
     *(
         ConcreteSymbolOwner(
             symbol_name=symbol_name,
-            owner_path=PACKAGE_ROOT / "phosphosites" / "contracts.py",
+            owner_path=PACKAGE_ROOT / "core/phosphosites" / "contracts.py",
             search_roots=SITE_IDENTITY_SEARCH_ROOTS,
         )
         for symbol_name in ("PhosphositeIdentityContract",)
     ),
     ConcreteSymbolOwner(
         symbol_name="ReferenceContextCompatibilityWarning",
-        owner_path=PACKAGE_ROOT / "references" / "context_compatibility.py",
+        owner_path=PACKAGE_ROOT / "core/references" / "context_compatibility.py",
         search_roots=SITE_IDENTITY_SEARCH_ROOTS,
     ),
     ConcreteSymbolOwner(
         symbol_name="validate_reference_context_compatibility",
-        owner_path=PACKAGE_ROOT / "references" / "context_compatibility.py",
+        owner_path=PACKAGE_ROOT / "core/references" / "context_compatibility.py",
         search_roots=SITE_IDENTITY_SEARCH_ROOTS,
     ),
     *(
         ConcreteSymbolOwner(
             symbol_name=symbol_name,
-            owner_path=(PACKAGE_ROOT / "phosphosites" / "dataset_identity.py"),
+            owner_path=(PACKAGE_ROOT / "core/phosphosites" / "dataset_identity.py"),
             search_roots=SITE_IDENTITY_SEARCH_ROOTS,
         )
         for symbol_name in (
@@ -144,7 +144,7 @@ CONCRETE_VALIDATION_SYMBOL_OWNERS = (
     ),
     ConcreteSymbolOwner(
         symbol_name="enforce_result_identity_metadata_coherence",
-        owner_path=(PACKAGE_ROOT / "phosphosites" / "result_identity.py"),
+        owner_path=(PACKAGE_ROOT / "core/phosphosites" / "result_identity.py"),
         search_roots=SITE_IDENTITY_SEARCH_ROOTS,
     ),
 )
@@ -248,23 +248,23 @@ def test_validation_ownership_map_assigns_frame_and_science_owners() -> None:
                 "Strict phosphosite identifier format and site-ID/metadata coherence"
             ].owner
         )
-        == "phospy.phosphosites.validation"
+        == "phospy.core.phosphosites.validation"
     )
     assert (
         _first_code_span(rows["Reusable phosphosite identity contracts"].owner)
-        == "phospy.phosphosites.contracts"
+        == "phospy.core.phosphosites.contracts"
     )
     assert (
         _first_code_span(rows["Analysis-ready `site_key` row identity"].owner)
-        == "phospy.phosphosites.dataset_identity"
+        == "phospy.core.phosphosites.dataset_identity"
     )
     assert (
         _first_code_span(rows["Analysis-ready `site_sequence` evidence"].owner)
-        == "phospy.phosphosites.metadata_validation.validate_site_sequence_column"
+        == "phospy.core.phosphosites.metadata_validation.validate_site_sequence_column"
     )
     assert (
         _first_code_span(rows["Workflow-specific centered sequence context"].owner)
-        == "phospy.phosphosites.sequence_context"
+        == "phospy.core.phosphosites.sequence_context"
     )
 
 
@@ -318,7 +318,7 @@ def test_ownership_map_records_sps_discovery_composition() -> None:
         "phospy.preprocessing.control_sites.discovery_validation."
         "SpsDiscoveryRequestValidator" in row.owner
     )
-    assert "phospy.phosphosites.validation.require_site_key_index" in row.owner
+    assert "phospy.core.phosphosites.validation.require_site_key_index" in row.owner
     assert "phospy.core.frames.validation.require_numeric_dataframe" in row.owner
     assert (
         "phospy.preprocessing.control_sites.workflow.SpsDiscoveryWorkflow"

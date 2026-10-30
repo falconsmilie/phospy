@@ -18,8 +18,8 @@ PACKAGE_ROOT = SRC_ROOT / "phospy"
 _OLD_DATASET_MODULES = (
     "phospy.contracts.dataset_build",
     "phospy.preprocessing.validation.sample_groups",
-    "phospy.provenance.derived_quantitative",
-    "phospy.provenance.models.trusted_assertions",
+    "phospy.core.provenance.derived_quantitative",
+    "phospy.core.provenance.models.trusted_assertions",
     "phospy.science.datasets._processing_state.json_contracts",
     "phospy.science.datasets._processing_state.missing_data",
     "phospy.science.datasets._processing_state.models",
@@ -153,7 +153,7 @@ def test_preparation_records_are_passive_closed_leaves_with_exact_declarations()
         "phospy.core.frames.ownership",
         "phospy.core.frames.validation",
         "phospy.core.policies",
-        "phospy.provenance.hashing",
+        "phospy.core.provenance.hashing",
     }
 
     for module_name, expected in PREPARATION_RECORD_ALLOWED_SYMBOLS.items():

@@ -8,6 +8,30 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
 def test_decomposed_owner_import_routes_preserve_supported_identity() -> None:
+    from phospy.core.provenance.models import (
+        EnvironmentProvenance,
+        TableFingerprint,
+    )
+    from phospy.core.provenance.models.environment import (
+        EnvironmentProvenance as OwnerEnvironmentProvenance,
+    )
+    from phospy.core.provenance.models.tables import (
+        TableFingerprint as OwnerTableFingerprint,
+    )
+    from phospy.core.provenance.serialization import table_fingerprint_to_payload
+    from phospy.core.provenance.serialization.tables import (
+        table_fingerprint_to_payload as owner_table_fingerprint_to_payload,
+    )
+    from phospy.core.references.validation import (
+        load_reference_manifest,
+        validate_reference_manifest,
+    )
+    from phospy.core.references.validation.bundle_semantics import (
+        validate_reference_manifest as owner_validate_reference_manifest,
+    )
+    from phospy.core.references.validation.manifest_schema import (
+        load_reference_manifest as owner_load_reference_manifest,
+    )
     from phospy.datasets.models import AnalysisReadyPhosphoDataset
     from phospy.datasets.models import (
         AnalysisReadyPhosphoDataset as OwnerAnalysisReadyPhosphoDataset,
@@ -25,30 +49,6 @@ def test_decomposed_owner_import_routes_preserve_supported_identity() -> None:
     )
     from phospy.preprocessing.results.execution import (
         PreprocessingStageResult as OwnerPreprocessingStageResult,
-    )
-    from phospy.provenance.models import (
-        EnvironmentProvenance,
-        TableFingerprint,
-    )
-    from phospy.provenance.models.environment import (
-        EnvironmentProvenance as OwnerEnvironmentProvenance,
-    )
-    from phospy.provenance.models.tables import (
-        TableFingerprint as OwnerTableFingerprint,
-    )
-    from phospy.provenance.serialization import table_fingerprint_to_payload
-    from phospy.provenance.serialization.tables import (
-        table_fingerprint_to_payload as owner_table_fingerprint_to_payload,
-    )
-    from phospy.references.validation import (
-        load_reference_manifest,
-        validate_reference_manifest,
-    )
-    from phospy.references.validation.bundle_semantics import (
-        validate_reference_manifest as owner_validate_reference_manifest,
-    )
-    from phospy.references.validation.manifest_schema import (
-        load_reference_manifest as owner_load_reference_manifest,
     )
     from phospy.run_lineage import RunProvenance, to_payload
     from phospy.run_lineage.models import RunProvenance as OwnerRunProvenance
@@ -68,9 +68,9 @@ def test_decomposed_owner_import_routes_preserve_supported_identity() -> None:
 
 
 def test_provenance_initialisers_exclude_non_owner_exports() -> None:
-    provenance = importlib.import_module("phospy.provenance")
-    models = importlib.import_module("phospy.provenance.models")
-    serialization = importlib.import_module("phospy.provenance.serialization")
+    provenance = importlib.import_module("phospy.core.provenance")
+    models = importlib.import_module("phospy.core.provenance.models")
+    serialization = importlib.import_module("phospy.core.provenance.serialization")
 
     for name in (
         "DerivedQuantitativeDataProvenance",
@@ -99,9 +99,9 @@ def test_provenance_initialisers_exclude_non_owner_exports() -> None:
 
 def test_decomposed_compatibility_routes_do_not_contain_implementation_logic() -> None:
     facade_paths = (
-        PROJECT_ROOT / "src/phospy/provenance/models/__init__.py",
-        PROJECT_ROOT / "src/phospy/provenance/serialization/__init__.py",
-        PROJECT_ROOT / "src/phospy/references/validation/__init__.py",
+        PROJECT_ROOT / "src/phospy/core/provenance/models/__init__.py",
+        PROJECT_ROOT / "src/phospy/core/provenance/serialization/__init__.py",
+        PROJECT_ROOT / "src/phospy/core/references/validation/__init__.py",
         PROJECT_ROOT / "src/phospy/preprocessing/contracts/__init__.py",
         PROJECT_ROOT / "src/phospy/datasets/__init__.py",
     )

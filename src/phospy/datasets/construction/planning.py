@@ -7,6 +7,8 @@ from dataclasses import dataclass
 import pandas as pd
 
 from phospy.core.errors.build import DatasetBuildError
+from phospy.core.quantitative.models import IntensityScaleKind
+from phospy.core.taxonomy.organisms import Organism
 from phospy.datasets.construction.contracts import DatasetBuildRequestProtocol
 from phospy.datasets.construction.input_resolution import _raise_wrapped_input_error
 from phospy.datasets.construction.sequence_derivation import (
@@ -17,8 +19,6 @@ from phospy.preprocessing.contracts import PreprocessingPlan
 from phospy.preprocessing.contracts.policies import SiteMatrixPolicy
 from phospy.preprocessing.planning.boundary import PreprocessingPlanInterpreter
 from phospy.preprocessing.workflow import GroupCoverageFilterMetadataValidator
-from phospy.quantitative.models import IntensityScaleKind
-from phospy.taxonomy.organisms import Organism
 
 
 @dataclass(frozen=True, slots=True)

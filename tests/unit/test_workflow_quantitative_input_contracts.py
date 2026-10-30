@@ -22,19 +22,19 @@ from phospy.api.advanced import (
 )
 from phospy.core.errors import WorkflowValidationError
 from phospy.core.errors.transformations import InvalidTransformationStateError
-from phospy.differential.validation.workflow import DifferentialAnalysisValidator
-from phospy.kinase.validator import KinaseWorkflowValidator
-from phospy.quantitative.authority import (
+from phospy.core.quantitative.authority import (
     bundle_quantitative_meaning_restoration_authority,
 )
-from phospy.quantitative.models import (
+from phospy.core.quantitative.models import (
     IntensityScaleState,
     MatrixIntensityScaleState,
     QuantitativeMeaning,
     QuantitativeMeaningEvidenceMode,
     QuantitativeMeaningTransitionProvenance,
 )
-from phospy.references.models import ReferenceBundle
+from phospy.core.references.models import ReferenceBundle
+from phospy.differential.validation.workflow import DifferentialAnalysisValidator
+from phospy.kinase.validator import KinaseWorkflowValidator
 from phospy.signalome.validator import SignalomeWorkflowValidator
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,

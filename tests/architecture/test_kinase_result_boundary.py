@@ -21,6 +21,7 @@ from phospy.api._inventory import (
     ORDINARY_PUBLIC_API,
     ROOT_PUBLIC_API,
 )
+from phospy.core.provenance.scientific_policy_models import ScientificPolicyId
 from phospy.io.importers.contracts import (
     PhosphositeImporter,
     PhosphositeImportRequest,
@@ -38,7 +39,6 @@ from phospy.kinase.result_boundary import (
     KinaseScoreMatrix,
 )
 from phospy.kinase.scoring.results import KinaseScoringResult
-from phospy.provenance.scientific_policy_models import ScientificPolicyId
 from phospy.signalome.requests import SignalomeWorkflowRequest
 from tests.support.site_keys import protein_site_key_index
 

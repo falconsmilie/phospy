@@ -7,11 +7,18 @@ from dataclasses import replace
 import pandas as pd
 
 from phospy.core.errors.input import PhosPyInputError
-from phospy.phosphosites.dataset_identity import (
+from phospy.core.phosphosites.dataset_identity import (
     enforce_display_id_column,
     enforce_site_key_column,
 )
-from phospy.phosphosites.identifiers import canonicalize_site_components_series
+from phospy.core.phosphosites.identifiers import canonicalize_site_components_series
+from phospy.core.quantitative.quantitative_contracts import (
+    NegativeDomainPolicy,
+    QuantitativeEvidenceRequirement,
+    QuantitativeInformationLossKind,
+    QuantitativeReversibilityKind,
+    preserve_quantitative_contract,
+)
 from phospy.preprocessing.contracts import (
     DATASET_PREPROCESSING_STAGE_SITE_MATRIX,
     PreprocessingPlan,
@@ -46,13 +53,6 @@ from phospy.preprocessing.stages.site_matrix_components import (
     SiteMatrixAssembler,
     SiteMatrixProvenanceBuilder,
     SiteMatrixRowAuditBuilder,
-)
-from phospy.quantitative.quantitative_contracts import (
-    NegativeDomainPolicy,
-    QuantitativeEvidenceRequirement,
-    QuantitativeInformationLossKind,
-    QuantitativeReversibilityKind,
-    preserve_quantitative_contract,
 )
 
 _GENE_SYMBOL_COLUMN = "gene_symbol"

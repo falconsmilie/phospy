@@ -12,6 +12,7 @@ from phospy.api.advanced import (
     SignalomeValidationConfig,
 )
 from phospy.core.errors.input import PhosPyInputError
+from phospy.core.provenance.models import TableFingerprint
 from phospy.io.bundles._signalome.diagnostics import (
     signalome_alignment_diagnostics_from_payload,
     signalome_alignment_diagnostics_to_payload,
@@ -28,7 +29,6 @@ from phospy.io.bundles._signalome.diagnostics import (
 )
 from phospy.io.bundles._signalome.tables import normalize_module_assignments_table
 from phospy.io.bundles.signalome import SignalomeWorkflowConfigSnapshot
-from phospy.provenance.models import TableFingerprint
 from phospy.signalome.clustering import select_module_count_with_diagnostics
 from phospy.signalome.config import (
     SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,

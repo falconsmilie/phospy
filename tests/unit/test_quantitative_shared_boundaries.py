@@ -5,11 +5,11 @@ from dataclasses import fields
 
 import phospy.api
 import phospy.api.advanced
-from phospy.quantitative.evidence import InputIntensityScaleEvidence
-from phospy.quantitative.models import IntensityScaleKind
-from phospy.quantitative.serialization import intensity_scale_state_to_payload
-from phospy.quantitative.transformers import IdentityTransformer
-from phospy.statistics.multiple_testing import MultipleTestingCorrection
+from phospy.core.quantitative.evidence import InputIntensityScaleEvidence
+from phospy.core.quantitative.models import IntensityScaleKind
+from phospy.core.quantitative.serialization import intensity_scale_state_to_payload
+from phospy.core.quantitative.transformers import IdentityTransformer
+from phospy.core.statistics.multiple_testing import MultipleTestingCorrection
 from tests.support.intensity_scale_states import (
     supported_log2_intensity_scale_state,
 )

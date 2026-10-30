@@ -9,6 +9,9 @@ import pytest
 
 import phospy.differential.execution.model_executor as differential_executor_module
 from phospy.core.errors import PhosPyInputError
+from phospy.core.evidence.quantification_depth import (
+    QUANTIFICATION_DEPTH_KIND_PSM_COUNT,
+)
 from phospy.differential.diagnostics import (
     EmpiricalBayesPriorDiagnostics,
 )
@@ -37,7 +40,6 @@ from phospy.differential.moderation.empirical_bayes import (
 from phospy.differential.results import (
     DifferentialAnalysisResult,
 )
-from phospy.evidence.quantification_depth import QUANTIFICATION_DEPTH_KIND_PSM_COUNT
 from tests.support.site_keys import protein_site_key_index, site_key_context_columns
 
 _FEATURE_INDEX = pd.Index(["MAPK14;Y182;", "GSK3B;S9;"], name="site_id")

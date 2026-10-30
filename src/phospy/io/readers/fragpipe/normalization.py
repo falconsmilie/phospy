@@ -8,8 +8,8 @@ import math
 import pandas as pd
 
 from phospy.core.errors.input import PhosPyInputError
-from phospy.evidence.modified_peptides import parse_modified_peptide_sequence
-from phospy.evidence.quantification_depth import (
+from phospy.core.evidence.modified_peptides import parse_modified_peptide_sequence
+from phospy.core.evidence.quantification_depth import (
     QUANTIFICATION_DEPTH_COLUMN,
     QUANTIFICATION_DEPTH_INTEGER_TOLERANCE,
 )

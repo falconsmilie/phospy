@@ -157,7 +157,11 @@ def test_owner_initializers_are_narrow() -> None:
 def test_dependency_boundaries_are_exact() -> None:
     graph = build_import_graph(package_root=PACKAGE_ROOT, src_root=SRC_ROOT)
     records = tuple(graph.records)
-    upstream_prefixes = ("phospy.datasets", "phospy.preprocessing", "phospy.statistics")
+    upstream_prefixes = (
+        "phospy.datasets",
+        "phospy.preprocessing",
+        "phospy.core.statistics",
+    )
     reverse = sorted(
         (record.source_module, record.target)
         for record in records
@@ -174,7 +178,7 @@ def test_dependency_boundaries_are_exact() -> None:
                 "phospy.preprocessing",
                 "phospy.preparation_records",
                 "phospy.io",
-                "phospy.statistics",
+                "phospy.core.statistics",
             )
         )
     }
@@ -189,7 +193,7 @@ def test_dependency_boundaries_are_exact() -> None:
         "phospy.preparation_records.batch_correction",
         "phospy.preparation_records.policies",
         "phospy.preparation_records.protein_aware",
-        "phospy.statistics.multiple_testing",
+        "phospy.core.statistics.multiple_testing",
     }
 
 

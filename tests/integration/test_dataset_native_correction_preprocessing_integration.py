@@ -35,6 +35,7 @@ from phospy.api.advanced import (
     SpsRuvBatchCorrectionConfig,
 )
 from phospy.core.errors import PhosPyInputError
+from phospy.core.provenance import BatchCorrectionProvenance, fingerprint_matrix
 from phospy.datasets.construction.interpreter import DatasetBuildRequestInterpreter
 from phospy.preprocessing.batch_correction.contracts import (
     BatchCorrectionDiagnostics,
@@ -49,7 +50,6 @@ from phospy.preprocessing.batch_correction.provenance.validation import (
 from phospy.preprocessing.control_sites.contracts import (
     ControlSiteSourceMetadata,
 )
-from phospy.provenance import BatchCorrectionProvenance, fingerprint_matrix
 
 pytestmark = pytest.mark.integration
 

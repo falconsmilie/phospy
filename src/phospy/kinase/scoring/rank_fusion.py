@@ -8,8 +8,8 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
+from phospy.core.provenance.scientific_policy_models import ScientificPolicyRecord
 from phospy.kinase.scoring.policies import build_motif_profile_rank_fusion_policy
-from phospy.provenance.scientific_policy_models import ScientificPolicyRecord
 
 
 @dataclass(frozen=True, slots=True)

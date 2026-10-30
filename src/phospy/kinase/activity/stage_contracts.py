@@ -6,10 +6,10 @@ from typing import Protocol
 
 import pandas as pd
 
+from phospy.core.references.models import ReferenceBundle
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.kinase.activity.config import ResolvedKinaseActivityExecutionConfig
 from phospy.kinase.references.models import KinaseLibraryResource
-from phospy.references.models import ReferenceBundle
 
 
 class ActivityStageSiteUniverses(Protocol):

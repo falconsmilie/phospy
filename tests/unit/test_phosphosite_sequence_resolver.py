@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from phospy.core.errors.input import PhosPyInputError
-from phospy.evidence.sequence_resolution import (
+from phospy.core.evidence.sequence_resolution import (
     RESOLUTION_STATUS_ACCESSION_NOT_FOUND,
     RESOLUTION_STATUS_AMBIGUOUS_ACCESSION,
     RESOLUTION_STATUS_INSUFFICIENT_FLANKING_SEQUENCE,
@@ -17,11 +17,11 @@ from phospy.evidence.sequence_resolution import (
     PhosphositeSequenceResolutionRequest,
     PhosphositeSequenceResolver,
 )
-from phospy.references.sequences.models import (
+from phospy.core.references.sequences.models import (
     FastaSourceMetadata,
     ProteinSequenceRecord,
 )
-from phospy.references.sequences.repository import FastaProteinSequenceRepository
+from phospy.core.references.sequences.repository import FastaProteinSequenceRepository
 
 
 def test_successful_resolution_for_p28482_t185(tmp_path: Path) -> None:

@@ -4,6 +4,10 @@ import pandas as pd
 import pandas.testing as pdt
 
 from phospy.api.advanced import DatasetProteinAwarePreparationConfig
+from phospy.core.quantitative.models import (
+    IntensityScaleState,
+    MatrixIntensityScaleState,
+)
 from phospy.preparation_records.protein_aware import (
     ProteinAwarePreparationEligibility,
 )
@@ -21,10 +25,6 @@ from phospy.preprocessing.results.protein_aware import (
 )
 from phospy.preprocessing.stages.protein_aware import (
     ProteinAwarePreparationStage,
-)
-from phospy.quantitative.models import (
-    IntensityScaleState,
-    MatrixIntensityScaleState,
 )
 
 

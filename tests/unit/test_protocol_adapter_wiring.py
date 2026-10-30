@@ -4,6 +4,9 @@ from phospy.api import (
     AnalysisReadyDatasetBuilder,
     ReferenceBundleBuilder,
 )
+from phospy.core.references.builder_validation import (
+    ReferenceBundleBuildRequestValidator,
+)
 from phospy.datasets.construction.executor import DatasetBuildExecutor
 from phospy.datasets.construction.preprocessing import DatasetPreprocessor
 from phospy.datasets.validation.inputs import DatasetInputSourceValidator
@@ -12,7 +15,6 @@ from phospy.preprocessing.batch_correction.validation.design import (
     BatchCorrectionAdequacyValidator,
     BatchDesignMetadataValidator,
 )
-from phospy.references.builder_validation import ReferenceBundleBuildRequestValidator
 
 
 def test_public_dataset_builder_wires_private_validation_adapters() -> None:

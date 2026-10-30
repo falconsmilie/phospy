@@ -14,7 +14,7 @@ from phospy.core.frames.validation import (
     require_unique_columns,
     require_unique_index,
 )
-from phospy.phosphosites.validation import require_site_key_index
+from phospy.core.phosphosites.validation import require_site_key_index
 
 
 def _validate_kinase_score_like_matrix(

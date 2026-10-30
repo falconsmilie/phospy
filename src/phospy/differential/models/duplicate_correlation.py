@@ -14,10 +14,10 @@ from enum import StrEnum
 from typing import cast
 
 from phospy.core.errors.input import PhosPyInputError
-from phospy.provenance.models import (
+from phospy.core.provenance.models import (
     TableFingerprint,
 )
-from phospy.provenance.serialization.tables import (
+from phospy.core.provenance.serialization.tables import (
     table_fingerprint_from_payload,
     table_fingerprint_to_payload,
 )

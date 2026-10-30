@@ -9,13 +9,13 @@ from string import hexdigits
 import pandas as pd
 
 from phospy.core.errors.input import PhosPyInputError
+from phospy.core.provenance.hashing import DEFAULT_FILE_HASH_ALGORITHM, hash_file_bytes
 from phospy.io.bundles._shared.paths import resolve_bundle_relative_path
 from phospy.io.bundles._shared.primitives import (
     require_int,
     require_mapping,
     require_str,
 )
-from phospy.provenance.hashing import DEFAULT_FILE_HASH_ALGORITHM, hash_file_bytes
 
 _FILE_ENTRY_ALLOWED_FIELDS = frozenset({"path", "sha256", "byte_size", "logical_type"})
 _TABLE_ENTRY_ALLOWED_FIELDS = frozenset(

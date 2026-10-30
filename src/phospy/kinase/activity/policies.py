@@ -2,16 +2,16 @@
 
 from __future__ import annotations
 
+from phospy.core.provenance.scientific_policy_models import (
+    ScientificPolicyId,
+    ScientificPolicyRecord,
+)
 from phospy.kinase.activity.membership import (
     ACTIVITY_MEMBERSHIP_SELECTION_PAYLOAD_SCHEMA_VERSION,
     ACTIVITY_MEMBERSHIP_SELECTION_POLICY_VERSION,
     KSEA_MEMBERSHIP_INFERENTIAL_POLICY_VERSION,
 )
 from phospy.kinase.policies import ThresholdMode
-from phospy.provenance.scientific_policy_models import (
-    ScientificPolicyId,
-    ScientificPolicyRecord,
-)
 
 SSGSEA_SUBSTRATE_ENRICHMENT_ACTIVITY_POLICY_VERSION = "2"
 KSEA_ZSCORE_ACTIVITY_POLICY_VERSION = "5"

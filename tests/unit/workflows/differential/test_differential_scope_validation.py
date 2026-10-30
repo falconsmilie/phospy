@@ -17,6 +17,10 @@ from phospy.api import (
 )
 from phospy.api.advanced import DifferentialAnalysisConfig
 from phospy.core.errors import WorkflowValidationError
+from phospy.core.quantitative.models import (
+    IntensityScaleState,
+    MatrixIntensityScaleState,
+)
 from phospy.differential.policies import (
     DIFFERENTIAL_RELIABILITY_PROFILE_EXPLORATORY_SINGLE_REPLICATE,
 )
@@ -24,10 +28,6 @@ from phospy.differential.tables import (
     DIFFERENTIAL_RESULT_STATUS_COLUMN,
     DIFFERENTIAL_RESULT_STATUS_TESTED,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_ALL_CONSTANT,
-)
-from phospy.quantitative.models import (
-    IntensityScaleState,
-    MatrixIntensityScaleState,
 )
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,

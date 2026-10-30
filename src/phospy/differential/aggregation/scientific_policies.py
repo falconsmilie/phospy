@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from phospy.provenance.scientific_policy_models import (
+from phospy.core.provenance.scientific_policy_models import (
     ScientificPolicyId,
     ScientificPolicyRecord,
 )

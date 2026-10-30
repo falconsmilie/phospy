@@ -21,6 +21,17 @@ RETIRED_CORE003_MODULES = (
     "phospy.validation",
 )
 
+RETIRED_CORE004_MODULES = (
+    "phospy.activities",
+    "phospy.evidence",
+    "phospy.phosphosites",
+    "phospy.provenance",
+    "phospy.quantitative",
+    "phospy.references",
+    "phospy.statistics",
+    "phospy.taxonomy",
+)
+
 RETIRED_SIGNALOME_MODULES = (
     "phospy.contracts.configs.signalome",
     "phospy.contracts.results.signalome",
@@ -322,6 +333,7 @@ COMPATIBILITY_ONLY_MODULES = (
     + RETIRED_SIGNALOME_MODULES
     + RETIRED_HORIZONTAL_MODULES
     + RETIRED_CORE003_MODULES
+    + RETIRED_CORE004_MODULES
 )
 
 
@@ -334,9 +346,15 @@ def test_compatibility_only_modules_are_physically_absent(module_name: str) -> N
 def test_deleted_compatibility_package_directories_have_no_source_modules() -> None:
     for relative in (
         "api/configs",
+        "activities",
         "errors",
+        "evidence",
         "frames",
+        "phosphosites",
         "policies",
+        "provenance",
+        "quantitative",
+        "references",
         "science/statistics",
         "science/signalomes",
         "science/tables/signalome",
@@ -347,6 +365,8 @@ def test_deleted_compatibility_package_directories_have_no_source_modules() -> N
         "science/transformations",
         "tables",
         "tables/signalome",
+        "statistics",
+        "taxonomy",
         "validation",
         "validation/transformations",
         "workflows/enrichment",

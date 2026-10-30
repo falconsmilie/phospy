@@ -29,6 +29,14 @@ from phospy.api.advanced import (
     TechnicalReplicatePolicy,
 )
 from phospy.core.errors import WorkflowBoundaryError
+from phospy.core.evidence.quantification_depth import (
+    QUANTIFICATION_DEPTH_KIND_PEPTIDE_COUNT,
+    QUANTIFICATION_DEPTH_KIND_PSM_COUNT,
+)
+from phospy.core.statistics.multiple_testing import (
+    MULTIPLE_TESTING_CORRECTION_BENJAMINI_HOCHBERG,
+    adjust_p_values,
+)
 from phospy.differential.moderation.config import (
     EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,
     EmpiricalBayesConfig,
@@ -40,14 +48,6 @@ from phospy.differential.tables import (
     DIFFERENTIAL_RESULT_STATUS_TESTED,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_COVARIATE_INVALID,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_MODEL_FIT_INVALID,
-)
-from phospy.evidence.quantification_depth import (
-    QUANTIFICATION_DEPTH_KIND_PEPTIDE_COUNT,
-    QUANTIFICATION_DEPTH_KIND_PSM_COUNT,
-)
-from phospy.statistics.multiple_testing import (
-    MULTIPLE_TESTING_CORRECTION_BENJAMINI_HOCHBERG,
-    adjust_p_values,
 )
 from tests.support.unsafe_dataset_states import (
     unsafe_mark_dataset_total_protein_correction_applied,

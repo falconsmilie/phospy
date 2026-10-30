@@ -24,7 +24,7 @@ from phospy.api.advanced import (
     KinaseScoringConfig,
     ReferenceContextCompatibilityPolicy,
 )
-from phospy.provenance.scientific_policy_models import ScientificPolicyId
+from phospy.core.provenance.scientific_policy_models import ScientificPolicyId
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )
@@ -173,6 +173,7 @@ def test_public_result_exports_match_contract() -> None:
 
 
 def test_result_domain_modules_preserve_supported_import_identity() -> None:
+    from phospy.core.provenance.result_caveats import ResultCaveat
     from phospy.differential.results import DifferentialAnalysisResult
     from phospy.enrichment.contracts.results import EnrichmentWorkflowResult
     from phospy.io.importers.contracts import (
@@ -188,7 +189,6 @@ def test_result_domain_modules_preserve_supported_import_identity() -> None:
     from phospy.preparation_records.batch_correction import (
         BatchCorrectionReport,
     )
-    from phospy.provenance.result_caveats import ResultCaveat
     from phospy.signalome.results import SignalomeWorkflowResult
 
     assert result_models.ResultCaveat is ResultCaveat

@@ -7,7 +7,7 @@ import pytest
 from phospy.api import AnalysisReadyDatasetBuilder, DatasetBuildRequest, Organism
 from phospy.core.errors import DatasetValidationError
 from phospy.core.errors.input import PhosPyInputError
-from phospy.phosphosites.site_keys import (
+from phospy.core.phosphosites.site_keys import (
     build_protein_scoped_site_key,
     decode_site_key,
     encode_site_key,

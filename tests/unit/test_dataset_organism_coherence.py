@@ -4,13 +4,13 @@ import pandas as pd
 import pytest
 
 from phospy.core.errors import DatasetValidationError
-from phospy.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.phosphosites.site_keys import (
+from phospy.core.phosphosites.site_keys import (
     build_protein_scoped_site_key,
     decode_site_key,
     encode_site_key,
 )
-from phospy.taxonomy import Organism
+from phospy.core.taxonomy import Organism
+from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from tests.support.analysis_ready_dataset_factories import (
     complete_trusted_dataset_construction_assertions_for_tests,
     trusted_analysis_ready_dataset_from_tables,

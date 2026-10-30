@@ -3,6 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
+from phospy.core.provenance.scientific_policy_models import ScientificPolicyId
 from phospy.kinase.prediction.candidates import build_candidate_substrate_list
 from phospy.kinase.result_boundary import DownstreamScoreSource
 from phospy.kinase.scoring.rank_fusion import MotifProfileRankFusionPolicy
@@ -15,7 +16,6 @@ from phospy.kinase.scoring.selection import (
     build_kinase_score_source_diagnostics,
     select_downstream_score_matrix,
 )
-from phospy.provenance.scientific_policy_models import ScientificPolicyId
 
 
 def test_fuse_profile_and_motif_scores_by_rank_weight_falls_back_when_motif_column_is_all_nan() -> (

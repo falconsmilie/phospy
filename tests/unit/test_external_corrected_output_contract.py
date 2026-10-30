@@ -7,6 +7,7 @@ import pandas as pd
 import pytest
 
 from phospy.core.errors.input import PhosPyInputError
+from phospy.core.provenance.models.batch_correction import BatchCorrectionProvenance
 from phospy.preprocessing.batch_correction.contracts.output import (
     _CALLER_ATTESTED_EXTERNAL_CORRECTION_ORIGIN,
     _CALLER_ATTESTED_EXTERNAL_CORRECTION_VERIFICATION,
@@ -20,7 +21,6 @@ from phospy.preprocessing.control_sites.contracts import (
     ControlSiteSet,
     ControlSiteSourceMetadata,
 )
-from phospy.provenance.models.batch_correction import BatchCorrectionProvenance
 
 
 def _matrix() -> pd.DataFrame:

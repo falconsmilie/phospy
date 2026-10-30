@@ -5,14 +5,14 @@ from types import SimpleNamespace
 import pytest
 
 from phospy.core.errors.workflows import PhosPyWorkflowError
+from phospy.core.provenance.scientific_policy_models import (
+    ScientificPolicyId,
+    ScientificPolicyRecord,
+)
 from phospy.datasets.processing_state import DatasetPreprocessingReport
 from phospy.kinase.eligibility import KinaseEligibilityReportComposer
 from phospy.kinase.provenance import KinaseProvenanceBuilder
 from phospy.preparation_records.report_schema import PreprocessingOperationRow
-from phospy.provenance.scientific_policy_models import (
-    ScientificPolicyId,
-    ScientificPolicyRecord,
-)
 
 
 def _request_with_preprocessing_report(

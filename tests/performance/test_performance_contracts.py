@@ -27,6 +27,7 @@ from phospy.api.advanced import (
     KinaseScoringConfig,
     ReferenceContextCompatibilityPolicy,
 )
+from phospy.core.provenance.hashing import hash_table_tolerance
 from phospy.io.bundles._signalome.snapshots import SignalomeWorkflowConfigSnapshot
 from phospy.io.bundles.signalome import save_signalome_workflow_bundle
 from phospy.kinase.prediction.execution import run_adaptive_ensemble_prediction
@@ -59,7 +60,6 @@ from phospy.preprocessing.stages.missing_data.stage import (
 from phospy.preprocessing.stages.normalisation import (
     NormalisationStage,
 )
-from phospy.provenance.hashing import hash_table_tolerance
 from phospy.signalome.clustering import (
     MAX_FULL_CORRELATION_SITE_COUNT,
     SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED,

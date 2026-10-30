@@ -7,9 +7,9 @@ from pathlib import Path
 
 import pytest
 
-from phospy.references.errors import ReferenceManifestError
-from phospy.references.models import RedistributionStatus
-from phospy.references.validation import load_reference_manifest
+from phospy.core.references.errors import ReferenceManifestError
+from phospy.core.references.models import RedistributionStatus
+from phospy.core.references.validation import load_reference_manifest
 
 
 def test_valid_approved_manifest_loads_successfully(tmp_path: Path) -> None:

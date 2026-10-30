@@ -11,15 +11,15 @@ from phospy.api.advanced import (
     KinaseScoringConfig,
 )
 from phospy.core.errors.validation import PhosPyValidationError, WorkflowValidationError
-from phospy.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.kinase.validator import KinaseWorkflowValidator
-from phospy.references.context_compatibility import (
+from phospy.core.references.context_compatibility import (
     REFERENCE_CONTEXT_UNKNOWN_CAVEAT_CODE,
     ReferenceContextCompatibilityWarning,
     validate_reference_context_compatibility,
 )
-from phospy.references.models import ReferenceContext
-from phospy.references.provenance.models import ReferenceProvenance
+from phospy.core.references.models import ReferenceContext
+from phospy.core.references.provenance.models import ReferenceProvenance
+from phospy.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.kinase.validator import KinaseWorkflowValidator
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

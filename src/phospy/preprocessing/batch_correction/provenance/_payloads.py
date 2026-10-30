@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping, Sequence
 from typing import cast
 
-from phospy.provenance.models import (
+from phospy.core.provenance.models import (
     JsonValue,
 )
 

@@ -7,22 +7,22 @@ from phospy.core.errors.validation import (
     ReferenceIdentifierNormalisationValidationError,
     ReferenceValidationError,
 )
-from phospy.provenance.models import EnvironmentProvenance
-from phospy.references.identifiers import (
+from phospy.core.provenance.models import EnvironmentProvenance
+from phospy.core.references.identifiers import (
     normalise_reference_kinase_id,
     normalise_reference_protein_accession,
     normalise_reference_site_id,
 )
-from phospy.references.models import ReferenceBundle
-from phospy.references.provenance.models import ReferenceProvenance
-from phospy.references.tables import (
+from phospy.core.references.models import ReferenceBundle
+from phospy.core.references.provenance.models import ReferenceProvenance
+from phospy.core.references.tables import (
     KinaseSubstrateReference,
     ProteinAccessionReference,
     SiteSequenceReference,
 )
+from phospy.core.taxonomy import Organism
 from phospy.run_lineage.models import RunProvenance
 from phospy.run_lineage.serialization import from_payload, to_payload
-from phospy.taxonomy import Organism
 
 
 def test_kinase_identifier_normaliser_normalises_mixed_case_values() -> None:

@@ -8,6 +8,8 @@ import pandas as pd
 import pytest
 
 from phospy.core.errors import PhosPyInputError
+from phospy.core.provenance import fingerprint_matrix
+from phospy.core.provenance.models import BatchCorrectionProvenance
 from phospy.preparation_records.batch_correction import (
     BatchCorrectionDiagnostics,
     BatchCorrectionPolicy,
@@ -49,8 +51,6 @@ from phospy.preprocessing.control_sites.contracts import (
     ControlSiteSet,
     ControlSiteSourceMetadata,
 )
-from phospy.provenance import fingerprint_matrix
-from phospy.provenance.models import BatchCorrectionProvenance
 
 
 def test_batch_correction_workflow_orders_validators_before_interpreter_and_executor() -> (

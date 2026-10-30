@@ -4,6 +4,7 @@ import pandas as pd
 import pytest
 
 from phospy.core.errors import PhosPyInputError
+from phospy.core.taxonomy import Organism
 from phospy.preprocessing.control_sites.contracts import (
     ControlSiteAnnotation,
     ControlSiteSet,
@@ -12,7 +13,6 @@ from phospy.preprocessing.control_sites.contracts import (
 from phospy.preprocessing.control_sites.validation import (
     ControlSiteEligibilityValidator,
 )
-from phospy.taxonomy import Organism
 
 
 def _metadata(site_keys: tuple[str, ...], *, organism: str = "rat") -> pd.DataFrame:

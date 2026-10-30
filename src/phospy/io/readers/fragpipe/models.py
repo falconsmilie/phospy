@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 
-from phospy.evidence.quantification_depth import QuantificationDepthKind
+from phospy.core.evidence.quantification_depth import QuantificationDepthKind
 from phospy.io.importers.fragpipe_validation import (
     FRAGPIPE_FLAG_POLICY_REMOVE,
     FRAGPIPE_PTMPROPHET_POSITION_REFERENCE_PEPTIDE,

@@ -22,6 +22,10 @@ from phospy.api import (
 )
 from phospy.api.advanced import DatasetIntensityTransformConfig
 from phospy.core.errors import PhosPyInputError
+from phospy.core.evidence.dataset_resolution.models import (
+    DATASET_MULTI_SITE_POLICY_REJECT,
+    DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
+)
 from phospy.differential.aggregation.experimental import (
     EXPERIMENTAL_INTERNAL_API,
     EXPERIMENTAL_INTERNAL_REASON,
@@ -37,10 +41,6 @@ from phospy.differential.aggregation.models import (
     PEPTIDE_TO_SITE_MAPPING_POLICY_EXPLICIT_SITE_ID,
     PEPTIDE_TO_SITE_MAPPING_POLICY_SPLIT_EQUAL_WEIGHT,
     PeptideDifferentialEstimateTable,
-)
-from phospy.evidence.dataset_resolution.models import (
-    DATASET_MULTI_SITE_POLICY_REJECT,
-    DATASET_SITE_RESOLUTION_MODE_PEPTIDE_EVIDENCE,
 )
 
 ROOT = Path(__file__).resolve().parents[2]

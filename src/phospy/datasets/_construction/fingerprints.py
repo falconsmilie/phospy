@@ -5,12 +5,12 @@ from __future__ import annotations
 import pandas as pd
 
 from phospy.core.errors.validation import DatasetValidationError
+from phospy.core.provenance.hashing import fingerprint_optional_table_strict
+from phospy.core.provenance.models import (
+    TableFingerprint,
+)
 from phospy.datasets.direct_construction import (
     DIRECT_CONSTRUCTION_WORKFLOW_NAME,
-)
-from phospy.provenance.hashing import fingerprint_optional_table_strict
-from phospy.provenance.models import (
-    TableFingerprint,
 )
 from phospy.run_lineage.models import (
     RunProvenance,

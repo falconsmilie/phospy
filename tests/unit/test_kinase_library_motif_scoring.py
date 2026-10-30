@@ -3,6 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
+from phospy.core.provenance.scientific_policy_models import ScientificPolicyId
 from phospy.kinase.scoring.motif import (
     KINASE_LIBRARY_MATRIX_STATUS_FILTERED_RESIDUE_CLASS,
     KINASE_LIBRARY_SITE_STATUS_MISSING_SEQUENCE,
@@ -14,7 +15,6 @@ from phospy.kinase.scoring.motif import (
     score_kinase_library_motifs,
 )
 from phospy.kinase.scoring.policies import KinaseLibraryMotifScoringPolicy
-from phospy.provenance.scientific_policy_models import ScientificPolicyId
 
 
 def test_kinase_library_motif_scoring_calculates_exact_raw_scores() -> None:

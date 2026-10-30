@@ -11,7 +11,7 @@ from phospy.core.frames.validation import (
     require_dataframe,
     require_non_empty_string_column,
 )
-from phospy.phosphosites.validation import require_canonical_site_series
+from phospy.core.phosphosites.validation import require_canonical_site_series
 from phospy.signalome.constants import (
     DISPLAY_ID_COLUMN,
     ISOFORM_ID_COLUMN,

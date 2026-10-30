@@ -8,7 +8,7 @@ import pytest
 
 import phospy.signalome.clustering as clustering_module
 import phospy.signalome.clustering.orchestration as clustering_orchestration
-from phospy.provenance.scientific_policy_models import ScientificPolicyId
+from phospy.core.provenance.scientific_policy_models import ScientificPolicyId
 from phospy.signalome.clustering import (
     SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_DROP_FULLY_MISSING_THEN_COLUMN_MEDIAN_IMPUTE,
     cluster_sites_with_diagnostics,

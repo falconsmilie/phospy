@@ -17,7 +17,7 @@ from phospy.core.frames.validation import (
     require_unique_columns,
     require_unique_index,
 )
-from phospy.provenance.immutability import freeze_json_mapping_with_error_type
+from phospy.core.provenance.immutability import freeze_json_mapping_with_error_type
 
 
 @dataclass(frozen=True, slots=True, init=False, eq=False)

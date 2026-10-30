@@ -3,7 +3,11 @@ from __future__ import annotations
 import pytest
 
 from phospy.api import Organism as PublicOrganism
-from phospy.taxonomy import Organism, normalize_optional_organism, normalize_organism
+from phospy.core.taxonomy import (
+    Organism,
+    normalize_optional_organism,
+    normalize_organism,
+)
 
 
 @pytest.mark.parametrize(

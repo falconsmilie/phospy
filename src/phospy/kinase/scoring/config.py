@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from typing import Literal, cast
 
 from phospy.core.errors.validation import ContractValidationError
+from phospy.core.evidence.config import LocalisationRequirement
 from phospy.core.policies import PolicyEnum
 from phospy.core.policies.config_values import (
     coerce_policy_enum,
@@ -14,12 +15,11 @@ from phospy.core.policies.config_values import (
 from phospy.core.policies.config_values import (
     require_int_at_least as _require_int_at_least,
 )
-from phospy.evidence.config import LocalisationRequirement
-from phospy.kinase.scoring.policies import ProfileSelfInclusionPolicy
-from phospy.references.config import (
+from phospy.core.references.config import (
     REFERENCE_CONTEXT_COMPATIBILITY_POLICY_REQUIRE_KNOWN_MATCH,
     ReferenceContextCompatibilityPolicy,
 )
+from phospy.kinase.scoring.policies import ProfileSelfInclusionPolicy
 
 KINASE_SCORING_MIN_SUBSTRATES_FLOOR = 2
 KINASE_SCORING_MODE_PHOSR_RANK_WEIGHTED = "phosr_rank_weighted"

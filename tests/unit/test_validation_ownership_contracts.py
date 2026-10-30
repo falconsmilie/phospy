@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import inspect
 
+from phospy.core.phosphosites import dataset_identity as site_key_validation
+from phospy.core.phosphosites import metadata_validation as site_metadata_validation
+from phospy.core.phosphosites import sequence_context as site_sequence_validation
+from phospy.core.phosphosites import workflow_identity as workflow_identity_validation
 from phospy.differential.validation.workflow import DifferentialAnalysisValidator
 from phospy.enrichment import validation as enrichment_validation
 from phospy.kinase.validator import KinaseWorkflowValidator
-from phospy.phosphosites import dataset_identity as site_key_validation
-from phospy.phosphosites import metadata_validation as site_metadata_validation
-from phospy.phosphosites import sequence_context as site_sequence_validation
-from phospy.phosphosites import workflow_identity as workflow_identity_validation
 from phospy.signalome.result_assembly import SignalomeResultAssembler
 from phospy.signalome.validator import SignalomeWorkflowValidator
 

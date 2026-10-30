@@ -20,26 +20,18 @@ exact owner-edge policy, and the permanent classification registry.
 | Root | Current classification |
 | --- | --- |
 | `.` | `public_facade_machinery` |
-| `activities` | `passive_shared_scientific_foundation` |
 | `api` | `public_facade` |
 | `core` | `organisational_namespace` |
 | `data` | `packaged_resource_payload` |
 | `datasets` | `capability` |
 | `differential` | `capability` |
 | `enrichment` | `capability` |
-| `evidence` | `shared_scientific_foundation` |
 | `io` | `adapter` |
 | `kinase` | `capability` |
-| `phosphosites` | `shared_scientific_foundation` |
 | `preparation_records` | `passive_shared_record_foundation` |
 | `preprocessing` | `capability` |
-| `provenance` | `shared_scientific_foundation` |
-| `quantitative` | `shared_scientific_foundation` |
-| `references` | `shared_scientific_foundation` |
 | `run_lineage` | `composition_foundation` |
 | `signalome` | `capability` |
-| `statistics` | `shared_scientific_foundation` |
-| `taxonomy` | `shared_scientific_foundation` |
 
 ## Complete statically observed owner graph (before classifications)
 
@@ -389,15 +381,26 @@ runtime binding, and it does not attempt to model arbitrary Python behavior.
 | `src/phospy/api/advanced/__init__.py` | `supported_aggregate_facade` | ADR-0055 specialist aggregate API; exact owner identities only. |
 | `src/phospy/api/builders.py` | `deliberate_internal_facade` | Internal aggregate composition used by the supported API; unsupported as an external route. |
 | `src/phospy/core/errors/__init__.py` | `deliberate_internal_facade` | Owner-package aggregation for internal imports. |
+| `src/phospy/core/evidence/__init__.py` | `deliberate_internal_facade` | Owner-package aggregation for evidence records. |
 | `src/phospy/core/frames/__init__.py` | `deliberate_internal_facade` | Owner-package aggregation for neutral frame primitives. |
+| `src/phospy/core/phosphosites/__init__.py` | `deliberate_internal_facade` | Phosphosite owner-package composition. |
 | `src/phospy/core/policies/__init__.py` | `deliberate_internal_facade` | Shared policy owner-package composition. |
-| `src/phospy/evidence/__init__.py` | `deliberate_internal_facade` | Owner-package aggregation for evidence records. |
+| `src/phospy/core/provenance/__init__.py` | `deliberate_internal_facade` | Provenance owner-package composition. |
+| `src/phospy/core/provenance/models/__init__.py` | `deliberate_internal_facade` | Provenance model package composition. |
+| `src/phospy/core/provenance/serialization/__init__.py` | `deliberate_internal_facade` | Provenance serialization package composition. |
+| `src/phospy/core/quantitative/__init__.py` | `deliberate_internal_facade` | Quantitative owner-package composition. |
+| `src/phospy/core/quantitative/models.py` | `deliberate_internal_facade` | Quantitative model aggregation retained for owner-internal composition. |
+| `src/phospy/core/quantitative/transformers/__init__.py` | `deliberate_internal_facade` | Quantitative transformer package composition. |
+| `src/phospy/core/references/manifest.py` | `deliberate_internal_facade` | Reference manifest contract composition. |
+| `src/phospy/core/references/sequences/__init__.py` | `deliberate_internal_facade` | Reference sequence package composition. |
+| `src/phospy/core/references/validation/__init__.py` | `deliberate_internal_facade` | Reference validation package composition. |
+| `src/phospy/core/statistics/__init__.py` | `deliberate_internal_facade` | Statistics owner-package composition. |
+| `src/phospy/core/taxonomy/__init__.py` | `deliberate_internal_facade` | Taxonomy owner-package composition. |
 | `src/phospy/io/bundles/kinase.py` | `deliberate_internal_facade` | IO-owned Kinase bundle composition. |
 | `src/phospy/io/bundles/signalome.py` | `deliberate_internal_facade` | IO-owned Signalome bundle composition. |
 | `src/phospy/io/publishers/__init__.py` | `deliberate_internal_facade` | IO publisher package composition. |
 | `src/phospy/io/readers/fragpipe/__init__.py` | `deliberate_internal_facade` | FragPipe reader package composition. |
 | `src/phospy/kinase/scoring/motif/__init__.py` | `deliberate_internal_facade` | Kinase motif implementation package composition. |
-| `src/phospy/phosphosites/__init__.py` | `deliberate_internal_facade` | Phosphosite owner-package composition. |
 | `src/phospy/preprocessing/batch_correction/__init__.py` | `deliberate_internal_facade` | Batch-correction capability package composition. |
 | `src/phospy/preprocessing/batch_correction/adapters/__init__.py` | `deliberate_internal_facade` | Batch-correction adapter package composition. |
 | `src/phospy/preprocessing/batch_correction/contracts/__init__.py` | `deliberate_internal_facade` | Batch-correction contract package composition. |
@@ -411,20 +414,9 @@ runtime binding, and it does not attempt to model arbitrary Python behavior.
 | `src/phospy/preprocessing/stages/missing_data/__init__.py` | `deliberate_internal_facade` | Missing-data stage package composition. |
 | `src/phospy/preprocessing/stages/site_matrix_components/__init__.py` | `deliberate_internal_facade` | Site-matrix stage component composition. |
 | `src/phospy/preprocessing/workflow.py` | `deliberate_internal_facade` | Preprocessing-owned workflow composition route. |
-| `src/phospy/provenance/__init__.py` | `deliberate_internal_facade` | Provenance owner-package composition. |
-| `src/phospy/provenance/models/__init__.py` | `deliberate_internal_facade` | Provenance model package composition. |
-| `src/phospy/provenance/serialization/__init__.py` | `deliberate_internal_facade` | Provenance serialization package composition. |
-| `src/phospy/quantitative/__init__.py` | `deliberate_internal_facade` | Quantitative owner-package composition. |
-| `src/phospy/quantitative/models.py` | `deliberate_internal_facade` | Quantitative model aggregation retained for owner-internal composition. |
-| `src/phospy/quantitative/transformers/__init__.py` | `deliberate_internal_facade` | Quantitative transformer package composition. |
-| `src/phospy/references/manifest.py` | `deliberate_internal_facade` | Reference manifest contract composition. |
-| `src/phospy/references/sequences/__init__.py` | `deliberate_internal_facade` | Reference sequence package composition. |
-| `src/phospy/references/validation/__init__.py` | `deliberate_internal_facade` | Reference validation package composition. |
 | `src/phospy/run_lineage/__init__.py` | `deliberate_internal_facade` | Run-lineage composition foundation facade. |
 | `src/phospy/signalome/clustering/backends/__init__.py` | `deliberate_internal_facade` | Signalome clustering backend package composition. |
 | `src/phospy/signalome/tables/__init__.py` | `deliberate_internal_facade` | Signalome table package composition. |
-| `src/phospy/statistics/__init__.py` | `deliberate_internal_facade` | Statistics owner-package composition. |
-| `src/phospy/taxonomy/__init__.py` | `deliberate_internal_facade` | Taxonomy owner-package composition. |
 
 ## Classified versioned and historical behavior
 
@@ -433,6 +425,24 @@ identifiers from live compatibility routes. Their exact sets are enforced.
 
 ### Retired-route string literals
 
+- `src/phospy/core/quantitative/authority.py`
+  - `phospy.science.batch_correction.sps_discovery`
+  - `phospy.science.datasets.builders.transformation_resolver`
+  - `phospy.science.datasets.preprocessing.state_builder`
+  - `phospy.science.transformations.transformers.identity`
+- `src/phospy/core/quantitative/policy.py`
+  - `phospy.science.batch_correction.sps_discovery`
+  - `phospy.science.datasets.preprocessing.state_builder`
+  - `phospy.science.transformations.transformers.identity`
+- `src/phospy/core/quantitative/quantitative_contracts.py`
+  - `phospy.science.transformations.quantitative_contracts`
+- `src/phospy/core/quantitative/scale_values.py`
+  - `phospy.science.transformations.transformers.log2`
+- `src/phospy/core/quantitative/transformers/identity.py`
+  - `phospy.science.transformations.transformers.identity.IdentityTransformer`
+- `src/phospy/core/quantitative/transformers/log2.py`
+  - `phospy.science.transformations.transformers.log2`
+  - `phospy.science.transformations.transformers.log2.Log2Transformer`
 - `src/phospy/datasets/construction/provenance.py`
   - `phospy.science.datasets.builders.transformation_state.DatasetTransformationStateResolver.run`
 - `src/phospy/datasets/construction/state_assembly.py`
@@ -448,24 +458,6 @@ identifiers from live compatibility routes. Their exact sets are enforced.
 - `src/phospy/preprocessing/stages/sequence.py`
   - `phospy.science.sequences`
   - `phospy.science.sequences.resolver.v1`
-- `src/phospy/quantitative/authority.py`
-  - `phospy.science.batch_correction.sps_discovery`
-  - `phospy.science.datasets.builders.transformation_resolver`
-  - `phospy.science.datasets.preprocessing.state_builder`
-  - `phospy.science.transformations.transformers.identity`
-- `src/phospy/quantitative/policy.py`
-  - `phospy.science.batch_correction.sps_discovery`
-  - `phospy.science.datasets.preprocessing.state_builder`
-  - `phospy.science.transformations.transformers.identity`
-- `src/phospy/quantitative/quantitative_contracts.py`
-  - `phospy.science.transformations.quantitative_contracts`
-- `src/phospy/quantitative/scale_values.py`
-  - `phospy.science.transformations.transformers.log2`
-- `src/phospy/quantitative/transformers/identity.py`
-  - `phospy.science.transformations.transformers.identity.IdentityTransformer`
-- `src/phospy/quantitative/transformers/log2.py`
-  - `phospy.science.transformations.transformers.log2`
-  - `phospy.science.transformations.transformers.log2.Log2Transformer`
 
 ### Legacy behavior markers
 
@@ -479,13 +471,13 @@ identifiers from live compatibility routes. Their exact sets are enforced.
   - `src/phospy/kinase/activity/results.py`
   - `src/phospy/kinase/prediction/results.py`
   - `src/phospy/kinase/scoring/config.py`
-  - `src/phospy/phosphosites/display_identity.py`
+  - `src/phospy/core/phosphosites/display_identity.py`
   - `src/phospy/preprocessing/control_sites/contracts.py`
   - `src/phospy/preprocessing/control_sites/discovery_contracts.py`
   - `src/phospy/preprocessing/control_sites/discovery_provenance.py`
   - `src/phospy/preprocessing/control_sites/discovery_results.py`
   - `src/phospy/preprocessing/sequence/reference.py`
-  - `src/phospy/provenance/environment.py`
+  - `src/phospy/core/provenance/environment.py`
 - `signalome_versioned_input_and_diagnostic_aliases`
   - `src/phospy/signalome/assignments.py`
   - `src/phospy/signalome/caveats.py`
@@ -504,10 +496,10 @@ identifiers from live compatibility routes. Their exact sets are enforced.
   - `src/phospy/datasets/construction/input_resolution.py`
   - `src/phospy/datasets/trusted_assertions.py`
   - `src/phospy/enrichment/contracts/collections.py`
-  - `src/phospy/evidence/__init__.py`
-  - `src/phospy/evidence/dataset_resolution/__init__.py`
-  - `src/phospy/evidence/dataset_resolution/models.py`
-  - `src/phospy/evidence/serialization/historical_peptide.py`
+  - `src/phospy/core/evidence/__init__.py`
+  - `src/phospy/core/evidence/dataset_resolution/__init__.py`
+  - `src/phospy/core/evidence/dataset_resolution/models.py`
+  - `src/phospy/core/evidence/serialization/historical_peptide.py`
   - `src/phospy/io/bundles/_kinase/manifest.py`
   - `src/phospy/io/bundles/_kinase/reconstruction.py`
   - `src/phospy/io/bundles/_kinase/snapshots.py`
@@ -520,26 +512,26 @@ identifiers from live compatibility routes. Their exact sets are enforced.
   - `src/phospy/io/bundles/_signalome/tables.py`
   - `src/phospy/preprocessing/provenance/serialization.py`
   - `src/phospy/preprocessing/results/quantitative_evidence.py`
-  - `src/phospy/provenance/serialization/payload.py`
-  - `src/phospy/provenance/serialization/environment.py`
-  - `src/phospy/provenance/serialization/tables.py`
-  - `src/phospy/quantitative/models.py`
-  - `src/phospy/quantitative/policy.py`
-  - `src/phospy/quantitative/scale_state.py`
-  - `src/phospy/quantitative/serialization.py`
+  - `src/phospy/core/provenance/serialization/payload.py`
+  - `src/phospy/core/provenance/serialization/environment.py`
+  - `src/phospy/core/provenance/serialization/tables.py`
+  - `src/phospy/core/quantitative/models.py`
+  - `src/phospy/core/quantitative/policy.py`
+  - `src/phospy/core/quantitative/scale_state.py`
+  - `src/phospy/core/quantitative/serialization.py`
 
 ## Complete tracked production file inventory
 
 - `src/phospy/__init__.py`
-- `src/phospy/activities/__init__.py`
-- `src/phospy/activities/contracts.py`
-- `src/phospy/activities/semantics.py`
-- `src/phospy/activities/validation.py`
 - `src/phospy/api/__init__.py`
 - `src/phospy/api/_inventory.py`
 - `src/phospy/api/advanced/__init__.py`
 - `src/phospy/api/builders.py`
 - `src/phospy/core/__init__.py`
+- `src/phospy/core/activities/__init__.py`
+- `src/phospy/core/activities/contracts.py`
+- `src/phospy/core/activities/semantics.py`
+- `src/phospy/core/activities/validation.py`
 - `src/phospy/core/errors/__init__.py`
 - `src/phospy/core/errors/base.py`
 - `src/phospy/core/errors/build.py`
@@ -549,6 +541,26 @@ identifiers from live compatibility routes. Their exact sets are enforced.
 - `src/phospy/core/errors/transformations.py`
 - `src/phospy/core/errors/validation.py`
 - `src/phospy/core/errors/workflows.py`
+- `src/phospy/core/evidence/__init__.py`
+- `src/phospy/core/evidence/caveats.py`
+- `src/phospy/core/evidence/config.py`
+- `src/phospy/core/evidence/dataset_resolution/__init__.py`
+- `src/phospy/core/evidence/dataset_resolution/allocation.py`
+- `src/phospy/core/evidence/dataset_resolution/mapping.py`
+- `src/phospy/core/evidence/dataset_resolution/models.py`
+- `src/phospy/core/evidence/dataset_resolution/policies.py`
+- `src/phospy/core/evidence/dataset_resolution/resolver.py`
+- `src/phospy/core/evidence/dataset_resolution/site_metadata.py`
+- `src/phospy/core/evidence/dataset_resolution/site_sequence.py`
+- `src/phospy/core/evidence/dataset_resolution/summary.py`
+- `src/phospy/core/evidence/localisation.py`
+- `src/phospy/core/evidence/models.py`
+- `src/phospy/core/evidence/modified_peptides.py`
+- `src/phospy/core/evidence/multi_site.py`
+- `src/phospy/core/evidence/quantification_depth.py`
+- `src/phospy/core/evidence/sequence_resolution.py`
+- `src/phospy/core/evidence/serialization/historical_peptide.py`
+- `src/phospy/core/evidence/site_metadata.py`
 - `src/phospy/core/frames/__init__.py`
 - `src/phospy/core/frames/comparison.py`
 - `src/phospy/core/frames/missing_values.py`
@@ -558,9 +570,100 @@ identifiers from live compatibility routes. Their exact sets are enforced.
 - `src/phospy/core/frames/table_formats.py`
 - `src/phospy/core/frames/table_schema.py`
 - `src/phospy/core/frames/validation.py`
+- `src/phospy/core/phosphosites/__init__.py`
+- `src/phospy/core/phosphosites/contracts.py`
+- `src/phospy/core/phosphosites/dataset_identity.py`
+- `src/phospy/core/phosphosites/display_identity.py`
+- `src/phospy/core/phosphosites/identifiers.py`
+- `src/phospy/core/phosphosites/identity.py`
+- `src/phospy/core/phosphosites/messages.py`
+- `src/phospy/core/phosphosites/metadata_validation.py`
+- `src/phospy/core/phosphosites/parsing.py`
+- `src/phospy/core/phosphosites/result_identity.py`
+- `src/phospy/core/phosphosites/sequence_context.py`
+- `src/phospy/core/phosphosites/site_keys.py`
+- `src/phospy/core/phosphosites/validation.py`
+- `src/phospy/core/phosphosites/workflow_identity.py`
 - `src/phospy/core/policies/__init__.py`
 - `src/phospy/core/policies/config_values.py`
 - `src/phospy/core/policies/policy_base.py`
+- `src/phospy/core/provenance/__init__.py`
+- `src/phospy/core/provenance/environment.py`
+- `src/phospy/core/provenance/hashing.py`
+- `src/phospy/core/provenance/immutability.py`
+- `src/phospy/core/provenance/models/__init__.py`
+- `src/phospy/core/provenance/models/batch_correction.py`
+- `src/phospy/core/provenance/models/environment.py`
+- `src/phospy/core/provenance/models/tables.py`
+- `src/phospy/core/provenance/result_caveats.py`
+- `src/phospy/core/provenance/row_attrition.py`
+- `src/phospy/core/provenance/scalar_validation.py`
+- `src/phospy/core/provenance/scientific_policy_models.py`
+- `src/phospy/core/provenance/serialization/__init__.py`
+- `src/phospy/core/provenance/serialization/batch_correction.py`
+- `src/phospy/core/provenance/serialization/environment.py`
+- `src/phospy/core/provenance/serialization/payload.py`
+- `src/phospy/core/provenance/serialization/tables.py`
+- `src/phospy/core/quantitative/__init__.py`
+- `src/phospy/core/quantitative/_payloads.py`
+- `src/phospy/core/quantitative/assertions.py`
+- `src/phospy/core/quantitative/authority.py`
+- `src/phospy/core/quantitative/contracts.py`
+- `src/phospy/core/quantitative/declared_scale_diagnostics.py`
+- `src/phospy/core/quantitative/evidence.py`
+- `src/phospy/core/quantitative/models.py`
+- `src/phospy/core/quantitative/policy.py`
+- `src/phospy/core/quantitative/provenance.py`
+- `src/phospy/core/quantitative/quantitative_contracts.py`
+- `src/phospy/core/quantitative/scale_state.py`
+- `src/phospy/core/quantitative/scale_values.py`
+- `src/phospy/core/quantitative/serialization.py`
+- `src/phospy/core/quantitative/state_coherence.py`
+- `src/phospy/core/quantitative/transformers/__init__.py`
+- `src/phospy/core/quantitative/transformers/identifiers.py`
+- `src/phospy/core/quantitative/transformers/identity.py`
+- `src/phospy/core/quantitative/transformers/log2.py`
+- `src/phospy/core/quantitative/validation.py`
+- `src/phospy/core/references/__init__.py`
+- `src/phospy/core/references/acquisition.py`
+- `src/phospy/core/references/builder.py`
+- `src/phospy/core/references/builder_validation.py`
+- `src/phospy/core/references/compatibility.py`
+- `src/phospy/core/references/config.py`
+- `src/phospy/core/references/context_compatibility.py`
+- `src/phospy/core/references/errors.py`
+- `src/phospy/core/references/fingerprints.py`
+- `src/phospy/core/references/identifiers.py`
+- `src/phospy/core/references/manifest.py`
+- `src/phospy/core/references/manifest_common.py`
+- `src/phospy/core/references/manifest_files.py`
+- `src/phospy/core/references/manifest_model.py`
+- `src/phospy/core/references/manifest_policy.py`
+- `src/phospy/core/references/models.py`
+- `src/phospy/core/references/provenance/context.py`
+- `src/phospy/core/references/provenance/identifiers.py`
+- `src/phospy/core/references/provenance/models.py`
+- `src/phospy/core/references/provenance/serialization.py`
+- `src/phospy/core/references/redistribution.py`
+- `src/phospy/core/references/resolution.py`
+- `src/phospy/core/references/resources.py`
+- `src/phospy/core/references/sequences/__init__.py`
+- `src/phospy/core/references/sequences/fasta.py`
+- `src/phospy/core/references/sequences/models.py`
+- `src/phospy/core/references/sequences/repository.py`
+- `src/phospy/core/references/sequences/validation.py`
+- `src/phospy/core/references/tables.py`
+- `src/phospy/core/references/validation/__init__.py`
+- `src/phospy/core/references/validation/_diagnostics.py`
+- `src/phospy/core/references/validation/bundle.py`
+- `src/phospy/core/references/validation/bundle_semantics.py`
+- `src/phospy/core/references/validation/manifest_schema.py`
+- `src/phospy/core/references/validation/redistribution_policy.py`
+- `src/phospy/core/references/validation/resource_integrity.py`
+- `src/phospy/core/statistics/__init__.py`
+- `src/phospy/core/statistics/multiple_testing.py`
+- `src/phospy/core/taxonomy/__init__.py`
+- `src/phospy/core/taxonomy/organisms.py`
 - `src/phospy/core/validation/__init__.py`
 - `src/phospy/core/validation/common/__init__.py`
 - `src/phospy/core/validation/common/config_values.py`
@@ -704,26 +807,6 @@ identifiers from live compatibility routes. Their exact sets are enforced.
 - `src/phospy/enrichment/provenance.py`
 - `src/phospy/enrichment/validation.py`
 - `src/phospy/enrichment/workflow.py`
-- `src/phospy/evidence/__init__.py`
-- `src/phospy/evidence/caveats.py`
-- `src/phospy/evidence/config.py`
-- `src/phospy/evidence/dataset_resolution/__init__.py`
-- `src/phospy/evidence/dataset_resolution/allocation.py`
-- `src/phospy/evidence/dataset_resolution/mapping.py`
-- `src/phospy/evidence/dataset_resolution/models.py`
-- `src/phospy/evidence/dataset_resolution/policies.py`
-- `src/phospy/evidence/dataset_resolution/resolver.py`
-- `src/phospy/evidence/dataset_resolution/site_metadata.py`
-- `src/phospy/evidence/dataset_resolution/site_sequence.py`
-- `src/phospy/evidence/dataset_resolution/summary.py`
-- `src/phospy/evidence/localisation.py`
-- `src/phospy/evidence/models.py`
-- `src/phospy/evidence/modified_peptides.py`
-- `src/phospy/evidence/multi_site.py`
-- `src/phospy/evidence/quantification_depth.py`
-- `src/phospy/evidence/sequence_resolution.py`
-- `src/phospy/evidence/serialization/historical_peptide.py`
-- `src/phospy/evidence/site_metadata.py`
 - `src/phospy/io/__init__.py`
 - `src/phospy/io/bundles/__init__.py`
 - `src/phospy/io/bundles/_kinase/__init__.py`
@@ -870,20 +953,6 @@ identifiers from live compatibility routes. Their exact sets are enforced.
 - `src/phospy/kinase/site_sequence_policy.py`
 - `src/phospy/kinase/site_sequence_support.py`
 - `src/phospy/kinase/validator.py`
-- `src/phospy/phosphosites/__init__.py`
-- `src/phospy/phosphosites/contracts.py`
-- `src/phospy/phosphosites/dataset_identity.py`
-- `src/phospy/phosphosites/display_identity.py`
-- `src/phospy/phosphosites/identifiers.py`
-- `src/phospy/phosphosites/identity.py`
-- `src/phospy/phosphosites/messages.py`
-- `src/phospy/phosphosites/metadata_validation.py`
-- `src/phospy/phosphosites/parsing.py`
-- `src/phospy/phosphosites/result_identity.py`
-- `src/phospy/phosphosites/sequence_context.py`
-- `src/phospy/phosphosites/site_keys.py`
-- `src/phospy/phosphosites/validation.py`
-- `src/phospy/phosphosites/workflow_identity.py`
 - `src/phospy/preparation_records/__init__.py`
 - `src/phospy/preparation_records/batch_correction.py`
 - `src/phospy/preparation_records/group_evidence.py`
@@ -1030,79 +1099,6 @@ identifiers from live compatibility routes. Their exact sets are enforced.
 - `src/phospy/preprocessing/validation/quantitative_evidence.py`
 - `src/phospy/preprocessing/validation/quantitative_transition.py`
 - `src/phospy/preprocessing/workflow.py`
-- `src/phospy/provenance/__init__.py`
-- `src/phospy/provenance/environment.py`
-- `src/phospy/provenance/hashing.py`
-- `src/phospy/provenance/immutability.py`
-- `src/phospy/provenance/models/__init__.py`
-- `src/phospy/provenance/models/batch_correction.py`
-- `src/phospy/provenance/models/environment.py`
-- `src/phospy/provenance/models/tables.py`
-- `src/phospy/provenance/result_caveats.py`
-- `src/phospy/provenance/row_attrition.py`
-- `src/phospy/provenance/scalar_validation.py`
-- `src/phospy/provenance/scientific_policy_models.py`
-- `src/phospy/provenance/serialization/__init__.py`
-- `src/phospy/provenance/serialization/batch_correction.py`
-- `src/phospy/provenance/serialization/environment.py`
-- `src/phospy/provenance/serialization/payload.py`
-- `src/phospy/provenance/serialization/tables.py`
-- `src/phospy/quantitative/__init__.py`
-- `src/phospy/quantitative/_payloads.py`
-- `src/phospy/quantitative/assertions.py`
-- `src/phospy/quantitative/authority.py`
-- `src/phospy/quantitative/contracts.py`
-- `src/phospy/quantitative/declared_scale_diagnostics.py`
-- `src/phospy/quantitative/evidence.py`
-- `src/phospy/quantitative/models.py`
-- `src/phospy/quantitative/policy.py`
-- `src/phospy/quantitative/provenance.py`
-- `src/phospy/quantitative/quantitative_contracts.py`
-- `src/phospy/quantitative/scale_state.py`
-- `src/phospy/quantitative/scale_values.py`
-- `src/phospy/quantitative/serialization.py`
-- `src/phospy/quantitative/state_coherence.py`
-- `src/phospy/quantitative/transformers/__init__.py`
-- `src/phospy/quantitative/transformers/identifiers.py`
-- `src/phospy/quantitative/transformers/identity.py`
-- `src/phospy/quantitative/transformers/log2.py`
-- `src/phospy/quantitative/validation.py`
-- `src/phospy/references/__init__.py`
-- `src/phospy/references/acquisition.py`
-- `src/phospy/references/builder.py`
-- `src/phospy/references/builder_validation.py`
-- `src/phospy/references/compatibility.py`
-- `src/phospy/references/config.py`
-- `src/phospy/references/context_compatibility.py`
-- `src/phospy/references/errors.py`
-- `src/phospy/references/fingerprints.py`
-- `src/phospy/references/identifiers.py`
-- `src/phospy/references/manifest.py`
-- `src/phospy/references/manifest_common.py`
-- `src/phospy/references/manifest_files.py`
-- `src/phospy/references/manifest_model.py`
-- `src/phospy/references/manifest_policy.py`
-- `src/phospy/references/models.py`
-- `src/phospy/references/provenance/context.py`
-- `src/phospy/references/provenance/identifiers.py`
-- `src/phospy/references/provenance/models.py`
-- `src/phospy/references/provenance/serialization.py`
-- `src/phospy/references/redistribution.py`
-- `src/phospy/references/resolution.py`
-- `src/phospy/references/resources.py`
-- `src/phospy/references/sequences/__init__.py`
-- `src/phospy/references/sequences/fasta.py`
-- `src/phospy/references/sequences/models.py`
-- `src/phospy/references/sequences/repository.py`
-- `src/phospy/references/sequences/validation.py`
-- `src/phospy/references/tables.py`
-- `src/phospy/references/validation/__init__.py`
-- `src/phospy/references/validation/_diagnostics.py`
-- `src/phospy/references/validation/bundle.py`
-- `src/phospy/references/validation/bundle_semantics.py`
-- `src/phospy/references/validation/manifest_schema.py`
-- `src/phospy/references/validation/redistribution_policy.py`
-- `src/phospy/references/validation/resource_integrity.py`
 - `src/phospy/run_lineage/__init__.py`
 - `src/phospy/run_lineage/models.py`
 - `src/phospy/run_lineage/serialization.py`
@@ -1172,25 +1168,21 @@ identifiers from live compatibility routes. Their exact sets are enforced.
 - `src/phospy/signalome/tables/modules.py`
 - `src/phospy/signalome/tables/network.py`
 - `src/phospy/signalome/validator.py`
-- `src/phospy/statistics/__init__.py`
-- `src/phospy/statistics/multiple_testing.py`
-- `src/phospy/taxonomy/__init__.py`
-- `src/phospy/taxonomy/organisms.py`
 
 ## Complete Python module ownership inventory
 
 | Source path | Module | Owner | Rationale |
 | --- | --- | --- | --- |
 | `src/phospy/__init__.py` | `phospy` | `public_facades` | Metadata-only package root |
-| `src/phospy/activities/__init__.py` | `phospy.activities` | `activities` | Passive activity quantitative contract package |
-| `src/phospy/activities/contracts.py` | `phospy.activities.contracts` | `activities` | Generic activity quantitative method contract |
-| `src/phospy/activities/semantics.py` | `phospy.activities.semantics` | `activities` | Generic activity profile and quantitative semantics |
-| `src/phospy/activities/validation.py` | `phospy.activities.validation` | `activities` | Generic activity quantitative contract validation |
 | `src/phospy/api/__init__.py` | `phospy.api` | `public_facades` | Supported or compatibility aggregate adapter |
 | `src/phospy/api/_inventory.py` | `phospy.api._inventory` | `public_facades` | Supported aggregate inventory |
 | `src/phospy/api/advanced/__init__.py` | `phospy.api.advanced` | `public_facades` | Supported specialist aggregate adapter |
 | `src/phospy/api/builders.py` | `phospy.api.builders` | `public_facades` | Internal API composition route; unsupported for direct consumer import |
 | `src/phospy/core/__init__.py` | `phospy.core` | `namespace_containers` | Inert organisational namespace initializer |
+| `src/phospy/core/activities/__init__.py` | `phospy.core.activities` | `activities` | Passive activity quantitative contract package |
+| `src/phospy/core/activities/contracts.py` | `phospy.core.activities.contracts` | `activities` | Generic activity quantitative method contract |
+| `src/phospy/core/activities/semantics.py` | `phospy.core.activities.semantics` | `activities` | Generic activity profile and quantitative semantics |
+| `src/phospy/core/activities/validation.py` | `phospy.core.activities.validation` | `activities` | Generic activity quantitative contract validation |
 | `src/phospy/core/errors/__init__.py` | `phospy.core.errors` | `errors` | Shared exception taxonomy |
 | `src/phospy/core/errors/base.py` | `phospy.core.errors.base` | `errors` | Shared exception taxonomy |
 | `src/phospy/core/errors/build.py` | `phospy.core.errors.build` | `errors` | Shared exception taxonomy |
@@ -1200,6 +1192,26 @@ identifiers from live compatibility routes. Their exact sets are enforced.
 | `src/phospy/core/errors/transformations.py` | `phospy.core.errors.transformations` | `errors` | Shared exception taxonomy |
 | `src/phospy/core/errors/validation.py` | `phospy.core.errors.validation` | `errors` | Shared exception taxonomy |
 | `src/phospy/core/errors/workflows.py` | `phospy.core.errors.workflows` | `errors` | Shared exception taxonomy |
+| `src/phospy/core/evidence/__init__.py` | `phospy.core.evidence` | `evidence` | Evidence policy, records, allocation, or structural resolution |
+| `src/phospy/core/evidence/caveats.py` | `phospy.core.evidence.caveats` | `evidence` | Evidence policy, records, allocation, or structural resolution |
+| `src/phospy/core/evidence/config.py` | `phospy.core.evidence.config` | `evidence` | Evidence policy, records, allocation, or structural resolution |
+| `src/phospy/core/evidence/dataset_resolution/__init__.py` | `phospy.core.evidence.dataset_resolution` | `evidence` | Evidence policy, records, allocation, or structural resolution |
+| `src/phospy/core/evidence/dataset_resolution/allocation.py` | `phospy.core.evidence.dataset_resolution.allocation` | `evidence` | Evidence policy, records, allocation, or structural resolution |
+| `src/phospy/core/evidence/dataset_resolution/mapping.py` | `phospy.core.evidence.dataset_resolution.mapping` | `evidence` | Evidence policy, records, allocation, or structural resolution |
+| `src/phospy/core/evidence/dataset_resolution/models.py` | `phospy.core.evidence.dataset_resolution.models` | `evidence` | Evidence policy, records, allocation, or structural resolution |
+| `src/phospy/core/evidence/dataset_resolution/policies.py` | `phospy.core.evidence.dataset_resolution.policies` | `evidence` | Evidence policy, records, allocation, or structural resolution |
+| `src/phospy/core/evidence/dataset_resolution/resolver.py` | `phospy.core.evidence.dataset_resolution.resolver` | `evidence` | Evidence policy, records, allocation, or structural resolution |
+| `src/phospy/core/evidence/dataset_resolution/site_metadata.py` | `phospy.core.evidence.dataset_resolution.site_metadata` | `evidence` | Evidence policy, records, allocation, or structural resolution |
+| `src/phospy/core/evidence/dataset_resolution/site_sequence.py` | `phospy.core.evidence.dataset_resolution.site_sequence` | `evidence` | Evidence policy, records, allocation, or structural resolution |
+| `src/phospy/core/evidence/dataset_resolution/summary.py` | `phospy.core.evidence.dataset_resolution.summary` | `evidence` | Evidence policy, records, allocation, or structural resolution |
+| `src/phospy/core/evidence/localisation.py` | `phospy.core.evidence.localisation` | `evidence` | Evidence policy, records, allocation, or structural resolution |
+| `src/phospy/core/evidence/models.py` | `phospy.core.evidence.models` | `evidence` | Evidence policy, records, allocation, or structural resolution |
+| `src/phospy/core/evidence/modified_peptides.py` | `phospy.core.evidence.modified_peptides` | `evidence` | Evidence policy, records, allocation, or structural resolution |
+| `src/phospy/core/evidence/multi_site.py` | `phospy.core.evidence.multi_site` | `evidence` | Evidence policy, records, allocation, or structural resolution |
+| `src/phospy/core/evidence/quantification_depth.py` | `phospy.core.evidence.quantification_depth` | `evidence` | Evidence policy, records, allocation, or structural resolution |
+| `src/phospy/core/evidence/sequence_resolution.py` | `phospy.core.evidence.sequence_resolution` | `evidence` | Evidence policy, records, allocation, or structural resolution |
+| `src/phospy/core/evidence/serialization/historical_peptide.py` | `phospy.core.evidence.serialization.historical_peptide` | `evidence` | Historical peptide evidence compatibility codec |
+| `src/phospy/core/evidence/site_metadata.py` | `phospy.core.evidence.site_metadata` | `evidence` | Evidence policy, records, allocation, or structural resolution |
 | `src/phospy/core/frames/__init__.py` | `phospy.core.frames` | `frames` | Generic dataframe ownership or schema mechanics |
 | `src/phospy/core/frames/comparison.py` | `phospy.core.frames.comparison` | `frames` | Generic dataframe ownership or schema mechanics |
 | `src/phospy/core/frames/missing_values.py` | `phospy.core.frames.missing_values` | `frames` | Generic dataframe ownership or schema mechanics |
@@ -1209,9 +1221,100 @@ identifiers from live compatibility routes. Their exact sets are enforced.
 | `src/phospy/core/frames/table_formats.py` | `phospy.core.frames.table_formats` | `frames` | Generic dataframe ownership or schema mechanics |
 | `src/phospy/core/frames/table_schema.py` | `phospy.core.frames.table_schema` | `frames` | Generic dataframe ownership or schema mechanics |
 | `src/phospy/core/frames/validation.py` | `phospy.core.frames.validation` | `frames` | Generic dataframe ownership or schema mechanics |
+| `src/phospy/core/phosphosites/__init__.py` | `phospy.core.phosphosites` | `phosphosites` | Shared phosphosite identity or supplied-window rule |
+| `src/phospy/core/phosphosites/contracts.py` | `phospy.core.phosphosites.contracts` | `phosphosites` | Shared phosphosite identity or supplied-window rule |
+| `src/phospy/core/phosphosites/dataset_identity.py` | `phospy.core.phosphosites.dataset_identity` | `phosphosites` | Shared phosphosite identity or supplied-window rule |
+| `src/phospy/core/phosphosites/display_identity.py` | `phospy.core.phosphosites.display_identity` | `phosphosites` | Shared phosphosite identity or supplied-window rule |
+| `src/phospy/core/phosphosites/identifiers.py` | `phospy.core.phosphosites.identifiers` | `phosphosites` | Shared phosphosite identity or supplied-window rule |
+| `src/phospy/core/phosphosites/identity.py` | `phospy.core.phosphosites.identity` | `phosphosites` | Shared phosphosite identity or supplied-window rule |
+| `src/phospy/core/phosphosites/messages.py` | `phospy.core.phosphosites.messages` | `phosphosites` | Shared phosphosite identity or supplied-window rule |
+| `src/phospy/core/phosphosites/metadata_validation.py` | `phospy.core.phosphosites.metadata_validation` | `phosphosites` | Shared phosphosite identity or supplied-window rule |
+| `src/phospy/core/phosphosites/parsing.py` | `phospy.core.phosphosites.parsing` | `phosphosites` | Shared phosphosite identity or supplied-window rule |
+| `src/phospy/core/phosphosites/result_identity.py` | `phospy.core.phosphosites.result_identity` | `phosphosites` | Shared phosphosite identity or supplied-window rule |
+| `src/phospy/core/phosphosites/sequence_context.py` | `phospy.core.phosphosites.sequence_context` | `phosphosites` | Shared phosphosite identity or supplied-window rule |
+| `src/phospy/core/phosphosites/site_keys.py` | `phospy.core.phosphosites.site_keys` | `phosphosites` | Shared phosphosite identity or supplied-window rule |
+| `src/phospy/core/phosphosites/validation.py` | `phospy.core.phosphosites.validation` | `phosphosites` | Shared phosphosite identity or supplied-window rule |
+| `src/phospy/core/phosphosites/workflow_identity.py` | `phospy.core.phosphosites.workflow_identity` | `phosphosites` | Shared phosphosite identity or supplied-window rule |
 | `src/phospy/core/policies/__init__.py` | `phospy.core.policies` | `policies` | Generic parsing and scalar policy |
 | `src/phospy/core/policies/config_values.py` | `phospy.core.policies.config_values` | `policies` | Generic parsing and scalar policy |
 | `src/phospy/core/policies/policy_base.py` | `phospy.core.policies.policy_base` | `policies` | Generic parsing and scalar policy |
+| `src/phospy/core/provenance/__init__.py` | `phospy.core.provenance` | `provenance` | Generic immutable provenance infrastructure |
+| `src/phospy/core/provenance/environment.py` | `phospy.core.provenance.environment` | `provenance` | Generic immutable provenance infrastructure |
+| `src/phospy/core/provenance/hashing.py` | `phospy.core.provenance.hashing` | `provenance` | Generic immutable provenance infrastructure |
+| `src/phospy/core/provenance/immutability.py` | `phospy.core.provenance.immutability` | `provenance` | Generic immutable provenance infrastructure |
+| `src/phospy/core/provenance/models/__init__.py` | `phospy.core.provenance.models` | `provenance` | Generic immutable provenance infrastructure |
+| `src/phospy/core/provenance/models/batch_correction.py` | `phospy.core.provenance.models.batch_correction` | `provenance` | Immutable batch-correction audit wire contract |
+| `src/phospy/core/provenance/models/environment.py` | `phospy.core.provenance.models.environment` | `provenance` | Generic immutable provenance infrastructure |
+| `src/phospy/core/provenance/models/tables.py` | `phospy.core.provenance.models.tables` | `provenance` | Generic immutable provenance infrastructure |
+| `src/phospy/core/provenance/result_caveats.py` | `phospy.core.provenance.result_caveats` | `provenance` | Generic immutable provenance infrastructure |
+| `src/phospy/core/provenance/row_attrition.py` | `phospy.core.provenance.row_attrition` | `provenance` | Generic immutable provenance infrastructure |
+| `src/phospy/core/provenance/scalar_validation.py` | `phospy.core.provenance.scalar_validation` | `provenance` | Owner-internal provenance scalar-validation contract |
+| `src/phospy/core/provenance/scientific_policy_models.py` | `phospy.core.provenance.scientific_policy_models` | `provenance` | Generic immutable provenance infrastructure |
+| `src/phospy/core/provenance/serialization/__init__.py` | `phospy.core.provenance.serialization` | `provenance` | Generic immutable provenance infrastructure |
+| `src/phospy/core/provenance/serialization/batch_correction.py` | `phospy.core.provenance.serialization.batch_correction` | `provenance` | Direct historical batch-correction provenance codec |
+| `src/phospy/core/provenance/serialization/environment.py` | `phospy.core.provenance.serialization.environment` | `provenance` | Generic immutable provenance infrastructure |
+| `src/phospy/core/provenance/serialization/payload.py` | `phospy.core.provenance.serialization.payload` | `provenance` | Owner-internal provenance payload coercion contract |
+| `src/phospy/core/provenance/serialization/tables.py` | `phospy.core.provenance.serialization.tables` | `provenance` | Generic immutable provenance infrastructure |
+| `src/phospy/core/quantitative/__init__.py` | `phospy.core.quantitative` | `quantitative` | Shared quantitative state, transformation, validation, or serialization contract |
+| `src/phospy/core/quantitative/_payloads.py` | `phospy.core.quantitative._payloads` | `quantitative` | Shared quantitative state, transformation, validation, or serialization contract |
+| `src/phospy/core/quantitative/assertions.py` | `phospy.core.quantitative.assertions` | `quantitative` | Shared quantitative state, transformation, validation, or serialization contract |
+| `src/phospy/core/quantitative/authority.py` | `phospy.core.quantitative.authority` | `quantitative` | Owner-internal quantitative authority contract |
+| `src/phospy/core/quantitative/contracts.py` | `phospy.core.quantitative.contracts` | `quantitative` | Shared quantitative state, transformation, validation, or serialization contract |
+| `src/phospy/core/quantitative/declared_scale_diagnostics.py` | `phospy.core.quantitative.declared_scale_diagnostics` | `quantitative` | Shared quantitative state, transformation, validation, or serialization contract |
+| `src/phospy/core/quantitative/evidence.py` | `phospy.core.quantitative.evidence` | `quantitative` | Shared quantitative state, transformation, validation, or serialization contract |
+| `src/phospy/core/quantitative/models.py` | `phospy.core.quantitative.models` | `quantitative` | Shared quantitative state, transformation, validation, or serialization contract |
+| `src/phospy/core/quantitative/policy.py` | `phospy.core.quantitative.policy` | `quantitative` | Shared quantitative state, transformation, validation, or serialization contract |
+| `src/phospy/core/quantitative/provenance.py` | `phospy.core.quantitative.provenance` | `quantitative` | Shared quantitative state, transformation, validation, or serialization contract |
+| `src/phospy/core/quantitative/quantitative_contracts.py` | `phospy.core.quantitative.quantitative_contracts` | `quantitative` | Shared quantitative state, transformation, validation, or serialization contract |
+| `src/phospy/core/quantitative/scale_state.py` | `phospy.core.quantitative.scale_state` | `quantitative` | Shared quantitative state, transformation, validation, or serialization contract |
+| `src/phospy/core/quantitative/scale_values.py` | `phospy.core.quantitative.scale_values` | `quantitative` | Shared quantitative state, transformation, validation, or serialization contract |
+| `src/phospy/core/quantitative/serialization.py` | `phospy.core.quantitative.serialization` | `quantitative` | Shared quantitative state, transformation, validation, or serialization contract |
+| `src/phospy/core/quantitative/state_coherence.py` | `phospy.core.quantitative.state_coherence` | `quantitative` | Shared quantitative state, transformation, validation, or serialization contract |
+| `src/phospy/core/quantitative/transformers/__init__.py` | `phospy.core.quantitative.transformers` | `quantitative` | Shared quantitative state, transformation, validation, or serialization contract |
+| `src/phospy/core/quantitative/transformers/identifiers.py` | `phospy.core.quantitative.transformers.identifiers` | `quantitative` | Owner-internal quantitative transformer identifier contract |
+| `src/phospy/core/quantitative/transformers/identity.py` | `phospy.core.quantitative.transformers.identity` | `quantitative` | Shared quantitative state, transformation, validation, or serialization contract |
+| `src/phospy/core/quantitative/transformers/log2.py` | `phospy.core.quantitative.transformers.log2` | `quantitative` | Shared quantitative state, transformation, validation, or serialization contract |
+| `src/phospy/core/quantitative/validation.py` | `phospy.core.quantitative.validation` | `quantitative` | Shared quantitative state, transformation, validation, or serialization contract |
+| `src/phospy/core/references/__init__.py` | `phospy.core.references` | `references` | General reference identity, resources, sequences, or construction |
+| `src/phospy/core/references/acquisition.py` | `phospy.core.references.acquisition` | `references` | General reference identity, resources, sequences, or construction |
+| `src/phospy/core/references/builder.py` | `phospy.core.references.builder` | `references` | General reference identity, resources, sequences, or construction |
+| `src/phospy/core/references/builder_validation.py` | `phospy.core.references.builder_validation` | `references` | General reference identity, resources, sequences, or construction |
+| `src/phospy/core/references/compatibility.py` | `phospy.core.references.compatibility` | `references` | General reference identity, resources, sequences, or construction |
+| `src/phospy/core/references/config.py` | `phospy.core.references.config` | `references` | General reference identity, resources, sequences, or construction |
+| `src/phospy/core/references/context_compatibility.py` | `phospy.core.references.context_compatibility` | `references` | General reference identity, resources, sequences, or construction |
+| `src/phospy/core/references/errors.py` | `phospy.core.references.errors` | `references` | General reference identity, resources, sequences, or construction |
+| `src/phospy/core/references/fingerprints.py` | `phospy.core.references.fingerprints` | `references` | General reference identity, resources, sequences, or construction |
+| `src/phospy/core/references/identifiers.py` | `phospy.core.references.identifiers` | `references` | General reference identity, resources, sequences, or construction |
+| `src/phospy/core/references/manifest.py` | `phospy.core.references.manifest` | `references` | General reference identity, resources, sequences, or construction |
+| `src/phospy/core/references/manifest_common.py` | `phospy.core.references.manifest_common` | `references` | General reference identity, resources, sequences, or construction |
+| `src/phospy/core/references/manifest_files.py` | `phospy.core.references.manifest_files` | `references` | General reference identity, resources, sequences, or construction |
+| `src/phospy/core/references/manifest_model.py` | `phospy.core.references.manifest_model` | `references` | General reference identity, resources, sequences, or construction |
+| `src/phospy/core/references/manifest_policy.py` | `phospy.core.references.manifest_policy` | `references` | General reference identity, resources, sequences, or construction |
+| `src/phospy/core/references/models.py` | `phospy.core.references.models` | `references` | General reference identity, resources, sequences, or construction |
+| `src/phospy/core/references/provenance/context.py` | `phospy.core.references.provenance.context` | `references` | Reference provenance record or direct codec |
+| `src/phospy/core/references/provenance/identifiers.py` | `phospy.core.references.provenance.identifiers` | `references` | Reference provenance record or direct codec |
+| `src/phospy/core/references/provenance/models.py` | `phospy.core.references.provenance.models` | `references` | Reference provenance record or direct codec |
+| `src/phospy/core/references/provenance/serialization.py` | `phospy.core.references.provenance.serialization` | `references` | Reference provenance record or direct codec |
+| `src/phospy/core/references/redistribution.py` | `phospy.core.references.redistribution` | `references` | General reference identity, resources, sequences, or construction |
+| `src/phospy/core/references/resolution.py` | `phospy.core.references.resolution` | `references` | General reference identity, resources, sequences, or construction |
+| `src/phospy/core/references/resources.py` | `phospy.core.references.resources` | `references` | General reference identity, resources, sequences, or construction |
+| `src/phospy/core/references/sequences/__init__.py` | `phospy.core.references.sequences` | `references` | General reference identity, resources, sequences, or construction |
+| `src/phospy/core/references/sequences/fasta.py` | `phospy.core.references.sequences.fasta` | `references` | General reference identity, resources, sequences, or construction |
+| `src/phospy/core/references/sequences/models.py` | `phospy.core.references.sequences.models` | `references` | General reference identity, resources, sequences, or construction |
+| `src/phospy/core/references/sequences/repository.py` | `phospy.core.references.sequences.repository` | `references` | General reference identity, resources, sequences, or construction |
+| `src/phospy/core/references/sequences/validation.py` | `phospy.core.references.sequences.validation` | `references` | General reference identity, resources, sequences, or construction |
+| `src/phospy/core/references/tables.py` | `phospy.core.references.tables` | `references` | General reference identity, resources, sequences, or construction |
+| `src/phospy/core/references/validation/__init__.py` | `phospy.core.references.validation` | `references` | General reference identity, resources, sequences, or construction |
+| `src/phospy/core/references/validation/_diagnostics.py` | `phospy.core.references.validation._diagnostics` | `references` | General reference identity, resources, sequences, or construction |
+| `src/phospy/core/references/validation/bundle.py` | `phospy.core.references.validation.bundle` | `references` | General reference identity, resources, sequences, or construction |
+| `src/phospy/core/references/validation/bundle_semantics.py` | `phospy.core.references.validation.bundle_semantics` | `references` | General reference identity, resources, sequences, or construction |
+| `src/phospy/core/references/validation/manifest_schema.py` | `phospy.core.references.validation.manifest_schema` | `references` | General reference identity, resources, sequences, or construction |
+| `src/phospy/core/references/validation/redistribution_policy.py` | `phospy.core.references.validation.redistribution_policy` | `references` | General reference identity, resources, sequences, or construction |
+| `src/phospy/core/references/validation/resource_integrity.py` | `phospy.core.references.validation.resource_integrity` | `references` | General reference identity, resources, sequences, or construction |
+| `src/phospy/core/statistics/__init__.py` | `phospy.core.statistics` | `statistics` | Reusable statistical kernel or generic correction value |
+| `src/phospy/core/statistics/multiple_testing.py` | `phospy.core.statistics.multiple_testing` | `statistics` | Reusable statistical kernel or generic correction value |
+| `src/phospy/core/taxonomy/__init__.py` | `phospy.core.taxonomy` | `taxonomy` | Typed organism vocabulary and normalisation |
+| `src/phospy/core/taxonomy/organisms.py` | `phospy.core.taxonomy.organisms` | `taxonomy` | Typed organism vocabulary and normalisation |
 | `src/phospy/core/validation/__init__.py` | `phospy.core.validation` | `validation` | Reusable validation mechanics |
 | `src/phospy/core/validation/common/__init__.py` | `phospy.core.validation.common` | `validation` | Reusable validation mechanics |
 | `src/phospy/core/validation/common/config_values.py` | `phospy.core.validation.common.config_values` | `validation` | Reusable validation mechanics |
@@ -1349,26 +1452,6 @@ identifiers from live compatibility routes. Their exact sets are enforced.
 | `src/phospy/enrichment/provenance.py` | `phospy.enrichment.provenance` | `enrichment` | Complete Enrichment capability lifecycle |
 | `src/phospy/enrichment/validation.py` | `phospy.enrichment.validation` | `enrichment` | Complete Enrichment capability lifecycle |
 | `src/phospy/enrichment/workflow.py` | `phospy.enrichment.workflow` | `enrichment` | Complete Enrichment capability lifecycle |
-| `src/phospy/evidence/__init__.py` | `phospy.evidence` | `evidence` | Evidence policy, records, allocation, or structural resolution |
-| `src/phospy/evidence/caveats.py` | `phospy.evidence.caveats` | `evidence` | Evidence policy, records, allocation, or structural resolution |
-| `src/phospy/evidence/config.py` | `phospy.evidence.config` | `evidence` | Evidence policy, records, allocation, or structural resolution |
-| `src/phospy/evidence/dataset_resolution/__init__.py` | `phospy.evidence.dataset_resolution` | `evidence` | Evidence policy, records, allocation, or structural resolution |
-| `src/phospy/evidence/dataset_resolution/allocation.py` | `phospy.evidence.dataset_resolution.allocation` | `evidence` | Evidence policy, records, allocation, or structural resolution |
-| `src/phospy/evidence/dataset_resolution/mapping.py` | `phospy.evidence.dataset_resolution.mapping` | `evidence` | Evidence policy, records, allocation, or structural resolution |
-| `src/phospy/evidence/dataset_resolution/models.py` | `phospy.evidence.dataset_resolution.models` | `evidence` | Evidence policy, records, allocation, or structural resolution |
-| `src/phospy/evidence/dataset_resolution/policies.py` | `phospy.evidence.dataset_resolution.policies` | `evidence` | Evidence policy, records, allocation, or structural resolution |
-| `src/phospy/evidence/dataset_resolution/resolver.py` | `phospy.evidence.dataset_resolution.resolver` | `evidence` | Evidence policy, records, allocation, or structural resolution |
-| `src/phospy/evidence/dataset_resolution/site_metadata.py` | `phospy.evidence.dataset_resolution.site_metadata` | `evidence` | Evidence policy, records, allocation, or structural resolution |
-| `src/phospy/evidence/dataset_resolution/site_sequence.py` | `phospy.evidence.dataset_resolution.site_sequence` | `evidence` | Evidence policy, records, allocation, or structural resolution |
-| `src/phospy/evidence/dataset_resolution/summary.py` | `phospy.evidence.dataset_resolution.summary` | `evidence` | Evidence policy, records, allocation, or structural resolution |
-| `src/phospy/evidence/localisation.py` | `phospy.evidence.localisation` | `evidence` | Evidence policy, records, allocation, or structural resolution |
-| `src/phospy/evidence/models.py` | `phospy.evidence.models` | `evidence` | Evidence policy, records, allocation, or structural resolution |
-| `src/phospy/evidence/modified_peptides.py` | `phospy.evidence.modified_peptides` | `evidence` | Evidence policy, records, allocation, or structural resolution |
-| `src/phospy/evidence/multi_site.py` | `phospy.evidence.multi_site` | `evidence` | Evidence policy, records, allocation, or structural resolution |
-| `src/phospy/evidence/quantification_depth.py` | `phospy.evidence.quantification_depth` | `evidence` | Evidence policy, records, allocation, or structural resolution |
-| `src/phospy/evidence/sequence_resolution.py` | `phospy.evidence.sequence_resolution` | `evidence` | Evidence policy, records, allocation, or structural resolution |
-| `src/phospy/evidence/serialization/historical_peptide.py` | `phospy.evidence.serialization.historical_peptide` | `evidence` | Historical peptide evidence compatibility codec |
-| `src/phospy/evidence/site_metadata.py` | `phospy.evidence.site_metadata` | `evidence` | Evidence policy, records, allocation, or structural resolution |
 | `src/phospy/io/__init__.py` | `phospy.io` | `io` | Reader, persistence, or publisher adapter |
 | `src/phospy/io/bundles/__init__.py` | `phospy.io.bundles` | `io` | Reader, persistence, or publisher adapter |
 | `src/phospy/io/bundles/_kinase/__init__.py` | `phospy.io.bundles._kinase` | `io` | Reader, persistence, or publisher adapter |
@@ -1515,20 +1598,6 @@ identifiers from live compatibility routes. Their exact sets are enforced.
 | `src/phospy/kinase/site_sequence_policy.py` | `phospy.kinase.site_sequence_policy` | `kinase` | Kinase capability package |
 | `src/phospy/kinase/site_sequence_support.py` | `phospy.kinase.site_sequence_support` | `kinase` | Kinase capability package |
 | `src/phospy/kinase/validator.py` | `phospy.kinase.validator` | `kinase` | Kinase capability package |
-| `src/phospy/phosphosites/__init__.py` | `phospy.phosphosites` | `phosphosites` | Shared phosphosite identity or supplied-window rule |
-| `src/phospy/phosphosites/contracts.py` | `phospy.phosphosites.contracts` | `phosphosites` | Shared phosphosite identity or supplied-window rule |
-| `src/phospy/phosphosites/dataset_identity.py` | `phospy.phosphosites.dataset_identity` | `phosphosites` | Shared phosphosite identity or supplied-window rule |
-| `src/phospy/phosphosites/display_identity.py` | `phospy.phosphosites.display_identity` | `phosphosites` | Shared phosphosite identity or supplied-window rule |
-| `src/phospy/phosphosites/identifiers.py` | `phospy.phosphosites.identifiers` | `phosphosites` | Shared phosphosite identity or supplied-window rule |
-| `src/phospy/phosphosites/identity.py` | `phospy.phosphosites.identity` | `phosphosites` | Shared phosphosite identity or supplied-window rule |
-| `src/phospy/phosphosites/messages.py` | `phospy.phosphosites.messages` | `phosphosites` | Shared phosphosite identity or supplied-window rule |
-| `src/phospy/phosphosites/metadata_validation.py` | `phospy.phosphosites.metadata_validation` | `phosphosites` | Shared phosphosite identity or supplied-window rule |
-| `src/phospy/phosphosites/parsing.py` | `phospy.phosphosites.parsing` | `phosphosites` | Shared phosphosite identity or supplied-window rule |
-| `src/phospy/phosphosites/result_identity.py` | `phospy.phosphosites.result_identity` | `phosphosites` | Shared phosphosite identity or supplied-window rule |
-| `src/phospy/phosphosites/sequence_context.py` | `phospy.phosphosites.sequence_context` | `phosphosites` | Shared phosphosite identity or supplied-window rule |
-| `src/phospy/phosphosites/site_keys.py` | `phospy.phosphosites.site_keys` | `phosphosites` | Shared phosphosite identity or supplied-window rule |
-| `src/phospy/phosphosites/validation.py` | `phospy.phosphosites.validation` | `phosphosites` | Shared phosphosite identity or supplied-window rule |
-| `src/phospy/phosphosites/workflow_identity.py` | `phospy.phosphosites.workflow_identity` | `phosphosites` | Shared phosphosite identity or supplied-window rule |
 | `src/phospy/preparation_records/__init__.py` | `phospy.preparation_records` | `preparation_records` | Passive preparation record or structural validation |
 | `src/phospy/preparation_records/batch_correction.py` | `phospy.preparation_records.batch_correction` | `preparation_records` | Passive preparation record or structural validation |
 | `src/phospy/preparation_records/group_evidence.py` | `phospy.preparation_records.group_evidence` | `preparation_records` | Passive preparation record or structural validation |
@@ -1675,79 +1744,6 @@ identifiers from live compatibility routes. Their exact sets are enforced.
 | `src/phospy/preprocessing/validation/quantitative_evidence.py` | `phospy.preprocessing.validation.quantitative_evidence` | `preprocessing` | Preprocessing control-site capability lifecycle |
 | `src/phospy/preprocessing/validation/quantitative_transition.py` | `phospy.preprocessing.validation.quantitative_transition` | `preprocessing` | Preprocessing control-site capability lifecycle |
 | `src/phospy/preprocessing/workflow.py` | `phospy.preprocessing.workflow` | `preprocessing` | Preprocessing control-site capability lifecycle |
-| `src/phospy/provenance/__init__.py` | `phospy.provenance` | `provenance` | Generic immutable provenance infrastructure |
-| `src/phospy/provenance/environment.py` | `phospy.provenance.environment` | `provenance` | Generic immutable provenance infrastructure |
-| `src/phospy/provenance/hashing.py` | `phospy.provenance.hashing` | `provenance` | Generic immutable provenance infrastructure |
-| `src/phospy/provenance/immutability.py` | `phospy.provenance.immutability` | `provenance` | Generic immutable provenance infrastructure |
-| `src/phospy/provenance/models/__init__.py` | `phospy.provenance.models` | `provenance` | Generic immutable provenance infrastructure |
-| `src/phospy/provenance/models/batch_correction.py` | `phospy.provenance.models.batch_correction` | `provenance` | Immutable batch-correction audit wire contract |
-| `src/phospy/provenance/models/environment.py` | `phospy.provenance.models.environment` | `provenance` | Generic immutable provenance infrastructure |
-| `src/phospy/provenance/models/tables.py` | `phospy.provenance.models.tables` | `provenance` | Generic immutable provenance infrastructure |
-| `src/phospy/provenance/result_caveats.py` | `phospy.provenance.result_caveats` | `provenance` | Generic immutable provenance infrastructure |
-| `src/phospy/provenance/row_attrition.py` | `phospy.provenance.row_attrition` | `provenance` | Generic immutable provenance infrastructure |
-| `src/phospy/provenance/scalar_validation.py` | `phospy.provenance.scalar_validation` | `provenance` | Owner-internal provenance scalar-validation contract |
-| `src/phospy/provenance/scientific_policy_models.py` | `phospy.provenance.scientific_policy_models` | `provenance` | Generic immutable provenance infrastructure |
-| `src/phospy/provenance/serialization/__init__.py` | `phospy.provenance.serialization` | `provenance` | Generic immutable provenance infrastructure |
-| `src/phospy/provenance/serialization/batch_correction.py` | `phospy.provenance.serialization.batch_correction` | `provenance` | Direct historical batch-correction provenance codec |
-| `src/phospy/provenance/serialization/environment.py` | `phospy.provenance.serialization.environment` | `provenance` | Generic immutable provenance infrastructure |
-| `src/phospy/provenance/serialization/payload.py` | `phospy.provenance.serialization.payload` | `provenance` | Owner-internal provenance payload coercion contract |
-| `src/phospy/provenance/serialization/tables.py` | `phospy.provenance.serialization.tables` | `provenance` | Generic immutable provenance infrastructure |
-| `src/phospy/quantitative/__init__.py` | `phospy.quantitative` | `quantitative` | Shared quantitative state, transformation, validation, or serialization contract |
-| `src/phospy/quantitative/_payloads.py` | `phospy.quantitative._payloads` | `quantitative` | Shared quantitative state, transformation, validation, or serialization contract |
-| `src/phospy/quantitative/assertions.py` | `phospy.quantitative.assertions` | `quantitative` | Shared quantitative state, transformation, validation, or serialization contract |
-| `src/phospy/quantitative/authority.py` | `phospy.quantitative.authority` | `quantitative` | Owner-internal quantitative authority contract |
-| `src/phospy/quantitative/contracts.py` | `phospy.quantitative.contracts` | `quantitative` | Shared quantitative state, transformation, validation, or serialization contract |
-| `src/phospy/quantitative/declared_scale_diagnostics.py` | `phospy.quantitative.declared_scale_diagnostics` | `quantitative` | Shared quantitative state, transformation, validation, or serialization contract |
-| `src/phospy/quantitative/evidence.py` | `phospy.quantitative.evidence` | `quantitative` | Shared quantitative state, transformation, validation, or serialization contract |
-| `src/phospy/quantitative/models.py` | `phospy.quantitative.models` | `quantitative` | Shared quantitative state, transformation, validation, or serialization contract |
-| `src/phospy/quantitative/policy.py` | `phospy.quantitative.policy` | `quantitative` | Shared quantitative state, transformation, validation, or serialization contract |
-| `src/phospy/quantitative/provenance.py` | `phospy.quantitative.provenance` | `quantitative` | Shared quantitative state, transformation, validation, or serialization contract |
-| `src/phospy/quantitative/quantitative_contracts.py` | `phospy.quantitative.quantitative_contracts` | `quantitative` | Shared quantitative state, transformation, validation, or serialization contract |
-| `src/phospy/quantitative/scale_state.py` | `phospy.quantitative.scale_state` | `quantitative` | Shared quantitative state, transformation, validation, or serialization contract |
-| `src/phospy/quantitative/scale_values.py` | `phospy.quantitative.scale_values` | `quantitative` | Shared quantitative state, transformation, validation, or serialization contract |
-| `src/phospy/quantitative/serialization.py` | `phospy.quantitative.serialization` | `quantitative` | Shared quantitative state, transformation, validation, or serialization contract |
-| `src/phospy/quantitative/state_coherence.py` | `phospy.quantitative.state_coherence` | `quantitative` | Shared quantitative state, transformation, validation, or serialization contract |
-| `src/phospy/quantitative/transformers/__init__.py` | `phospy.quantitative.transformers` | `quantitative` | Shared quantitative state, transformation, validation, or serialization contract |
-| `src/phospy/quantitative/transformers/identifiers.py` | `phospy.quantitative.transformers.identifiers` | `quantitative` | Owner-internal quantitative transformer identifier contract |
-| `src/phospy/quantitative/transformers/identity.py` | `phospy.quantitative.transformers.identity` | `quantitative` | Shared quantitative state, transformation, validation, or serialization contract |
-| `src/phospy/quantitative/transformers/log2.py` | `phospy.quantitative.transformers.log2` | `quantitative` | Shared quantitative state, transformation, validation, or serialization contract |
-| `src/phospy/quantitative/validation.py` | `phospy.quantitative.validation` | `quantitative` | Shared quantitative state, transformation, validation, or serialization contract |
-| `src/phospy/references/__init__.py` | `phospy.references` | `references` | General reference identity, resources, sequences, or construction |
-| `src/phospy/references/acquisition.py` | `phospy.references.acquisition` | `references` | General reference identity, resources, sequences, or construction |
-| `src/phospy/references/builder.py` | `phospy.references.builder` | `references` | General reference identity, resources, sequences, or construction |
-| `src/phospy/references/builder_validation.py` | `phospy.references.builder_validation` | `references` | General reference identity, resources, sequences, or construction |
-| `src/phospy/references/compatibility.py` | `phospy.references.compatibility` | `references` | General reference identity, resources, sequences, or construction |
-| `src/phospy/references/config.py` | `phospy.references.config` | `references` | General reference identity, resources, sequences, or construction |
-| `src/phospy/references/context_compatibility.py` | `phospy.references.context_compatibility` | `references` | General reference identity, resources, sequences, or construction |
-| `src/phospy/references/errors.py` | `phospy.references.errors` | `references` | General reference identity, resources, sequences, or construction |
-| `src/phospy/references/fingerprints.py` | `phospy.references.fingerprints` | `references` | General reference identity, resources, sequences, or construction |
-| `src/phospy/references/identifiers.py` | `phospy.references.identifiers` | `references` | General reference identity, resources, sequences, or construction |
-| `src/phospy/references/manifest.py` | `phospy.references.manifest` | `references` | General reference identity, resources, sequences, or construction |
-| `src/phospy/references/manifest_common.py` | `phospy.references.manifest_common` | `references` | General reference identity, resources, sequences, or construction |
-| `src/phospy/references/manifest_files.py` | `phospy.references.manifest_files` | `references` | General reference identity, resources, sequences, or construction |
-| `src/phospy/references/manifest_model.py` | `phospy.references.manifest_model` | `references` | General reference identity, resources, sequences, or construction |
-| `src/phospy/references/manifest_policy.py` | `phospy.references.manifest_policy` | `references` | General reference identity, resources, sequences, or construction |
-| `src/phospy/references/models.py` | `phospy.references.models` | `references` | General reference identity, resources, sequences, or construction |
-| `src/phospy/references/provenance/context.py` | `phospy.references.provenance.context` | `references` | Reference provenance record or direct codec |
-| `src/phospy/references/provenance/identifiers.py` | `phospy.references.provenance.identifiers` | `references` | Reference provenance record or direct codec |
-| `src/phospy/references/provenance/models.py` | `phospy.references.provenance.models` | `references` | Reference provenance record or direct codec |
-| `src/phospy/references/provenance/serialization.py` | `phospy.references.provenance.serialization` | `references` | Reference provenance record or direct codec |
-| `src/phospy/references/redistribution.py` | `phospy.references.redistribution` | `references` | General reference identity, resources, sequences, or construction |
-| `src/phospy/references/resolution.py` | `phospy.references.resolution` | `references` | General reference identity, resources, sequences, or construction |
-| `src/phospy/references/resources.py` | `phospy.references.resources` | `references` | General reference identity, resources, sequences, or construction |
-| `src/phospy/references/sequences/__init__.py` | `phospy.references.sequences` | `references` | General reference identity, resources, sequences, or construction |
-| `src/phospy/references/sequences/fasta.py` | `phospy.references.sequences.fasta` | `references` | General reference identity, resources, sequences, or construction |
-| `src/phospy/references/sequences/models.py` | `phospy.references.sequences.models` | `references` | General reference identity, resources, sequences, or construction |
-| `src/phospy/references/sequences/repository.py` | `phospy.references.sequences.repository` | `references` | General reference identity, resources, sequences, or construction |
-| `src/phospy/references/sequences/validation.py` | `phospy.references.sequences.validation` | `references` | General reference identity, resources, sequences, or construction |
-| `src/phospy/references/tables.py` | `phospy.references.tables` | `references` | General reference identity, resources, sequences, or construction |
-| `src/phospy/references/validation/__init__.py` | `phospy.references.validation` | `references` | General reference identity, resources, sequences, or construction |
-| `src/phospy/references/validation/_diagnostics.py` | `phospy.references.validation._diagnostics` | `references` | General reference identity, resources, sequences, or construction |
-| `src/phospy/references/validation/bundle.py` | `phospy.references.validation.bundle` | `references` | General reference identity, resources, sequences, or construction |
-| `src/phospy/references/validation/bundle_semantics.py` | `phospy.references.validation.bundle_semantics` | `references` | General reference identity, resources, sequences, or construction |
-| `src/phospy/references/validation/manifest_schema.py` | `phospy.references.validation.manifest_schema` | `references` | General reference identity, resources, sequences, or construction |
-| `src/phospy/references/validation/redistribution_policy.py` | `phospy.references.validation.redistribution_policy` | `references` | General reference identity, resources, sequences, or construction |
-| `src/phospy/references/validation/resource_integrity.py` | `phospy.references.validation.resource_integrity` | `references` | General reference identity, resources, sequences, or construction |
 | `src/phospy/run_lineage/__init__.py` | `phospy.run_lineage` | `run_lineage` | Cross-capability run-lineage composition owner |
 | `src/phospy/run_lineage/models.py` | `phospy.run_lineage.models` | `run_lineage` | Cross-capability run-lineage composition owner |
 | `src/phospy/run_lineage/serialization.py` | `phospy.run_lineage.serialization` | `run_lineage` | Cross-capability run-lineage composition owner |
@@ -1817,7 +1813,3 @@ identifiers from live compatibility routes. Their exact sets are enforced.
 | `src/phospy/signalome/tables/modules.py` | `phospy.signalome.tables.modules` | `signalome` | Complete Signalome capability lifecycle |
 | `src/phospy/signalome/tables/network.py` | `phospy.signalome.tables.network` | `signalome` | Complete Signalome capability lifecycle |
 | `src/phospy/signalome/validator.py` | `phospy.signalome.validator` | `signalome` | Complete Signalome capability lifecycle |
-| `src/phospy/statistics/__init__.py` | `phospy.statistics` | `statistics` | Reusable statistical kernel or generic correction value |
-| `src/phospy/statistics/multiple_testing.py` | `phospy.statistics.multiple_testing` | `statistics` | Reusable statistical kernel or generic correction value |
-| `src/phospy/taxonomy/__init__.py` | `phospy.taxonomy` | `taxonomy` | Typed organism vocabulary and normalisation |
-| `src/phospy/taxonomy/organisms.py` | `phospy.taxonomy.organisms` | `taxonomy` | Typed organism vocabulary and normalisation |

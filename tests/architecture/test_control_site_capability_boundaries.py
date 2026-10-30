@@ -82,7 +82,7 @@ def test_control_site_owner_has_no_dataset_io_or_analytical_dependency() -> None
         "phospy.io",
         "phospy.science.datasets",
         "phospy.differential",
-        "phospy.activities",
+        "phospy.core.activities",
         "phospy.kinase.activity",
         "phospy.science.prediction",
         "phospy.signalome",
@@ -96,7 +96,7 @@ def test_control_site_owner_has_no_dataset_io_or_analytical_dependency() -> None
     reverse_provenance = [
         f"{record.source_module}:{record.line} -> {record.target}"
         for record in graph.records
-        if record.source_module.startswith("phospy.provenance")
+        if record.source_module.startswith("phospy.core.provenance")
         if record.target.startswith("phospy.preprocessing.control_sites")
     ]
 
@@ -105,7 +105,7 @@ def test_control_site_owner_has_no_dataset_io_or_analytical_dependency() -> None
 
 
 def test_quantitative_diagnostic_leaf_has_no_capability_dependency() -> None:
-    path = PACKAGE_ROOT / "quantitative" / "declared_scale_diagnostics.py"
+    path = PACKAGE_ROOT / "core/quantitative" / "declared_scale_diagnostics.py"
     tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
     targets = {
         node.module

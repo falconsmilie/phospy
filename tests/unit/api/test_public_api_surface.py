@@ -11,14 +11,14 @@ import pytest
 import phospy
 import phospy.api as ordinary_api
 import phospy.api.advanced as advanced_api
-import phospy.evidence.config as evidence_config
+import phospy.core.evidence.config as evidence_config
+import phospy.core.references.config as references_config
 import phospy.kinase.activity.config as kinase_activity_config
 import phospy.kinase.prediction.config as kinase_prediction_config
 import phospy.kinase.scoring.config as kinase_scoring_config
 import phospy.preprocessing.batch_correction.contracts.configuration as batch_config
 import phospy.preprocessing.batch_correction.contracts.missingness as missingness_config
 import phospy.preprocessing.contracts.configuration as preprocessing_config
-import phospy.references.config as references_config
 import phospy.signalome.config as signalome_config
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -101,7 +101,7 @@ def test_aggregate_exports_are_direct_concrete_identities(module: ModuleType) ->
         "EnrichmentIdentifierKind": "phospy.enrichment.contracts.vocabulary",
         "EnrichmentMethod": "phospy.enrichment.contracts.vocabulary",
         "EnrichmentOutsideBackgroundPolicy": ("phospy.enrichment.contracts.vocabulary"),
-        "MultipleTestingCorrection": "phospy.statistics.multiple_testing",
+        "MultipleTestingCorrection": "phospy.core.statistics.multiple_testing",
         "DatasetBatchCorrectionMethod": (
             "phospy.preprocessing.batch_correction.contracts.configuration"
         ),
@@ -147,7 +147,7 @@ def test_builder_definitions_have_exact_owner_identities() -> None:
         AnalysisReadyDatasetBuilder,
         ReferenceBundleBuilder,
     )
-    from phospy.references.builder import ReferenceBundleBuilder as OwnerBuilder
+    from phospy.core.references.builder import ReferenceBundleBuilder as OwnerBuilder
 
     assert ordinary_api.ReferenceBundleBuilder is ReferenceBundleBuilder
     assert ReferenceBundleBuilder is OwnerBuilder

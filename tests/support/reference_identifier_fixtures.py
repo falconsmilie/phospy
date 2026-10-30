@@ -7,7 +7,7 @@ import pandas as pd
 from phospy.core.errors.validation import (
     ReferenceIdentifierNormalisationValidationError,
 )
-from phospy.references.identifiers import (
+from phospy.core.references.identifiers import (
     ReferenceIdentifierNormalisationRecord,
     ReferenceIdentifierNormalisationReport,
     build_reference_identifier_normalisation_report,

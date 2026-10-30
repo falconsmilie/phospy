@@ -40,7 +40,7 @@ def test_total_protein_evidence_policy_has_one_preprocessing_definition() -> Non
 
 def test_quantitative_owner_does_not_reexport_total_protein_policy() -> None:
     offenders: list[str] = []
-    for path in sorted((PACKAGE_ROOT / "quantitative").rglob("*.py")):
+    for path in sorted((PACKAGE_ROOT / "core/quantitative").rglob("*.py")):
         tree = ast.parse(path.read_text(encoding="utf-8-sig"), filename=str(path))
         for node in tree.body:
             if isinstance(node, ast.ImportFrom):

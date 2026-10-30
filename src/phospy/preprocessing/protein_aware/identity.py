@@ -7,6 +7,7 @@ from dataclasses import dataclass
 import pandas as pd
 
 from phospy.core.errors.input import PhosPyInputError
+from phospy.core.provenance.hashing import hash_table_tolerance
 from phospy.preparation_records.policies import (
     TotalProteinCorrectionIdentityMatchingPolicy,
 )
@@ -23,7 +24,6 @@ from phospy.preprocessing.contracts.configuration import (
     DatasetTotalProteinCorrectionIdentityMode,
     DatasetTotalProteinCorrectionUnmatchedPolicy,
 )
-from phospy.provenance.hashing import hash_table_tolerance
 
 
 @dataclass(frozen=True, slots=True)

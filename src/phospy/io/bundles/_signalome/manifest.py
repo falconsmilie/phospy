@@ -8,6 +8,9 @@ from pathlib import PurePosixPath
 from typing import NoReturn
 
 from phospy.core.errors.input import PhosPyInputError
+from phospy.core.quantitative.serialization import (
+    intensity_scale_state_to_payload,
+)
 from phospy.io.bundles._shared.integrity import (
     require_file_entry,
     require_optional_table_entry,
@@ -38,9 +41,6 @@ from phospy.io.bundles._signalome.diagnostics import (
     signalome_module_selection_diagnostics_to_payload,
     signalome_network_correlation_diagnostics_to_payload,
     signalome_score_preconditioning_diagnostics_to_payload,
-)
-from phospy.quantitative.serialization import (
-    intensity_scale_state_to_payload,
 )
 from phospy.run_lineage.serialization import to_payload as provenance_to_payload
 from phospy.signalome.results import SignalomeWorkflowResult

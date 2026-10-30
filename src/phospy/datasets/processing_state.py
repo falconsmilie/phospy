@@ -24,6 +24,7 @@ from phospy.core.frames.ownership import (
 from phospy.core.frames.validation import (
     require_columns,
 )
+from phospy.core.quantitative.models import IntensityTransformationEvent
 from phospy.datasets._processing_state.json_contracts import (
     MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V1,
     MISSING_DATA_DIAGNOSTICS_SCHEMA_VERSION_V2,
@@ -90,7 +91,6 @@ from phospy.preparation_records.report_schema import (
     dataframe_from_row_count_rows,
     reorder_columns,
 )
-from phospy.quantitative.models import IntensityTransformationEvent
 
 _ExpectedType = TypeVar("_ExpectedType")
 _SITE_ID_REASON_PATTERN = re.compile(r"site identifier|site_id|site id")

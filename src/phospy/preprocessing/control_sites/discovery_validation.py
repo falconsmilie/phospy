@@ -13,8 +13,16 @@ from phospy.core.frames.validation import (
     require_finite_numeric_dataframe,
     require_numeric_dataframe,
 )
-from phospy.phosphosites.site_keys import decode_site_key
-from phospy.phosphosites.validation import require_site_key_index
+from phospy.core.phosphosites.site_keys import decode_site_key
+from phospy.core.phosphosites.validation import require_site_key_index
+from phospy.core.provenance.models import TableFingerprint
+from phospy.core.quantitative.models import (
+    IntensityScaleEvidenceLevel,
+    IntensityScaleKind,
+    IntensityScaleState,
+    QuantitativeMeaning,
+    QuantitativeMeaningEvidenceMode,
+)
 from phospy.preprocessing.control_sites.discovery_contracts import (
     SPS_REFERENCE_MATRIX_FINGERPRINT_PARAMETER,
     SpsDiscoveryConfig,
@@ -25,14 +33,6 @@ from phospy.preprocessing.control_sites.discovery_contracts import (
     sps_meaning_evidence_matches_matrix,
     sps_reference_intensity_fingerprint,
     sps_scale_evidence_matches_matrix,
-)
-from phospy.provenance.models import TableFingerprint
-from phospy.quantitative.models import (
-    IntensityScaleEvidenceLevel,
-    IntensityScaleKind,
-    IntensityScaleState,
-    QuantitativeMeaning,
-    QuantitativeMeaningEvidenceMode,
 )
 
 _SPS_QUANTITATIVE_REQUIREMENT = (

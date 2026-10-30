@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from phospy.core.errors.build import DatasetBuildError
+from phospy.core.quantitative.models import IntensityTransformationEvent
 from phospy.preprocessing.contracts import (
     PreprocessingStageExecution,
     PreprocessingStageResult,
@@ -26,7 +27,6 @@ from phospy.preprocessing.provenance.models import (
 from phospy.preprocessing.results.quantitative_evidence import (
     resolve_quantitative_operation_evidence,
 )
-from phospy.quantitative.models import IntensityTransformationEvent
 
 
 class _StageTraceBuilder:

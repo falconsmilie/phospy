@@ -34,6 +34,9 @@ from phospy.api.advanced import (
 from phospy.core.errors import ContractValidationError, PhosPyInputError
 from phospy.core.errors.validation import WorkflowValidationError
 from phospy.core.errors.workflows import WorkflowBoundaryError
+from phospy.core.evidence.quantification_depth import (
+    QUANTIFICATION_DEPTH_KIND_PSM_COUNT,
+)
 from phospy.differential.diagnostics import (
     EmpiricalBayesPriorDiagnostics,
     MeanVarianceTrendDiagnostics,
@@ -69,7 +72,6 @@ from phospy.differential.tables import (
     validate_result_table_contract,
 )
 from phospy.differential.validation.workflow import DifferentialAnalysisValidator
-from phospy.evidence.quantification_depth import QUANTIFICATION_DEPTH_KIND_PSM_COUNT
 from tests.support.site_keys import protein_site_key_index, site_key_context_columns
 
 METHOD_ID = DIFFERENTIAL_PROTEIN_AWARE_METHOD_PROTEIN_COVARIATE_ADJUSTED_MODERATED_LINEAR_MODEL_V1

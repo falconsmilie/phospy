@@ -30,9 +30,9 @@ from phospy.api.advanced import (
     ReferenceContextCompatibilityPolicy,
 )
 from phospy.core.errors import WorkflowValidationError
+from phospy.core.references.models import ReferenceBundle
 from phospy.differential.validation.workflow import DifferentialAnalysisValidator
 from phospy.kinase.validator import KinaseWorkflowValidator
-from phospy.references.models import ReferenceBundle
 from phospy.signalome.validator import SignalomeWorkflowValidator
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,

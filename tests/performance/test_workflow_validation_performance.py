@@ -4,7 +4,7 @@ import pandas as pd
 import pytest
 
 from phospy.core.errors import WorkflowValidationError
-from phospy.phosphosites.sequence_context import (
+from phospy.core.phosphosites.sequence_context import (
     SequenceContextContract,
     enforce_site_sequence_context_contract,
 )

@@ -12,6 +12,9 @@ from phospy.api.advanced import (
     DatasetSiteSequenceResolutionConfig,
 )
 from phospy.core.errors.input import PhosPyInputError
+from phospy.core.quantitative.serialization import (
+    intensity_scale_state_from_payload,
+)
 from phospy.datasets.construction.preprocessing import (
     DatasetPreprocessor,
     build_dataset_processing_state,
@@ -24,9 +27,6 @@ from phospy.preparation_records.policies import (
 from phospy.preprocessing.contracts import PreprocessingPlan
 from phospy.preprocessing.sequence.reference import (
     SiteSequenceReferenceLoader,
-)
-from phospy.quantitative.serialization import (
-    intensity_scale_state_from_payload,
 )
 
 

@@ -8,6 +8,11 @@ import pandas as pd
 import pytest
 
 from phospy.core.errors.validation import DatasetValidationError
+from phospy.core.evidence.site_metadata import (
+    assess_localisation_probability_column,
+)
+from phospy.core.phosphosites.dataset_identity import enforce_site_key_matches_metadata
+from phospy.core.taxonomy import Organism
 from phospy.datasets._construction.validation import (
     analysis_ready_matrix_missing_value_count,
 )
@@ -21,11 +26,6 @@ from phospy.datasets.processing_state import (
 from phospy.datasets.schemas import (
     SiteMetadataTable,
 )
-from phospy.evidence.site_metadata import (
-    assess_localisation_probability_column,
-)
-from phospy.phosphosites.dataset_identity import enforce_site_key_matches_metadata
-from phospy.taxonomy import Organism
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

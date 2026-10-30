@@ -330,7 +330,7 @@ PUBLIC_FACADE_ALLOWED_TARGETS: Mapping[str, frozenset[str]] = {
     ),
     "evidence": frozenset(
         {
-            "phospy.evidence.config",
+            "phospy.core.evidence.config",
         }
     ),
     "frames": frozenset({"phospy.core.frames.table_schema"}),
@@ -377,19 +377,19 @@ PUBLIC_FACADE_ALLOWED_TARGETS: Mapping[str, frozenset[str]] = {
             "phospy.preprocessing.batch_correction.contracts.stage",
         }
     ),
-    "provenance": frozenset({"phospy.provenance.result_caveats"}),
+    "provenance": frozenset({"phospy.core.provenance.result_caveats"}),
     "quantitative": frozenset(
         {
-            "phospy.quantitative.evidence",
-            "phospy.quantitative.models",
+            "phospy.core.quantitative.evidence",
+            "phospy.core.quantitative.models",
         }
     ),
     "references": frozenset(
         {
-            "phospy.references.builder",
-            "phospy.references.config",
-            "phospy.references.models",
-            "phospy.references.tables",
+            "phospy.core.references.builder",
+            "phospy.core.references.config",
+            "phospy.core.references.models",
+            "phospy.core.references.tables",
         }
     ),
     "signalome": frozenset(
@@ -402,8 +402,8 @@ PUBLIC_FACADE_ALLOWED_TARGETS: Mapping[str, frozenset[str]] = {
             "phospy.signalome.tables",
         }
     ),
-    "statistics": frozenset({"phospy.statistics.multiple_testing"}),
-    "taxonomy": frozenset({"phospy.taxonomy.organisms"}),
+    "statistics": frozenset({"phospy.core.statistics.multiple_testing"}),
+    "taxonomy": frozenset({"phospy.core.taxonomy.organisms"}),
 }
 
 PUBLIC_FACADE_STEADY_STATE_TARGET_OWNERS = frozenset(
@@ -430,7 +430,7 @@ PUBLIC_FACADE_STEADY_STATE_TARGET_OWNERS = frozenset(
 # intentional: siblings and descendants are implementation paths unless they
 # receive their own review and entry here.
 IO_ADAPTER_ALLOWED_TARGETS: Mapping[str, frozenset[str]] = {
-    "activities": frozenset({"phospy.activities.semantics"}),
+    "activities": frozenset({"phospy.core.activities.semantics"}),
     "datasets": frozenset(
         {
             "phospy.datasets.contracts",
@@ -447,11 +447,11 @@ IO_ADAPTER_ALLOWED_TARGETS: Mapping[str, frozenset[str]] = {
     ),
     "evidence": frozenset(
         {
-            "phospy.evidence.config",
-            "phospy.evidence.localisation",
-            "phospy.evidence.modified_peptides",
-            "phospy.evidence.multi_site",
-            "phospy.evidence.quantification_depth",
+            "phospy.core.evidence.config",
+            "phospy.core.evidence.localisation",
+            "phospy.core.evidence.modified_peptides",
+            "phospy.core.evidence.multi_site",
+            "phospy.core.evidence.quantification_depth",
         }
     ),
     "kinase": frozenset(
@@ -474,7 +474,7 @@ IO_ADAPTER_ALLOWED_TARGETS: Mapping[str, frozenset[str]] = {
             "phospy.kinase.activity.results",
         }
     ),
-    "phosphosites": frozenset({"phospy.phosphosites.identifiers"}),
+    "phosphosites": frozenset({"phospy.core.phosphosites.identifiers"}),
     "preparation_records": frozenset({"phospy.preparation_records.policies"}),
     "preprocessing": frozenset(
         {
@@ -492,25 +492,25 @@ IO_ADAPTER_ALLOWED_TARGETS: Mapping[str, frozenset[str]] = {
     ),
     "provenance": frozenset(
         {
-            "phospy.provenance.hashing",
-            "phospy.provenance.immutability",
-            "phospy.provenance.models",
-            "phospy.provenance.result_caveats",
-            "phospy.provenance.serialization",
+            "phospy.core.provenance.hashing",
+            "phospy.core.provenance.immutability",
+            "phospy.core.provenance.models",
+            "phospy.core.provenance.result_caveats",
+            "phospy.core.provenance.serialization",
         }
     ),
     "quantitative": frozenset(
         {
-            "phospy.quantitative.assertions",
-            "phospy.quantitative.models",
-            "phospy.quantitative.serialization",
+            "phospy.core.quantitative.assertions",
+            "phospy.core.quantitative.models",
+            "phospy.core.quantitative.serialization",
         }
     ),
     "references": frozenset(
         {
-            "phospy.references.acquisition",
-            "phospy.references.config",
-            "phospy.references.models",
+            "phospy.core.references.acquisition",
+            "phospy.core.references.config",
+            "phospy.core.references.models",
         }
     ),
     "signalome": frozenset(
@@ -529,14 +529,14 @@ IO_ADAPTER_ALLOWED_TARGETS: Mapping[str, frozenset[str]] = {
             "phospy.signalome.tables.network",
         }
     ),
-    "taxonomy": frozenset({"phospy.taxonomy.organisms"}),
+    "taxonomy": frozenset({"phospy.core.taxonomy.organisms"}),
 }
 
 # Run lineage composes these exact owner-defined provenance contracts. Broad
 # foundation access for Errors, Frames, and Taxonomy remains explicit in
 # ``_run_lineage_target`` rather than being represented as module entries.
 RUN_LINEAGE_ALLOWED_TARGETS: Mapping[str, frozenset[str]] = {
-    "evidence": frozenset({"phospy.evidence.serialization.historical_peptide"}),
+    "evidence": frozenset({"phospy.core.evidence.serialization.historical_peptide"}),
     "preprocessing": frozenset(
         {
             "phospy.preprocessing.provenance.models",
@@ -545,24 +545,24 @@ RUN_LINEAGE_ALLOWED_TARGETS: Mapping[str, frozenset[str]] = {
     ),
     "provenance": frozenset(
         {
-            "phospy.provenance.environment",
-            "phospy.provenance.immutability",
-            "phospy.provenance.models",
-            "phospy.provenance.models.environment",
-            "phospy.provenance.models.tables",
-            "phospy.provenance.scalar_validation",
-            "phospy.provenance.scientific_policy_models",
-            "phospy.provenance.serialization",
-            "phospy.provenance.serialization.payload",
-            "phospy.provenance.serialization.environment",
-            "phospy.provenance.serialization.tables",
+            "phospy.core.provenance.environment",
+            "phospy.core.provenance.immutability",
+            "phospy.core.provenance.models",
+            "phospy.core.provenance.models.environment",
+            "phospy.core.provenance.models.tables",
+            "phospy.core.provenance.scalar_validation",
+            "phospy.core.provenance.scientific_policy_models",
+            "phospy.core.provenance.serialization",
+            "phospy.core.provenance.serialization.payload",
+            "phospy.core.provenance.serialization.environment",
+            "phospy.core.provenance.serialization.tables",
         }
     ),
     "references": frozenset(
         {
-            "phospy.references.provenance.context",
-            "phospy.references.provenance.models",
-            "phospy.references.provenance.serialization",
+            "phospy.core.references.provenance.context",
+            "phospy.core.references.provenance.models",
+            "phospy.core.references.provenance.serialization",
         }
     ),
 }
@@ -1537,9 +1537,9 @@ def is_allowed_import(
         return True
     if source_owner == "kinase" and target_owner == "activities":
         return target_module in {
-            "phospy.activities.contracts",
-            "phospy.activities.semantics",
-            "phospy.activities.validation",
+            "phospy.core.activities.contracts",
+            "phospy.core.activities.semantics",
+            "phospy.core.activities.validation",
         }
     if source_owner == "datasets" and target_owner == "preprocessing":
         return _dataset_to_preprocessing_contract(source_module, target_module)

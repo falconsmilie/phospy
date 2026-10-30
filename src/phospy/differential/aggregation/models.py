@@ -27,12 +27,12 @@ from phospy.core.frames.validation import (
     require_non_empty_dataframe,
     require_unique_columns,
 )
+from phospy.core.provenance.scientific_policy_models import ScientificPolicyRecord
 from phospy.differential.policies import (
     MULTIPLE_TESTING_METHOD_BENJAMINI_HOCHBERG,
     SUPPORTED_MULTIPLE_TESTING_METHODS,
     MultipleTestingMethod,
 )
-from phospy.provenance.scientific_policy_models import ScientificPolicyRecord
 
 PEPTIDE_TO_SITE_AGGREGATION_SUPPORT_STATUS = (
     "unsupported_withdrawn_posthoc_estimate_combination_v1"

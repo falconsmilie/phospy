@@ -11,15 +11,15 @@ from phospy.core.errors.references import (
     ReferenceResolutionError,
     UnsupportedOrganismError,
 )
-from phospy.references import resources as reference_resources
-from phospy.references.errors import ReferenceManifestError
-from phospy.references.manifest import RedistributionEvidenceType
-from phospy.references.models import (
+from phospy.core.references import resources as reference_resources
+from phospy.core.references.errors import ReferenceManifestError
+from phospy.core.references.manifest import RedistributionEvidenceType
+from phospy.core.references.models import (
     RedistributionStatus,
     ReferencePreset,
 )
-from phospy.references.resolution import ReferenceResolver
-from phospy.references.resources import (
+from phospy.core.references.resolution import ReferenceResolver
+from phospy.core.references.resources import (
     available_bundled_reference_lanes,
     bundled_reference_name_for_organism,
     load_bundled_kinase_substrate_map,
@@ -27,7 +27,7 @@ from phospy.references.resources import (
     load_bundled_site_sequences,
     supported_bundled_organisms,
 )
-from phospy.taxonomy import Organism
+from phospy.core.taxonomy import Organism
 
 _REQUIRED_RUNTIME_FILES = (
     "manifest.json",

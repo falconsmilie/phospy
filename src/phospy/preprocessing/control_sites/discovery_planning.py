@@ -6,12 +6,12 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from types import MappingProxyType
 
+from phospy.core.provenance.models import TableFingerprint
 from phospy.preprocessing.control_sites.discovery_contracts import (
     SpsDiscoveryConfig,
     SpsDiscoveryRequest,
     SpsReferenceDataset,
 )
-from phospy.provenance.models import TableFingerprint
 
 
 def _empty_intensity_fingerprints() -> Mapping[str, TableFingerprint]:

@@ -26,7 +26,7 @@ from phospy.core.frames.validation import (
     require_unique_columns,
     require_unique_index,
 )
-from phospy.phosphosites.validation import (
+from phospy.core.phosphosites.validation import (
     require_canonical_site_series,
     require_site_key_series,
 )

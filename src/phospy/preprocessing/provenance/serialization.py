@@ -5,20 +5,11 @@ from __future__ import annotations
 from collections.abc import Mapping
 
 from phospy.core.errors.input import PhosPyInputError
-from phospy.preprocessing.provenance.models import (
-    PREPROCESSING_STAGE_DETERMINISM_EXTERNALLY_NONDETERMINISTIC,
-    PREPROCESSING_STAGE_DETERMINISM_PURE,
-    PREPROCESSING_STAGE_DETERMINISM_SEEDED_STOCHASTIC,
-    PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V3,
-    DeterminismKind,
-    PreprocessingStageProvenance,
-    ReproducibilityCaveat,
-)
-from phospy.provenance.serialization.batch_correction import (
+from phospy.core.provenance.serialization.batch_correction import (
     batch_correction_provenance_from_payload,
     batch_correction_provenance_to_payload,
 )
-from phospy.provenance.serialization.payload import (
+from phospy.core.provenance.serialization.payload import (
     optional_int,
     optional_str,
     raise_legacy_provenance_schema,
@@ -31,9 +22,18 @@ from phospy.provenance.serialization.payload import (
     to_json_safe,
     to_json_value,
 )
-from phospy.provenance.serialization.tables import (
+from phospy.core.provenance.serialization.tables import (
     table_fingerprint_to_payload,
     table_fingerprints_from_payload,
+)
+from phospy.preprocessing.provenance.models import (
+    PREPROCESSING_STAGE_DETERMINISM_EXTERNALLY_NONDETERMINISTIC,
+    PREPROCESSING_STAGE_DETERMINISM_PURE,
+    PREPROCESSING_STAGE_DETERMINISM_SEEDED_STOCHASTIC,
+    PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V3,
+    DeterminismKind,
+    PreprocessingStageProvenance,
+    ReproducibilityCaveat,
 )
 
 _LEGACY_PREPROCESSING_STAGE_FIELDS = frozenset({"is_deterministic"})

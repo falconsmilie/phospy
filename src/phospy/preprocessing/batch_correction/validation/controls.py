@@ -6,6 +6,9 @@ from collections.abc import Mapping, Sequence
 from typing import cast
 
 from phospy.core.errors.input import PhosPyInputError
+from phospy.core.provenance.models.batch_correction import (
+    BATCH_CORRECTION_SELECTED_SITE_KEY_ROW_SENTINELS,
+)
 from phospy.preprocessing.batch_correction.validation._helpers import (
     NOT_PROVIDED_VALUES,
     duplicates_in_order,
@@ -16,9 +19,6 @@ from phospy.preprocessing.batch_correction.validation._helpers import (
     is_not_provided,
     reject_not_provided_required_mapping,
     require_non_empty_mapping,
-)
-from phospy.provenance.models.batch_correction import (
-    BATCH_CORRECTION_SELECTED_SITE_KEY_ROW_SENTINELS,
 )
 
 _SELECTED_SITE_KEY_ROW_SENTINELS = (

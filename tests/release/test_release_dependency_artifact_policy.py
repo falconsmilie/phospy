@@ -391,7 +391,7 @@ def test_active_support_files_do_not_reintroduce_python_310_contracts() -> None:
     active_runtime = (
         _read("scripts/verify_installed_distributions.py")
         + "\n"
-        + _read("src/phospy/provenance/environment.py")
+        + _read("src/phospy/core/provenance/environment.py")
     )
 
     assert f'requires-python = ">={UNSUPPORTED_PYTHON_310}' not in pyproject

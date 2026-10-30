@@ -4,7 +4,7 @@ import pandas as pd
 import pytest
 
 from phospy.core.errors.validation import DatasetValidationError
-from phospy.phosphosites.validation import (
+from phospy.core.phosphosites.validation import (
     require_canonical_site_index,
     require_canonical_site_series,
     require_site_identity_coherence,

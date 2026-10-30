@@ -11,6 +11,17 @@ from phospy.core.errors.validation import (
     ReferenceValidationError,
     WorkflowValidationError,
 )
+from phospy.core.phosphosites.site_keys import (
+    build_protein_scoped_site_key,
+    decode_site_key,
+    encode_site_key,
+)
+from phospy.core.references.models import ReferenceBundle
+from phospy.core.references.tables import (
+    KinaseSubstrateReference,
+    SiteSequenceReference,
+)
+from phospy.core.taxonomy import Organism
 from phospy.datasets.schemas import (
     PhosphoIntensityMatrix,
     SampleMetadataTable,
@@ -22,21 +33,10 @@ from phospy.kinase.prediction.tables import KinasePredictionMatrix
 from phospy.kinase.result_boundary import (
     KinaseScoreMatrix,
 )
-from phospy.phosphosites.site_keys import (
-    build_protein_scoped_site_key,
-    decode_site_key,
-    encode_site_key,
-)
-from phospy.references.models import ReferenceBundle
-from phospy.references.tables import (
-    KinaseSubstrateReference,
-    SiteSequenceReference,
-)
 from phospy.signalome.tables import (
     SignalomeProteinSiteContext,
     SignalomeSiteContext,
 )
-from phospy.taxonomy import Organism
 
 _PROPERTY_SETTINGS = settings(
     max_examples=30,

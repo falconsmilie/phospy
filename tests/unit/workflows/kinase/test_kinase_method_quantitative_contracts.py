@@ -7,18 +7,6 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from phospy.activities.contracts import (
-    MethodQuantitativeInputContract,
-    method_contracts_to_markdown_table,
-)
-from phospy.activities.semantics import (
-    ActivityInputMatrix,
-    ActivityProfileAxis,
-    ActivityQuantitativeSemantics,
-)
-from phospy.activities.validation import (
-    MethodQuantitativeInputValidator,
-)
 from phospy.api import (
     KinaseWorkflow,
     KinaseWorkflowRequest,
@@ -31,7 +19,23 @@ from phospy.api.advanced import (
     KinaseScoringConfig,
     ReferenceContextCompatibilityPolicy,
 )
+from phospy.core.activities.contracts import (
+    MethodQuantitativeInputContract,
+    method_contracts_to_markdown_table,
+)
+from phospy.core.activities.semantics import (
+    ActivityInputMatrix,
+    ActivityProfileAxis,
+    ActivityQuantitativeSemantics,
+)
+from phospy.core.activities.validation import (
+    MethodQuantitativeInputValidator,
+)
 from phospy.core.errors import WorkflowBoundaryError, WorkflowValidationError
+from phospy.core.quantitative.models import (
+    IntensityScaleKind,
+    QuantitativeMeaning,
+)
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.kinase.activity.config import (
     KINASE_ACTIVITY_METHOD_KSEA_ZSCORE,
@@ -67,10 +71,6 @@ from phospy.kinase.scoring.profile import (
     score_profile_correlations,
 )
 from phospy.kinase.validator import KinaseWorkflowValidator
-from phospy.quantitative.models import (
-    IntensityScaleKind,
-    QuantitativeMeaning,
-)
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

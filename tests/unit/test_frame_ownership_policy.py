@@ -20,7 +20,6 @@ import pytest
 
 import phospy.datasets._internal.frame_store as internal_frame_store_module
 import phospy.differential.planning.interpreter as differential_interpreter_module
-from phospy.activities.semantics import ActivityInputMatrix
 from phospy.api import (
     AnalysisReadyDatasetBuilder,
     AnalysisReadyPhosphoDataset,
@@ -47,6 +46,7 @@ from phospy.api.advanced import (
     KinaseScoringConfig,
     ReferenceContextCompatibilityPolicy,
 )
+from phospy.core.activities.semantics import ActivityInputMatrix
 from phospy.core.errors.validation import DatasetValidationError, PhosPyValidationError
 from phospy.core.frames.ownership import (
     _borrow_dataframe,
@@ -63,6 +63,7 @@ from phospy.core.frames.ownership import (
 from phospy.core.frames.table_schema import (
     TableSchema,
 )
+from phospy.core.provenance.hashing import fingerprint_table
 from phospy.datasets.construction.executor import DatasetBuildExecutor
 from phospy.datasets.construction.interpreter import DatasetBuildRequestInterpreter
 from phospy.datasets.internal_view import DatasetInternalView
@@ -89,7 +90,6 @@ from phospy.preparation_records.report_schema import (
     PreprocessingRowAuditRow,
     PreprocessingRowCountRow,
 )
-from phospy.provenance.hashing import fingerprint_table
 from phospy.signalome.constants import (
     CORRELATION_COLUMN,
     DISPLAY_ID_COLUMN,

@@ -6,7 +6,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 
 from phospy.core.policies import PolicyEnum
-from phospy.provenance.scientific_policy_models import (
+from phospy.core.provenance.scientific_policy_models import (
     ScientificPolicyId,
     ScientificPolicyRecord,
 )

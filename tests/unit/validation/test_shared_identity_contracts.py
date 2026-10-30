@@ -6,6 +6,12 @@ import pytest
 
 from phospy.core.errors import DatasetValidationError, PhosPyInputError
 from phospy.core.errors.validation import WorkflowValidationError
+from phospy.core.phosphosites.result_identity import (
+    enforce_result_identity_metadata_coherence,
+)
+from phospy.core.phosphosites.workflow_identity import (
+    enforce_workflow_site_identity_contract,
+)
 from phospy.datasets.schemas import (
     SiteMetadataTable,
 )
@@ -17,12 +23,6 @@ from phospy.differential.results import (
 )
 from phospy.differential.validation.workflow import DIFFERENTIAL_IDENTITY_CONTRACT
 from phospy.kinase.validator import KINASE_IDENTITY_CONTRACT
-from phospy.phosphosites.result_identity import (
-    enforce_result_identity_metadata_coherence,
-)
-from phospy.phosphosites.workflow_identity import (
-    enforce_workflow_site_identity_contract,
-)
 from tests.support.site_keys import protein_site_key, site_key_context_columns
 
 

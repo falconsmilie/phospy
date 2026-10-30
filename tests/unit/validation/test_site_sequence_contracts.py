@@ -4,11 +4,11 @@ import pandas as pd
 import pytest
 
 from phospy.core.errors import WorkflowValidationError
-from phospy.phosphosites.contracts import (
+from phospy.core.phosphosites.contracts import (
     WORKFLOW_CENTERED_SEQUENCE_CONTEXT_CONTRACT,
     PhosphositeIdentityContract,
 )
-from phospy.phosphosites.sequence_context import (
+from phospy.core.phosphosites.sequence_context import (
     SequenceContextContract,
     enforce_site_sequence_context_contract,
 )
@@ -67,10 +67,13 @@ def _enforce(
 
 
 def test_sequence_context_contract_has_one_phosphosites_owner() -> None:
-    assert SequenceContextContract.__module__ == "phospy.phosphosites.sequence_context"
+    assert (
+        SequenceContextContract.__module__
+        == "phospy.core.phosphosites.sequence_context"
+    )
     assert (
         enforce_site_sequence_context_contract.__module__
-        == "phospy.phosphosites.sequence_context"
+        == "phospy.core.phosphosites.sequence_context"
     )
     assert isinstance(
         WORKFLOW_CENTERED_SEQUENCE_CONTEXT_CONTRACT,
@@ -79,7 +82,9 @@ def test_sequence_context_contract_has_one_phosphosites_owner() -> None:
 
 
 def test_phosphosite_identity_contract_has_one_phosphosites_owner() -> None:
-    assert PhosphositeIdentityContract.__module__ == "phospy.phosphosites.contracts"
+    assert (
+        PhosphositeIdentityContract.__module__ == "phospy.core.phosphosites.contracts"
+    )
 
 
 def test_fixed_centered_phosphosite_window_passes() -> None:

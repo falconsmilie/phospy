@@ -15,7 +15,7 @@ from phospy.api.advanced import (
 )
 from phospy.core.errors import DatasetValidationError, PhosPyInputError
 from phospy.core.errors.transformations import TransformationStateEstablishmentError
-from phospy.quantitative.models import IntensityScaleEstablishmentSource
+from phospy.core.quantitative.models import IntensityScaleEstablishmentSource
 
 pytestmark = pytest.mark.integration
 

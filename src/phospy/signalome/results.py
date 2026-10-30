@@ -12,10 +12,10 @@ from phospy.core.frames.ownership import (
     export_optional_dataframe,
     own_optional_dataframe,
 )
+from phospy.core.provenance.result_caveats import ResultCaveat, validate_result_caveats
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.datasets.processing_state import DatasetPreprocessingReport
 from phospy.kinase.results import KinaseWorkflowResult
-from phospy.provenance.result_caveats import ResultCaveat, validate_result_caveats
 from phospy.run_lineage.models import (
     RunProvenance,
 )

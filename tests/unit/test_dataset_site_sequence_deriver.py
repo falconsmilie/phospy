@@ -5,8 +5,8 @@ import pytest
 
 from phospy.core.errors.input import UnsupportedInputFormatError
 from phospy.core.errors.references import UnsupportedOrganismError
+from phospy.core.taxonomy import Organism
 from phospy.datasets.construction.sequence_derivation import SiteSequenceDeriver
-from phospy.taxonomy import Organism
 
 
 def _site_metadata_without_sequences() -> pd.DataFrame:

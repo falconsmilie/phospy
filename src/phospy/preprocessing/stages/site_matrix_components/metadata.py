@@ -6,12 +6,12 @@ from typing import cast
 import pandas as pd
 
 from phospy.core.errors.input import PhosPyInputError
-from phospy.evidence.quantification_depth import (
+from phospy.core.evidence.quantification_depth import (
     QUANTIFICATION_DEPTH_COLUMN,
     validate_quantification_depth_series,
 )
-from phospy.phosphosites.identifiers import canonicalize_site_series
-from phospy.phosphosites.validation import require_site_key_series
+from phospy.core.phosphosites.identifiers import canonicalize_site_series
+from phospy.core.phosphosites.validation import require_site_key_series
 from phospy.preparation_records.report_schema import (
     METADATA_CONFLICT_COLUMNS,
     dataframe_from_metadata_conflict_rows,

@@ -3,6 +3,18 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
+import phospy.core.provenance.models as provenance_models
+import phospy.core.provenance.models.batch_correction as batch_provenance_models
+import phospy.core.quantitative.models as transformation_models
+import phospy.core.quantitative.policy as transformation_policy
+import phospy.core.quantitative.provenance as transformation_provenance
+import phospy.core.quantitative.scale_state as transformation_scale_state
+import phospy.core.quantitative.scale_values as transformation_scale_values
+import phospy.core.references.manifest as reference_manifest
+import phospy.core.references.manifest_files as reference_manifest_files
+import phospy.core.references.manifest_model as reference_manifest_model
+import phospy.core.references.manifest_policy as reference_manifest_policy
+import phospy.core.references.redistribution as reference_redistribution
 import phospy.kinase.activity.diagnostics as activity_diagnostics
 import phospy.kinase.activity.inputs as activity_inputs
 import phospy.kinase.activity.models as activity_method_models
@@ -10,18 +22,6 @@ import phospy.kinase.activity.results as activity_results
 import phospy.preparation_records.batch_correction as batch_models
 import phospy.preprocessing.batch_correction.contracts.results as active_batch_results
 import phospy.preprocessing.batch_correction.execution.linear as batch_engine
-import phospy.provenance.models as provenance_models
-import phospy.provenance.models.batch_correction as batch_provenance_models
-import phospy.quantitative.models as transformation_models
-import phospy.quantitative.policy as transformation_policy
-import phospy.quantitative.provenance as transformation_provenance
-import phospy.quantitative.scale_state as transformation_scale_state
-import phospy.quantitative.scale_values as transformation_scale_values
-import phospy.references.manifest as reference_manifest
-import phospy.references.manifest_files as reference_manifest_files
-import phospy.references.manifest_model as reference_manifest_model
-import phospy.references.manifest_policy as reference_manifest_policy
-import phospy.references.redistribution as reference_redistribution
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SRC_ROOT = PROJECT_ROOT / "src"
@@ -120,8 +120,8 @@ def test_batch_correction_routes_preserve_identity_with_split_owners() -> None:
 
 def test_legacy_aggregate_routes_do_not_define_model_classes_or_helpers() -> None:
     for relative_path in (
-        "phospy/quantitative/models.py",
-        "phospy/references/manifest.py",
+        "phospy/core/quantitative/models.py",
+        "phospy/core/references/manifest.py",
     ):
         tree = ast.parse((SRC_ROOT / relative_path).read_text(encoding="utf-8"))
         definitions = [
@@ -145,26 +145,28 @@ def test_decomposed_scientific_model_classes_have_single_definition() -> None:
         "BatchCorrectionResult": (
             "phospy/preprocessing/batch_correction/contracts/results.py"
         ),
-        "BatchCorrectionProvenance": ("phospy/provenance/models/batch_correction.py"),
+        "BatchCorrectionProvenance": (
+            "phospy/core/provenance/models/batch_correction.py"
+        ),
         "BatchCorrectionRejectedEntity": (
-            "phospy/provenance/models/batch_correction.py"
+            "phospy/core/provenance/models/batch_correction.py"
         ),
         "CorrectedPreprocessingOutput": (
             "phospy/preprocessing/batch_correction/contracts/output.py"
         ),
-        "IntensityScaleState": "phospy/quantitative/scale_state.py",
-        "IntensityTransformationEvent": ("phospy/quantitative/scale_values.py"),
+        "IntensityScaleState": "phospy/core/quantitative/scale_state.py",
+        "IntensityTransformationEvent": ("phospy/core/quantitative/scale_values.py"),
         "KinaseActivityInputs": "phospy/kinase/activity/inputs.py",
         "KinaseActivityResult": "phospy/kinase/activity/results.py",
-        "MatrixIntensityScaleState": "phospy/quantitative/scale_values.py",
-        "QuantitativeMeaningScaleRule": "phospy/quantitative/policy.py",
+        "MatrixIntensityScaleState": "phospy/core/quantitative/scale_values.py",
+        "QuantitativeMeaningScaleRule": "phospy/core/quantitative/policy.py",
         "QuantitativeMeaningTransitionProvenance": (
-            "phospy/quantitative/provenance.py"
+            "phospy/core/quantitative/provenance.py"
         ),
-        "ReferenceFileManifest": "phospy/references/manifest_files.py",
-        "ReferenceManifest": "phospy/references/manifest_model.py",
-        "RedistributionEvidence": "phospy/references/redistribution.py",
-        "SequenceWindowDefinition": "phospy/references/manifest_files.py",
+        "ReferenceFileManifest": "phospy/core/references/manifest_files.py",
+        "ReferenceManifest": "phospy/core/references/manifest_model.py",
+        "RedistributionEvidence": "phospy/core/references/redistribution.py",
+        "SequenceWindowDefinition": "phospy/core/references/manifest_files.py",
     }
     observed: dict[str, list[str]] = {name: [] for name in expected_owner_by_class}
     for path in (SRC_ROOT / "phospy").rglob("*.py"):

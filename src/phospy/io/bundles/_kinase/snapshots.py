@@ -7,7 +7,8 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, cast
 
 from phospy.core.errors.input import PhosPyInputError
-from phospy.evidence.config import LocalisationRequirement
+from phospy.core.evidence.config import LocalisationRequirement
+from phospy.core.references.config import ReferenceContextCompatibilityPolicy
 from phospy.io.bundles._shared.primitives import (
     require_bool,
     require_float,
@@ -52,7 +53,6 @@ from phospy.kinase.scoring.config import (
     KinaseScoringMode,
 )
 from phospy.kinase.scoring.policies import ProfileSelfInclusionPolicy
-from phospy.references.config import ReferenceContextCompatibilityPolicy
 
 if TYPE_CHECKING:
     from phospy.kinase.requests import KinaseWorkflowRequest

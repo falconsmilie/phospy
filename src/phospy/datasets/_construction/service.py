@@ -8,6 +8,8 @@ from dataclasses import dataclass, field
 import pandas as pd
 
 from phospy.core.errors.validation import DatasetValidationError
+from phospy.core.quantitative.models import IntensityScaleState
+from phospy.core.taxonomy.organisms import Organism
 from phospy.datasets._construction.fingerprints import (
     _fingerprints_for_analysis_ready_tables,
     _require_trusted_provenance_table_fingerprints,
@@ -66,11 +68,9 @@ from phospy.datasets.schemas import (
 from phospy.datasets.trusted_assertions import (
     TrustedDatasetConstructionAssertions,
 )
-from phospy.quantitative.models import IntensityScaleState
 from phospy.run_lineage.models import (
     RunProvenance,
 )
-from phospy.taxonomy.organisms import Organism
 
 _VALIDATED_TABLES_AUTHORITY = object()
 _VALIDATED_TABLES_DIRECT_CONSTRUCTION_ERROR_MESSAGE = (

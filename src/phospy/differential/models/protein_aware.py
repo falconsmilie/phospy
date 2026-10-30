@@ -28,6 +28,11 @@ from phospy.core.frames.validation import (
     require_unique_columns,
     require_unique_index,
 )
+from phospy.core.statistics.multiple_testing import (
+    MULTIPLE_TESTING_CORRECTION_BENJAMINI_HOCHBERG,
+    SUPPORTED_MULTIPLE_TESTING_CORRECTIONS,
+    MultipleTestingCorrection,
+)
 from phospy.differential.diagnostics import (
     EmpiricalBayesPriorDiagnostics,
     MeanVarianceTrendDiagnostics,
@@ -49,11 +54,6 @@ from phospy.differential.tables import (
     DIFFERENTIAL_RESULT_STATUS_COLUMN,
     DIFFERENTIAL_RESULT_STATUS_REASON_COLUMN,
     validate_computation_result_table_contract,
-)
-from phospy.statistics.multiple_testing import (
-    MULTIPLE_TESTING_CORRECTION_BENJAMINI_HOCHBERG,
-    SUPPORTED_MULTIPLE_TESTING_CORRECTIONS,
-    MultipleTestingCorrection,
 )
 
 PROTEIN_AWARE_DIFFERENTIAL_SITE_DIAGNOSTIC_COLUMNS = (

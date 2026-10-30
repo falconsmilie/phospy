@@ -9,6 +9,14 @@ import pytest
 
 import phospy.differential.execution.protein_covariate_adjusted as kernel_module
 from phospy.core.errors import PhosPyInputError
+from phospy.core.evidence.quantification_depth import (
+    QUANTIFICATION_DEPTH_KIND_PEPTIDE_COUNT,
+    QUANTIFICATION_DEPTH_KIND_PSM_COUNT,
+)
+from phospy.core.statistics.multiple_testing import (
+    MULTIPLE_TESTING_CORRECTION_BONFERRONI,
+    adjust_p_values,
+)
 from phospy.differential.execution.protein_covariate_adjusted import (
     PROTEIN_AWARE_COVARIATE_COEFFICIENT_NAME,
     ProteinCovariateAdjustedDifferentialKernel,
@@ -36,14 +44,6 @@ from phospy.differential.tables import (
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_CONTRAST_NON_ESTIMABLE,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_COVARIATE_INVALID,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_MODEL_FIT_INVALID,
-)
-from phospy.evidence.quantification_depth import (
-    QUANTIFICATION_DEPTH_KIND_PEPTIDE_COUNT,
-    QUANTIFICATION_DEPTH_KIND_PSM_COUNT,
-)
-from phospy.statistics.multiple_testing import (
-    MULTIPLE_TESTING_CORRECTION_BONFERRONI,
-    adjust_p_values,
 )
 
 SAMPLES = ("A_1", "A_2", "A_3", "B_1", "B_2", "B_3")

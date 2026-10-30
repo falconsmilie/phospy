@@ -9,7 +9,7 @@ from typing import cast
 import pandas as pd
 
 from phospy.core.errors.input import PhosPyInputError
-from phospy.phosphosites.validation import require_site_key_index
+from phospy.core.phosphosites.validation import require_site_key_index
 
 
 def require_site_key(value: object, *, field_name: str) -> str:

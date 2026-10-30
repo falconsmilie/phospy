@@ -11,7 +11,7 @@ import pytest
 import phospy
 import phospy.api
 import phospy.api.advanced
-from phospy.statistics.multiple_testing import MultipleTestingCorrection
+from phospy.core.statistics.multiple_testing import MultipleTestingCorrection
 from tools.architecture.import_graph import (
     ImportGraph,
     ImportRecord,
@@ -137,7 +137,7 @@ def test_live_capability_imports_use_supported_shared_contracts() -> None:
 def test_capability_private_import_policy_is_symbol_and_module_exact() -> None:
     permission = PrivateImportPermission(
         source_module="phospy.datasets.approved_consumer",
-        target_module="phospy.quantitative._approved_private",
+        target_module="phospy.core.quantitative._approved_private",
         target_symbol="approved_symbol",
         rationale="Reviewed synthetic permission for exactness coverage.",
     )
@@ -159,7 +159,7 @@ def test_capability_private_import_policy_is_symbol_and_module_exact() -> None:
         ),
         (
             permission.source_module,
-            "phospy.quantitative._private_sibling",
+            "phospy.core.quantitative._private_sibling",
             permission.target_symbol,
         ),
         (
@@ -186,14 +186,14 @@ def test_capability_private_import_policy_is_symbol_and_module_exact() -> None:
         source_owner="datasets",
         target_owner="quantitative",
         source_module="phospy.datasets.construction.intensity_scale",
-        target_module="phospy.quantitative.authority",
+        target_module="phospy.core.quantitative.authority",
         target_symbol="dataset_resolver_establishment_authority",
     )
     assert not is_allowed_import(
         source_owner="datasets",
         target_owner="quantitative",
         source_module="phospy.datasets.construction.intensity_scale",
-        target_module="phospy.quantitative.authority",
+        target_module="phospy.core.quantitative.authority",
         target_symbol="_authority_token",
     )
     assert not is_allowed_import(
@@ -205,32 +205,36 @@ def test_capability_private_import_policy_is_symbol_and_module_exact() -> None:
     assert is_allowed_import(
         source_owner="quantitative",
         target_owner="quantitative",
-        source_module="phospy.quantitative.models",
-        target_module="phospy.quantitative._payloads",
+        source_module="phospy.core.quantitative.models",
+        target_module="phospy.core.quantitative._payloads",
     )
 
 
 @pytest.mark.parametrize(
     "source",
     (
-        "import phospy.quantitative._private\n",
-        "import phospy.quantitative._private as ordinary_contract\n",
-        "from phospy.quantitative import _private\n",
-        "from phospy.quantitative._private import token\n",
-        ("def load_contract():\n    from phospy.quantitative._private import token\n"),
+        "import phospy.core.quantitative._private\n",
+        "import phospy.core.quantitative._private as ordinary_contract\n",
+        "from phospy.core.quantitative import _private\n",
+        "from phospy.core.quantitative._private import token\n",
+        (
+            "def load_contract():\n    from phospy.core.quantitative._private import token\n"
+        ),
         (
             "from typing import TYPE_CHECKING\n"
             "if TYPE_CHECKING:\n"
-            "    from phospy.quantitative._private import token\n"
+            "    from phospy.core.quantitative._private import token\n"
         ),
-        ("import importlib\nimportlib.import_module('phospy.quantitative._private')\n"),
+        (
+            "import importlib\nimportlib.import_module('phospy.core.quantitative._private')\n"
+        ),
         (
             "from importlib import import_module as load_module\n"
-            "load_module('phospy.quantitative._private')\n"
+            "load_module('phospy.core.quantitative._private')\n"
         ),
-        "__import__('phospy.quantitative._private')\n",
+        "__import__('phospy.core.quantitative._private')\n",
         (
-            "from phospy.quantitative.contracts import "
+            "from phospy.core.quantitative.contracts import "
             "_private_symbol as ordinary_contract\n"
         ),
     ),
@@ -254,11 +258,12 @@ def test_capability_private_import_forms_cannot_conceal_analyzed_target(
     src_root = tmp_path / "src"
     package_root = src_root / "phospy"
     source_path = package_root / "datasets/consumer.py"
-    private_path = package_root / "quantitative/_private.py"
-    contract_path = package_root / "quantitative/contracts.py"
+    private_path = package_root / "core/quantitative/_private.py"
+    contract_path = package_root / "core/quantitative/contracts.py"
     source_path.parent.mkdir(parents=True)
     private_path.parent.mkdir(parents=True)
     (package_root / "__init__.py").write_text("", encoding="utf-8")
+    (package_root / "core" / "__init__.py").write_text("", encoding="utf-8")
     (source_path.parent / "__init__.py").write_text("", encoding="utf-8")
     (private_path.parent / "__init__.py").write_text("", encoding="utf-8")
     source_path.write_text(source, encoding="utf-8")
@@ -493,13 +498,13 @@ def test_capability_specific_provenance_modules_have_semantic_owners() -> None:
     }
     expected = {
         "src/phospy/datasets/derived_quantitative.py": "datasets",
-        "src/phospy/references/provenance/models.py": "references",
+        "src/phospy/core/references/provenance/models.py": "references",
         "src/phospy/datasets/trusted_assertions.py": "datasets",
         "src/phospy/preprocessing/provenance/models.py": "preprocessing",
-        "src/phospy/references/provenance/context.py": "references",
-        "src/phospy/references/provenance/identifiers.py": "references",
-        "src/phospy/provenance/serialization/batch_correction.py": "provenance",
-        "src/phospy/references/provenance/serialization.py": "references",
+        "src/phospy/core/references/provenance/context.py": "references",
+        "src/phospy/core/references/provenance/identifiers.py": "references",
+        "src/phospy/core/provenance/serialization/batch_correction.py": "provenance",
+        "src/phospy/core/references/provenance/serialization.py": "references",
         "src/phospy/preprocessing/provenance/serialization.py": "preprocessing",
         "src/phospy/run_lineage/models.py": "run_lineage",
         "src/phospy/run_lineage/serialization.py": "run_lineage",
@@ -564,10 +569,10 @@ def test_owner_boundaries_and_omitted_count_kinds_are_locked() -> None:
     owner_entries = load_module_owners(OWNER_MAP)
     owners = {entry.source_path: entry.owner for entry in owner_entries}
     owners_by_module = {entry.module: entry.owner for entry in owner_entries}
-    assert owners["src/phospy/evidence/quantification_depth.py"] == "evidence"
-    assert owners["src/phospy/references/tables.py"] == "references"
+    assert owners["src/phospy/core/evidence/quantification_depth.py"] == "evidence"
+    assert owners["src/phospy/core/references/tables.py"] == "references"
     assert "src/phospy/science/tables/references.py" not in owners
-    depth_source = (PACKAGE_ROOT / "evidence/quantification_depth.py").read_text(
+    depth_source = (PACKAGE_ROOT / "core/evidence/quantification_depth.py").read_text(
         encoding="utf-8"
     )
     for declaration in (
@@ -599,7 +604,7 @@ def test_owner_boundaries_and_omitted_count_kinds_are_locked() -> None:
 
 
 def test_stored_reference_contract_has_one_references_owner() -> None:
-    table_path = PACKAGE_ROOT / "references/tables.py"
+    table_path = PACKAGE_ROOT / "core/references/tables.py"
     declarations = _top_level_declarations(table_path)
     moved = {
         ("class", "KinaseSubstrateReference"),
@@ -638,13 +643,13 @@ def test_caveat_helper_imports_are_symbol_exact() -> None:
 
 
 def test_taxonomy_is_an_errors_only_leaf_and_old_organism_routes_are_unused() -> None:
-    taxonomy_root = PACKAGE_ROOT / "taxonomy"
+    taxonomy_root = PACKAGE_ROOT / "core/taxonomy"
     taxonomy_import_offenders: list[str] = []
     old_route_offenders: list[str] = []
     old_routes = {
-        "phospy.provenance.organisms",
+        "phospy.core.provenance.organisms",
         "phospy.science.references",
-        "phospy.references.models",
+        "phospy.core.references.models",
         "phospy.science.sites.organisms",
     }
 
@@ -657,7 +662,7 @@ def test_taxonomy_is_an_errors_only_leaf_and_old_organism_routes_are_unused() ->
                 if (
                     node.module.startswith("phospy.")
                     and not node.module.startswith("phospy.core.errors")
-                    and not node.module.startswith("phospy.taxonomy")
+                    and not node.module.startswith("phospy.core.taxonomy")
                 ):
                     taxonomy_import_offenders.append(
                         f"{path.relative_to(PROJECT_ROOT)} -> {node.module}"
@@ -730,13 +735,13 @@ def test_contract_path_rules_reject_forbidden_capability_and_adapter_paths() -> 
     assert not is_allowed_import(
         source_owner="phosphosites",
         target_owner="references",
-        source_module="phospy.phosphosites.contracts",
-        target_module="phospy.provenance.models.references",
+        source_module="phospy.core.phosphosites.contracts",
+        target_module="phospy.core.provenance.models.references",
     )
     assert not is_allowed_import(
         source_owner="phosphosites",
         target_owner="kinase",
-        source_module="phospy.phosphosites.dataset_identity",
+        source_module="phospy.core.phosphosites.dataset_identity",
         target_module="phospy.kinase.contracts",
     )
     assert not is_allowed_import(
@@ -772,7 +777,7 @@ def test_contract_path_rules_reject_forbidden_capability_and_adapter_paths() -> 
     assert not is_allowed_import(
         source_owner="references",
         target_owner="kinase",
-        source_module="phospy.references.models",
+        source_module="phospy.core.references.models",
         target_module="phospy.kinase.scoring",
     )
     assert not is_allowed_import(
@@ -886,11 +891,11 @@ def test_io_adapter_allow_list_is_exact_and_rejects_internal_lookalikes() -> Non
 
 def test_future_adapter_owner_edges_accept_only_published_paths() -> None:
     allowed = (
-        ("public_facades", "taxonomy", "phospy.taxonomy.organisms"),
+        ("public_facades", "taxonomy", "phospy.core.taxonomy.organisms"),
         (
             "public_facades",
             "statistics",
-            "phospy.statistics.multiple_testing",
+            "phospy.core.statistics.multiple_testing",
         ),
         (
             "io",
@@ -905,16 +910,16 @@ def test_future_adapter_owner_edges_accept_only_published_paths() -> None:
         ("io", "preprocessing", "phospy.preprocessing.results"),
     )
     rejected = (
-        ("public_facades", "taxonomy", "phospy.taxonomy.validation"),
+        ("public_facades", "taxonomy", "phospy.core.taxonomy.validation"),
         (
             "public_facades",
             "statistics",
-            "phospy.statistics.multiple_testing.internal",
+            "phospy.core.statistics.multiple_testing.internal",
         ),
         ("io", "enrichment", "phospy.enrichment.contracts"),
         ("io", "enrichment", "phospy.enrichment.execution"),
-        ("io", "evidence", "phospy.evidence.contracts"),
-        ("io", "evidence", "phospy.evidence.validation"),
+        ("io", "evidence", "phospy.core.evidence.contracts"),
+        ("io", "evidence", "phospy.core.evidence.validation"),
         ("io", "preprocessing", "phospy.preprocessing.executor"),
     )
 
@@ -993,7 +998,7 @@ def test_domain_to_facade_fixture_is_forbidden() -> None:
     assert not is_allowed_import(
         source_owner="evidence",
         target_owner="public_facades",
-        source_module="phospy.evidence.models",
+        source_module="phospy.core.evidence.models",
         target_module="phospy.api",
     )
 
@@ -1001,9 +1006,10 @@ def test_domain_to_facade_fixture_is_forbidden() -> None:
 def test_root_facade_import_forms_are_resolved_and_forbidden(tmp_path: Path) -> None:
     src_root = tmp_path / "src"
     package_root = src_root / "phospy"
-    evidence_path = package_root / "evidence/models.py"
+    evidence_path = package_root / "core/evidence/models.py"
     evidence_path.parent.mkdir(parents=True)
     (package_root / "__init__.py").write_text("", encoding="utf-8")
+    (package_root / "core" / "__init__.py").write_text("", encoding="utf-8")
     (package_root / "api.py").write_text("", encoding="utf-8")
     evidence_path.write_text(
         "import phospy\nfrom phospy import api\n",
@@ -1017,13 +1023,13 @@ def test_root_facade_import_forms_are_resolved_and_forbidden(tmp_path: Path) -> 
         owners_by_module={
             "phospy": "public_facades",
             "phospy.api": "public_facades",
-            "phospy.evidence.models": "evidence",
+            "phospy.core.evidence.models": "evidence",
         },
     )
     evidence_imports = [
         item
         for item in classified
-        if item.record.source_module == "phospy.evidence.models"
+        if item.record.source_module == "phospy.core.evidence.models"
     ]
 
     assert {item.record.target for item in evidence_imports} == {
@@ -1047,9 +1053,10 @@ def test_importlib_callable_aliases_resolve_to_forbidden_facade_imports(
     for variant, source in sources.items():
         src_root = tmp_path / variant / "src"
         package_root = src_root / "phospy"
-        evidence_path = package_root / "evidence/models.py"
+        evidence_path = package_root / "core/evidence/models.py"
         evidence_path.parent.mkdir(parents=True)
         (package_root / "__init__.py").write_text("", encoding="utf-8")
+        (package_root / "core" / "__init__.py").write_text("", encoding="utf-8")
         (package_root / "api.py").write_text("", encoding="utf-8")
         evidence_path.write_text(source, encoding="utf-8")
         graph = build_import_graph(package_root=package_root, src_root=src_root)
@@ -1060,13 +1067,13 @@ def test_importlib_callable_aliases_resolve_to_forbidden_facade_imports(
             owners_by_module={
                 "phospy": "public_facades",
                 "phospy.api": "public_facades",
-                "phospy.evidence.models": "evidence",
+                "phospy.core.evidence.models": "evidence",
             },
         )
         facade_imports = [
             item
             for item in classified
-            if item.record.source_module == "phospy.evidence.models"
+            if item.record.source_module == "phospy.core.evidence.models"
         ]
 
         assert [item.record.target for item in facade_imports] == ["phospy.api"]
@@ -1114,7 +1121,7 @@ def _runtime_definition_identity(module: object, name: str) -> dict[str, object]
     if module is phospy.api.advanced and name == "MultipleTestingCorrection":
         assert value is MultipleTestingCorrection
         result["definition"] = (
-            "phospy.statistics.multiple_testing:MultipleTestingCorrection"
+            "phospy.core.statistics.multiple_testing:MultipleTestingCorrection"
         )
         result["kind"] = "callable_or_type"
         return result

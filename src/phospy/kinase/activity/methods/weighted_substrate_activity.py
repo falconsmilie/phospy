@@ -41,7 +41,7 @@ class SimplifiedWeightedSubstrateActivityMethod:
     top_n_substrates: int
 
     def run(self, inputs: KinaseActivityInputs) -> KinaseActivityResult:
-        from phospy.activities.contracts import (
+        from phospy.core.activities.contracts import (
             resolve_activity_input_contract,
         )
 

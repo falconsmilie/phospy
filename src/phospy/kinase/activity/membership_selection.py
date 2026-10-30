@@ -6,6 +6,10 @@ from collections.abc import Mapping
 
 import pandas as pd
 
+from phospy.core.provenance.hashing import fingerprint_optional_table_normalized_axes
+from phospy.core.provenance.models import (
+    TableFingerprint,
+)
 from phospy.kinase.activity.membership import (
     ACTIVITY_MEMBERSHIP_SELECTION_POLICY_VERSION,
     ACTIVITY_MEMBERSHIP_SOURCE_FUSED_PROFILE_MOTIF,
@@ -29,10 +33,6 @@ from phospy.kinase.prediction.policies import (
 )
 from phospy.kinase.prediction.results import KinasePredictionResult
 from phospy.kinase.scoring.results import KinaseScoringRunResult
-from phospy.provenance.hashing import fingerprint_optional_table_normalized_axes
-from phospy.provenance.models import (
-    TableFingerprint,
-)
 
 _DOWNSTREAM_SCORE_SOURCE_KINASE_LIBRARY_MOTIF = "kinase_library_motif_scores"
 _DOWNSTREAM_SCORE_SOURCE_COMBINED_PROFILE_MOTIF = "combined_profile_motif_scores"

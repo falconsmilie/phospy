@@ -15,7 +15,7 @@ from phospy.api import (
     SignalomeWorkflowResult,
 )
 from phospy.core.errors.workflows import WorkflowStageError
-from phospy.phosphosites.site_keys import (
+from phospy.core.phosphosites.site_keys import (
     ProteinScopedPhosphositeKey,
     encode_site_key,
 )

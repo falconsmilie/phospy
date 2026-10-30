@@ -10,16 +10,17 @@ import numpy as np
 import pandas as pd
 
 from phospy.core.errors.input import PhosPyInputError, UnsupportedInputFormatError
+from phospy.core.evidence.localisation import (
+    LOCALISATION_CONFIDENCE_OUTPUT_COLUMN,
+    normalise_localisation_confidence_series,
+)
+from phospy.core.evidence.multi_site import parse_phospho_site_tokens
 from phospy.core.frames.table_formats import (
     supported_table_input_formats,
     table_format_from_path,
 )
 from phospy.core.frames.validation import require_dataframe
-from phospy.evidence.localisation import (
-    LOCALISATION_CONFIDENCE_OUTPUT_COLUMN,
-    normalise_localisation_confidence_series,
-)
-from phospy.evidence.multi_site import parse_phospho_site_tokens
+from phospy.core.phosphosites.identifiers import canonicalize_site_components
 from phospy.io.importers.contracts import (
     IMPORTER_QUALITY_STATUS_NOT_APPLICABLE,
     IMPORTER_QUALITY_STATUS_REPORTED,
@@ -40,7 +41,6 @@ from phospy.io.importers.validation import (
     require_import_source_columns,
     required_import_source_columns,
 )
-from phospy.phosphosites.identifiers import canonicalize_site_components
 
 _CSV = "csv"
 _TSV = "tsv"

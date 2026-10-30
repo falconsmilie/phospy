@@ -6,6 +6,18 @@ from typing import cast
 import pytest
 
 from phospy.core.errors.input import PhosPyInputError
+from phospy.core.provenance.hashing import hash_json_payload
+from phospy.core.provenance.immutability import FrozenJsonMapping
+from phospy.core.provenance.models import (
+    ENVIRONMENT_PROVENANCE_SCHEMA_VERSION_V2,
+    EnvironmentProvenance,
+    JsonValue,
+    TableFingerprint,
+)
+from phospy.core.provenance.scientific_policy_models import (
+    ScientificPolicyId,
+    ScientificPolicyRecord,
+)
 from phospy.datasets.derived_quantitative import (
     DerivedQuantitativeDataProvenance,
     DerivedSampleMapping,
@@ -14,18 +26,6 @@ from phospy.preprocessing.provenance.models import (
     PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V3,
     PreprocessingStageProvenance,
     ReproducibilityCaveat,
-)
-from phospy.provenance.hashing import hash_json_payload
-from phospy.provenance.immutability import FrozenJsonMapping
-from phospy.provenance.models import (
-    ENVIRONMENT_PROVENANCE_SCHEMA_VERSION_V2,
-    EnvironmentProvenance,
-    JsonValue,
-    TableFingerprint,
-)
-from phospy.provenance.scientific_policy_models import (
-    ScientificPolicyId,
-    ScientificPolicyRecord,
 )
 from phospy.run_lineage.models import RunProvenance
 from phospy.run_lineage.serialization import from_payload, to_payload

@@ -77,12 +77,12 @@ def test_retired_dataset_validation_package_is_absent() -> None:
 
 
 def test_internal_validation_and_evidence_owner_imports_still_work() -> None:
+    from phospy.core.evidence import site_metadata
     from phospy.datasets.validation.model_boundary import (
         AnalysisReadyDatasetModelBoundaryValidator,
     )
-    from phospy.evidence import site_metadata
 
-    assert site_metadata.__name__ == "phospy.evidence.site_metadata"
+    assert site_metadata.__name__ == "phospy.core.evidence.site_metadata"
     assert AnalysisReadyDatasetModelBoundaryValidator.__name__ == (
         "AnalysisReadyDatasetModelBoundaryValidator"
     )

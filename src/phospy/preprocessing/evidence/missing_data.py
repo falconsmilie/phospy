@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from phospy.provenance.hashing import hash_table_tolerance
+from phospy.core.provenance.hashing import hash_table_tolerance
 
 
 def hash_imputation_mask(mask: pd.DataFrame) -> str:

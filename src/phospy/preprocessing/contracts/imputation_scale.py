@@ -6,6 +6,7 @@ from dataclasses import dataclass
 
 import phospy.preparation_records.imputation as _imputation_records
 from phospy.core.errors.input import PhosPyInputError
+from phospy.core.quantitative.models import IntensityScaleKind
 from phospy.preparation_records.policies import MissingDataPolicy
 from phospy.preprocessing.contracts.policies import (
     ImputationInputScale,
@@ -15,7 +16,6 @@ from phospy.preprocessing.contracts.stage_keys import (
     DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
     DATASET_PREPROCESSING_STAGE_MISSING_DATA,
 )
-from phospy.quantitative.models import IntensityScaleKind
 
 
 @dataclass(frozen=True, slots=True)

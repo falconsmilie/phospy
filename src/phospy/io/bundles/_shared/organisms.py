@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from phospy.core.errors.input import PhosPyInputError
+from phospy.core.taxonomy.organisms import Organism
 from phospy.io.bundles._shared.primitives import require_str
-from phospy.taxonomy.organisms import Organism
 
 
 def parse_optional_organism(value: object, *, field_name: str) -> Organism | None:

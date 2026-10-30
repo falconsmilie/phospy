@@ -7,19 +7,19 @@ from dataclasses import dataclass, field
 from enum import Enum
 
 from phospy.core.errors.input import PhosPyInputError
-from phospy.provenance.immutability import (
+from phospy.core.provenance.immutability import (
     freeze_json_mapping,
     freeze_optional_json_mapping,
     thaw_json_mapping,
 )
-from phospy.provenance.models.batch_correction import (
+from phospy.core.provenance.models.batch_correction import (
     BatchCorrectionProvenance as _BatchCorrectionProvenance,
 )
-from phospy.provenance.models.tables import (
+from phospy.core.provenance.models.tables import (
     TableFingerprint,
     require_table_fingerprint_sequence,
 )
-from phospy.provenance.scalar_validation import (
+from phospy.core.provenance.scalar_validation import (
     JsonValue,
     provenance_string_tuple,
     required_provenance_text,

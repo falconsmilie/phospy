@@ -13,14 +13,14 @@ from phospy.core.errors.transformations import (
     TransformerExecutionError,
 )
 from phospy.core.errors.validation import TransformationValidationError
-from phospy.quantitative.authority import (
+from phospy.core.quantitative.authority import (
     dataset_resolver_establishment_authority,
 )
-from phospy.quantitative.contracts import Transformer
-from phospy.quantitative.declared_scale_diagnostics import (
+from phospy.core.quantitative.contracts import Transformer
+from phospy.core.quantitative.declared_scale_diagnostics import (
     run_declared_scale_sanity_diagnostics,
 )
-from phospy.quantitative.models import (
+from phospy.core.quantitative.models import (
     DeclaredIntensityScaleDiagnosticPolicy,
     IntensityScaleEstablishmentMode,
     IntensityScaleEvidenceLevel,
@@ -28,11 +28,11 @@ from phospy.quantitative.models import (
     IntensityScaleState,
     establish_intensity_scale_state,
 )
-from phospy.quantitative.state_coherence import (
+from phospy.core.quantitative.state_coherence import (
     require_intensity_scale_state_coherence,
 )
-from phospy.quantitative.transformers import IdentityTransformer, Log2Transformer
-from phospy.quantitative.transformers.identifiers import (
+from phospy.core.quantitative.transformers import IdentityTransformer, Log2Transformer
+from phospy.core.quantitative.transformers.identifiers import (
     resolve_transformer_identifier,
 )
 

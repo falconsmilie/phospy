@@ -2,23 +2,23 @@
 
 from __future__ import annotations
 
-from phospy.evidence.caveats import (
+from phospy.core.evidence.caveats import (
     build_localisation_policy_details,
     is_permissive_localisation_requirement,
+)
+from phospy.core.provenance.result_caveats import ResultCaveat, deduplicate_caveats
+from phospy.core.quantitative.evidence import (
+    build_declared_input_intensity_scale_evidence_caveat,
+    input_intensity_scale_evidence_from_state,
+)
+from phospy.core.references.config import ReferenceContextCompatibilityPolicy
+from phospy.core.references.context_compatibility import (
+    build_reference_context_compatibility_caveat,
+    validate_reference_context_compatibility,
 )
 from phospy.kinase.result_boundary import (
     KINASE_DOWNSTREAM_LIMITATION_CAVEAT_CODES,
     DownstreamScoreSource,
-)
-from phospy.provenance.result_caveats import ResultCaveat, deduplicate_caveats
-from phospy.quantitative.evidence import (
-    build_declared_input_intensity_scale_evidence_caveat,
-    input_intensity_scale_evidence_from_state,
-)
-from phospy.references.config import ReferenceContextCompatibilityPolicy
-from phospy.references.context_compatibility import (
-    build_reference_context_compatibility_caveat,
-    validate_reference_context_compatibility,
 )
 from phospy.signalome.constants import (
     LEGACY_PROTEIN_GROUP_ID_COLUMN,

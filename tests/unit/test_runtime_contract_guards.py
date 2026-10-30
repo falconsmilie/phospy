@@ -18,6 +18,10 @@ from phospy.core.errors import (
     ReferenceCompatibilityError,
     ReferenceResolutionError,
 )
+from phospy.core.references.compatibility import ReferenceCompatibilityValidator
+from phospy.core.references.models import ReferenceBundle, ReferencePreset
+from phospy.core.references.resolution import ReferenceResolver
+from phospy.core.taxonomy import Organism
 from phospy.datasets.construction.input_resolution import DatasetInputReader
 from phospy.datasets.internal_view import DatasetInternalView
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
@@ -29,10 +33,6 @@ from phospy.kinase.resolved_validator import (
     ResolvedKinaseEligibilityValidator,
     ResolvedKinaseInputs,
 )
-from phospy.references.compatibility import ReferenceCompatibilityValidator
-from phospy.references.models import ReferenceBundle, ReferencePreset
-from phospy.references.resolution import ReferenceResolver
-from phospy.taxonomy import Organism
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

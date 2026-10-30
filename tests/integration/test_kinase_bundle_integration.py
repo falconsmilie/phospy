@@ -9,16 +9,6 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from phospy.activities.contracts import (
-    ResolvedMethodQuantitativeInputContract,
-)
-from phospy.activities.semantics import (
-    ActivityAggregationMetadata,
-    ActivityAggregationRecord,
-    ActivityInputMatrix,
-    ActivityProfileAxis,
-    ActivityQuantitativeSemantics,
-)
 from phospy.api import (
     AnalysisReadyDatasetBuilder,
     DatasetBuildRequest,
@@ -38,7 +28,22 @@ from phospy.api.advanced import (
     KinaseScoringConfig,
     ReferenceContextCompatibilityPolicy,
 )
+from phospy.core.activities.contracts import (
+    ResolvedMethodQuantitativeInputContract,
+)
+from phospy.core.activities.semantics import (
+    ActivityAggregationMetadata,
+    ActivityAggregationRecord,
+    ActivityInputMatrix,
+    ActivityProfileAxis,
+    ActivityQuantitativeSemantics,
+)
 from phospy.core.errors.input import PhosPyInputError
+from phospy.core.provenance.hashing import fingerprint_table_normalized_axes
+from phospy.core.provenance.models.batch_correction import BatchCorrectionProvenance
+from phospy.core.provenance.serialization.batch_correction import (
+    batch_correction_provenance_to_payload,
+)
 from phospy.io.bundles.kinase import (
     KINASE_BUNDLE_MANIFEST_VERSION,
     KinaseWorkflowConfigSnapshot,
@@ -76,11 +81,6 @@ from phospy.kinase.activity.results import KinaseActivityResult
 from phospy.kinase.results import KinaseWorkflowResult
 from phospy.preprocessing.contracts.configuration import (
     DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ALLOW_UNCORRECTED,
-)
-from phospy.provenance.hashing import fingerprint_table_normalized_axes
-from phospy.provenance.models.batch_correction import BatchCorrectionProvenance
-from phospy.provenance.serialization.batch_correction import (
-    batch_correction_provenance_to_payload,
 )
 from phospy.run_lineage.models import RunProvenance
 from tests.support.kinase_scoring_state import (

@@ -7,6 +7,16 @@ import pytest
 
 from phospy.core.errors.build import DatasetBuildError
 from phospy.core.errors.input import PhosPyInputError
+from phospy.core.quantitative.models import (
+    IntensityScaleEvidenceLevel,
+    IntensityScaleKind,
+    IntensityTransformationEvent,
+    MatrixIntensityScaleState,
+    QuantitativeMeaning,
+)
+from phospy.core.quantitative.quantitative_contracts import (
+    preserve_quantitative_contract,
+)
 from phospy.datasets.construction.contracts import (
     InterpretedDatasetBuildRequest,
     PreprocessedDatasetBuildTables,
@@ -44,16 +54,6 @@ from phospy.preprocessing.stages.total_protein import (
 )
 from phospy.preprocessing.validation.quantitative_transition import (
     _TransformationEventSequenceValidator,
-)
-from phospy.quantitative.models import (
-    IntensityScaleEvidenceLevel,
-    IntensityScaleKind,
-    IntensityTransformationEvent,
-    MatrixIntensityScaleState,
-    QuantitativeMeaning,
-)
-from phospy.quantitative.quantitative_contracts import (
-    preserve_quantitative_contract,
 )
 from tests.support.dataset_preprocessor_fakes import (
     ConformingDatasetPreprocessorFake,

@@ -23,6 +23,11 @@ from phospy.api.advanced import (
     ReferenceContextCompatibilityPolicy,
 )
 from phospy.core.errors.workflows import WorkflowBoundaryError
+from phospy.core.phosphosites.site_keys import (
+    build_protein_scoped_site_key,
+    encode_site_key,
+)
+from phospy.core.quantitative.models import QuantitativeMeaning
 from phospy.datasets.internal_view import DatasetInternalView
 from phospy.kinase.activity.config import (
     KINASE_ACTIVITY_METHOD_KSEA_ZSCORE,
@@ -79,11 +84,6 @@ from phospy.kinase.scoring.tables import (
     KINASE_SUBSTRATE_CONTRIBUTION_COLUMNS,
 )
 from phospy.kinase.validator import KinaseWorkflowValidator
-from phospy.phosphosites.site_keys import (
-    build_protein_scoped_site_key,
-    encode_site_key,
-)
-from phospy.quantitative.models import QuantitativeMeaning
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )
@@ -460,7 +460,7 @@ def test_kinase_stage_components_expose_run() -> None:
 def test_kinase_validator_preserves_reference_preset_until_interpretation(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from phospy.references.resolution import ReferenceResolver
+    from phospy.core.references.resolution import ReferenceResolver
 
     def fail_if_called(*args: object, **kwargs: object) -> object:
         raise AssertionError("reference resolution must not run during validation")

@@ -7,6 +7,7 @@ import pandas as pd
 import pytest
 
 from phospy.core.errors import PhosPyInputError
+from phospy.core.provenance import fingerprint_matrix
 from phospy.preprocessing.batch_correction.contracts.missingness import (
     TemporaryImputationMethod,
 )
@@ -16,7 +17,6 @@ from phospy.preprocessing.batch_correction.execution.ruv_iii_executor import (
 from phospy.preprocessing.batch_correction.execution.sps_ruv import (
     _prepare_matrix as prepare_sps_ruv_matrix,
 )
-from phospy.provenance import fingerprint_matrix
 
 
 @dataclass(frozen=True)

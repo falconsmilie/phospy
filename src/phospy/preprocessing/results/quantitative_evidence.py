@@ -8,16 +8,16 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, NoReturn, cast
 
 from phospy.core.errors.build import DatasetBuildError
-from phospy.provenance.models import (
+from phospy.core.provenance.models import (
     BatchCorrectionProvenance,
     TableFingerprint,
 )
-from phospy.quantitative.models import (
+from phospy.core.quantitative.models import (
     IntensityScaleState,
     IntensityTransformationEvent,
     QuantitativeMeaningEvidenceMode,
 )
-from phospy.quantitative.quantitative_contracts import (
+from phospy.core.quantitative.quantitative_contracts import (
     QuantitativeContractState,
     QuantitativeEvidenceRequirement,
     QuantitativeOperationContract,

@@ -8,6 +8,9 @@ from typing import Literal, cast
 
 from scipy.stats import hypergeom
 
+from phospy.core.statistics.multiple_testing import (
+    run as run_multiple_testing_correction,
+)
 from phospy.enrichment.contracts.collections import EnrichmentSetCollection
 from phospy.enrichment.contracts.vocabulary import (
     ENRICHMENT_METHOD_OVER_REPRESENTATION,
@@ -16,9 +19,6 @@ from phospy.enrichment.contracts.vocabulary import (
     EnrichmentCollectionKind,
     EnrichmentIdentifierKind,
     MultipleTestingCorrection,
-)
-from phospy.statistics.multiple_testing import (
-    run as run_multiple_testing_correction,
 )
 
 ORA_STATISTICAL_TEST_HYPERGEOMETRIC = "hypergeometric"

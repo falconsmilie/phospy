@@ -7,22 +7,22 @@ from dataclasses import dataclass, field
 from typing import cast
 
 from phospy.core.errors.input import PhosPyInputError
-from phospy.preprocessing.provenance.models import (
-    PreprocessingStageProvenance,
-    require_preprocessing_stage_sequence,
-)
-from phospy.provenance.immutability import freeze_json_mapping, thaw_json_mapping
-from phospy.provenance.models.environment import EnvironmentProvenance
-from phospy.provenance.models.tables import (
+from phospy.core.provenance.immutability import freeze_json_mapping, thaw_json_mapping
+from phospy.core.provenance.models.environment import EnvironmentProvenance
+from phospy.core.provenance.models.tables import (
     TableFingerprint,
     require_table_fingerprint_sequence,
 )
-from phospy.provenance.scalar_validation import JsonValue
-from phospy.provenance.scientific_policy_models import ScientificPolicyRecord
-from phospy.references.provenance.context import ReferenceContext
-from phospy.references.provenance.models import (
+from phospy.core.provenance.scalar_validation import JsonValue
+from phospy.core.provenance.scientific_policy_models import ScientificPolicyRecord
+from phospy.core.references.provenance.context import ReferenceContext
+from phospy.core.references.provenance.models import (
     ReferenceProvenance,
     require_reference_context_organism_coherence,
+)
+from phospy.preprocessing.provenance.models import (
+    PreprocessingStageProvenance,
+    require_preprocessing_stage_sequence,
 )
 
 

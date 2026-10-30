@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from phospy.core.references.models import ReferenceBundle, ReferencePreset
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.kinase.activity.config import KinaseActivityConfig
 from phospy.kinase.prediction.config import KinasePredictionConfig
@@ -15,7 +16,6 @@ from phospy.kinase.scoring.config import (
     KinaseScoringConfig,
     KinaseSiteSequenceConflictPolicy,
 )
-from phospy.references.models import ReferenceBundle, ReferencePreset
 
 
 @dataclass(frozen=True, slots=True, eq=False)

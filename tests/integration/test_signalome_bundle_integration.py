@@ -31,15 +31,15 @@ from phospy.core.errors import (
     PhosPyInputError,
     PhosPyValidationError,
 )
+from phospy.core.provenance.models.batch_correction import BatchCorrectionProvenance
+from phospy.core.provenance.serialization.batch_correction import (
+    batch_correction_provenance_to_payload,
+)
 from phospy.io.bundles.signalome import (
     SIGNALOME_BUNDLE_MANIFEST_VERSION,
     SignalomeWorkflowConfigSnapshot,
     load_signalome_workflow_bundle,
     save_signalome_workflow_bundle,
-)
-from phospy.provenance.models.batch_correction import BatchCorrectionProvenance
-from phospy.provenance.serialization.batch_correction import (
-    batch_correction_provenance_to_payload,
 )
 from phospy.run_lineage.models import RunProvenance
 from phospy.run_lineage.serialization import to_payload as provenance_to_payload

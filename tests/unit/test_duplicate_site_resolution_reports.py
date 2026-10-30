@@ -5,7 +5,10 @@ import pandas.testing as pdt
 import pytest
 
 from phospy.core.errors.input import PhosPyInputError
-from phospy.phosphosites.site_keys import ProteinScopedPhosphositeKey, encode_site_key
+from phospy.core.phosphosites.site_keys import (
+    ProteinScopedPhosphositeKey,
+    encode_site_key,
+)
 from phospy.preprocessing.contracts import DuplicateSiteResolutionResult
 from phospy.preprocessing.contracts.configuration import (
     DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEAN,

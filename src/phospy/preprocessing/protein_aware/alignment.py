@@ -8,6 +8,10 @@ from dataclasses import dataclass
 import pandas as pd
 
 import phospy.preparation_records.protein_aware as _protein_records
+from phospy.core.quantitative.models import (
+    IntensityScaleState,
+    MatrixIntensityScaleState,
+)
 from phospy.preparation_records.protein_aware import (
     DATASET_PROTEIN_AWARE_PREPARATION_MAPPING_POLICIES,
     DATASET_PROTEIN_AWARE_PREPARATION_MAPPING_POLICY_ALLOW_MISSING_WITH_REPORT,
@@ -20,10 +24,6 @@ from phospy.preprocessing.protein_aware.mapping import (
 )
 from phospy.preprocessing.validation.configuration_fields import (
     validate_protein_aware_sample_alignment_config,
-)
-from phospy.quantitative.models import (
-    IntensityScaleState,
-    MatrixIntensityScaleState,
 )
 
 PROTEIN_AWARE_REASON_MATCHED_PROTEIN_AVAILABLE = "matched_protein_available"

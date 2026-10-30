@@ -4,16 +4,26 @@ from __future__ import annotations
 
 import pandas as pd
 
-from phospy.datasets.trusted_construction_caveats import (
-    build_direct_trusted_dataset_construction_caveat,
-)
-from phospy.evidence.caveats import (
+from phospy.core.evidence.caveats import (
     build_localisation_policy_details,
     is_permissive_localisation_requirement,
 )
-from phospy.evidence.config import (
+from phospy.core.evidence.config import (
     LOCALISATION_PRODUCTION_MINIMUM_PROBABILITY,
     LocalisationRequirement,
+)
+from phospy.core.provenance.result_caveats import ResultCaveat, deduplicate_caveats
+from phospy.core.quantitative.evidence import (
+    build_declared_input_intensity_scale_evidence_caveat,
+    input_intensity_scale_evidence_from_state,
+)
+from phospy.core.references.config import ReferenceContextCompatibilityPolicy
+from phospy.core.references.context_compatibility import (
+    build_reference_context_compatibility_caveat,
+    validate_reference_context_compatibility,
+)
+from phospy.datasets.trusted_construction_caveats import (
+    build_direct_trusted_dataset_construction_caveat,
 )
 from phospy.kinase.activity.results import KinaseActivityResult
 from phospy.kinase.contracts import ResolvedKinaseWorkflowRequest
@@ -41,16 +51,6 @@ from phospy.kinase.scoring.selection import (
 )
 from phospy.kinase.scoring.tables import (
     KINASE_PROFILE_SCORE_DIAGNOSTIC_STATUS_UNSCORED,
-)
-from phospy.provenance.result_caveats import ResultCaveat, deduplicate_caveats
-from phospy.quantitative.evidence import (
-    build_declared_input_intensity_scale_evidence_caveat,
-    input_intensity_scale_evidence_from_state,
-)
-from phospy.references.config import ReferenceContextCompatibilityPolicy
-from phospy.references.context_compatibility import (
-    build_reference_context_compatibility_caveat,
-    validate_reference_context_compatibility,
 )
 
 KINASE_ATTRITION_POLICY_CAVEAT_CODE = "kinase_attrition_policy_violation"

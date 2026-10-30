@@ -10,7 +10,7 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 
-from phospy.activities.semantics import (
+from phospy.core.activities.semantics import (
     ActivityInputMatrix,
     normalize_activity_input_matrix,
 )
@@ -426,7 +426,7 @@ def _prepare_ssgsea_inputs(
     resolved_activity_input = _resolve_ssgsea_activity_input(
         activity_input=activity_input,
     )
-    from phospy.activities.contracts import (
+    from phospy.core.activities.contracts import (
         resolve_activity_input_contract,
     )
 

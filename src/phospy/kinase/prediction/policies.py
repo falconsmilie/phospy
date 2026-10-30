@@ -7,15 +7,15 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Literal
 
+from phospy.core.provenance.scientific_policy_models import (
+    ScientificPolicyId,
+    ScientificPolicyRecord,
+)
 from phospy.kinase.policies import ThresholdMode
 from phospy.kinase.prediction.config import (
     KINASE_ADAPTIVE_POLICY_R_PARITY,
     KINASE_ADAPTIVE_POLICY_STABLE,
     KinaseAdaptivePolicy,
-)
-from phospy.provenance.scientific_policy_models import (
-    ScientificPolicyId,
-    ScientificPolicyRecord,
 )
 
 CANDIDATE_SCORE_THRESHOLD = 0.0

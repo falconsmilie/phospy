@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
+from phospy.core.phosphosites.sequence_context import SequenceContextContract
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.kinase.references.models import KinaseLibraryResource
 from phospy.kinase.scoring.contracts import (
     kinase_scoring_mode_input_contract,
 )
-from phospy.phosphosites.sequence_context import SequenceContextContract
 
 
 def kinase_sequence_context_contract(

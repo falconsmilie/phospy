@@ -16,7 +16,7 @@ import pandas as pd
 from phospy.api import (
     AnalysisReadyPhosphoDataset,
 )
-from phospy.quantitative.models import (
+from phospy.core.quantitative.models import (
     IntensityScaleState,
     MatrixIntensityScaleState,
 )

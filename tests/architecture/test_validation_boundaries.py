@@ -11,11 +11,25 @@ import pytest
 import phospy
 import phospy.api as public_api
 import phospy.api.advanced as advanced_api
-import phospy.phosphosites.contracts as identity_contracts
-from phospy.activities.validation import (
+import phospy.core.phosphosites.contracts as identity_contracts
+from phospy.core.activities.validation import (
     MethodQuantitativeInputValidator,
 )
 from phospy.core.errors.validation import DatasetValidationError
+from phospy.core.phosphosites.contracts import (
+    ANALYSIS_READY_DATASET_BASE_IDENTITY_CONTRACT,
+    ANALYSIS_READY_IDENTITY_COLUMNS,
+    SITE_SEQUENCE_COLUMN,
+    SequenceContextRequirement,
+)
+from phospy.core.quantitative.validation import (
+    WorkflowQuantitativeInputContract,
+    WorkflowQuantitativeInputValidator,
+)
+from phospy.core.references.context_compatibility import (
+    validate_reference_context_compatibility,
+)
+from phospy.core.taxonomy import Organism
 from phospy.datasets.construction.executor import DatasetBuildExecutor
 from phospy.datasets.schemas import (
     SiteMetadataTable,
@@ -38,27 +52,13 @@ from phospy.kinase.validator import (
     KinaseWorkflowValidator,
     kinase_profile_scoring_workflow_input_contract,
 )
-from phospy.phosphosites.contracts import (
-    ANALYSIS_READY_DATASET_BASE_IDENTITY_CONTRACT,
-    ANALYSIS_READY_IDENTITY_COLUMNS,
-    SITE_SEQUENCE_COLUMN,
-    SequenceContextRequirement,
-)
 from phospy.preprocessing.validation.quantitative_evidence import (
     AdditivePreprocessingScaleGuard,
-)
-from phospy.quantitative.validation import (
-    WorkflowQuantitativeInputContract,
-    WorkflowQuantitativeInputValidator,
-)
-from phospy.references.context_compatibility import (
-    validate_reference_context_compatibility,
 )
 from phospy.signalome.validator import (
     SignalomeWorkflowValidator,
     signalome_workflow_input_contract,
 )
-from phospy.taxonomy import Organism
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )
@@ -101,10 +101,10 @@ VALIDATION_PREFIX = "phospy.core.validation"
 PRIVATE_IMPLEMENTATION_CLASS_SUFFIXES = ("Validator", "Interpreter", "Executor")
 IDENTITY_CONTRACT_CLASS_DEFINITION_OWNERS = {
     "PhosphositeIdentityContract": (
-        SRC_ROOT / "phospy" / "phosphosites" / "contracts.py"
+        SRC_ROOT / "phospy" / "core/phosphosites" / "contracts.py"
     ),
     "SequenceContextContract": (
-        SRC_ROOT / "phospy" / "phosphosites" / "sequence_context.py"
+        SRC_ROOT / "phospy" / "core/phosphosites" / "sequence_context.py"
     ),
 }
 
@@ -603,13 +603,13 @@ def test_signalome_result_identity_validation_is_science_owned_and_workflow_comp
 
 def test_quantitative_validators_follow_domain_ownership() -> None:
     assert MethodQuantitativeInputValidator.__module__ == (
-        "phospy.activities.validation"
+        "phospy.core.activities.validation"
     )
     assert WorkflowQuantitativeInputContract.__module__ == (
-        "phospy.quantitative.validation"
+        "phospy.core.quantitative.validation"
     )
     assert WorkflowQuantitativeInputValidator.__module__ == (
-        "phospy.quantitative.validation"
+        "phospy.core.quantitative.validation"
     )
     assert kinase_profile_scoring_workflow_input_contract.__module__ == (
         "phospy.kinase.validator"
@@ -620,11 +620,11 @@ def test_quantitative_validators_follow_domain_ownership() -> None:
 
 
 def test_phosphosite_identity_contracts_have_direct_owner_leaves() -> None:
-    from phospy.phosphosites import contracts, dataset_identity, result_identity
+    from phospy.core.phosphosites import contracts, dataset_identity, result_identity
 
     assert (
         validate_reference_context_compatibility.__module__
-        == "phospy.references.context_compatibility"
+        == "phospy.core.references.context_compatibility"
     )
     assert (
         identity_contracts.PhosphositeIdentityContract
@@ -632,11 +632,11 @@ def test_phosphosite_identity_contracts_have_direct_owner_leaves() -> None:
     )
     assert (
         dataset_identity.enforce_site_key_column.__module__
-        == "phospy.phosphosites.dataset_identity"
+        == "phospy.core.phosphosites.dataset_identity"
     )
     assert (
         result_identity.enforce_result_identity_metadata_coherence.__module__
-        == "phospy.phosphosites.result_identity"
+        == "phospy.core.phosphosites.result_identity"
     )
     for name in (
         "REFERENCE_CONTEXT_IDENTITY_FIELDS",

@@ -15,7 +15,7 @@ from phospy.api.advanced import (
     DatasetSiteSequenceResolutionConfig,
 )
 from phospy.core.errors.input import PhosPyInputError
-from phospy.taxonomy import Organism
+from phospy.core.taxonomy import Organism
 
 
 def _phospho(index: pd.Index | None = None) -> pd.DataFrame:

@@ -15,6 +15,7 @@ from phospy.api.advanced import (
     DatasetTotalProteinCorrectionIdentityConfig,
 )
 from phospy.core.errors.input import PhosPyInputError
+from phospy.core.quantitative.models import IntensityScaleKind
 from phospy.preparation_records.policies import (
     MissingDataPolicy,
     NormalisationPolicy,
@@ -42,7 +43,6 @@ from phospy.preprocessing.planning.rules import (
     PreprocessingGroupCoveragePlanRuleFamily,
     PreprocessingLocalisationPlanRuleFamily,
 )
-from phospy.quantitative.models import IntensityScaleKind
 
 
 def test_preprocessing_plan_interpreter_builds_default_plan() -> None:

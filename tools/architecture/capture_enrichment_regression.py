@@ -25,7 +25,7 @@ from phospy.api import (
     PtmSetCollection,
     WorkflowValidationError,
 )
-from phospy.provenance.models.environment import EnvironmentProvenance
+from phospy.core.provenance.models.environment import EnvironmentProvenance
 from phospy.run_lineage.serialization import to_payload as run_to_payload
 
 GENE = "gene_symbol"

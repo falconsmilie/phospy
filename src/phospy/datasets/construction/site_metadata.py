@@ -5,13 +5,13 @@ from __future__ import annotations
 import pandas as pd
 
 from phospy.core.errors.input import UnsupportedInputFormatError
-from phospy.datasets.construction.normalization_reporting import (
-    DatasetConventionNormalisationReporter,
-)
-from phospy.phosphosites.identifiers import (
+from phospy.core.phosphosites.identifiers import (
     SiteIdentifierNormalisationRecord,
     canonicalize_site_components_series,
     parse_canonical_site_identifier,
+)
+from phospy.datasets.construction.normalization_reporting import (
+    DatasetConventionNormalisationReporter,
 )
 
 _GENE_SYMBOL_ALIASES = ("gene_symbol", "gene_name")

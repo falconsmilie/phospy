@@ -13,7 +13,7 @@ from phospy.api.advanced import (
     SpsDiscoveryWorkflow,
     SpsReferenceDataset,
 )
-from phospy.phosphosites.site_keys import (
+from phospy.core.phosphosites.site_keys import (
     ProteinScopedPhosphositeKey,
     encode_site_key,
 )

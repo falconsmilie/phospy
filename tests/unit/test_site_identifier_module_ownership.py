@@ -4,7 +4,7 @@ import importlib
 
 import pytest
 
-from phospy.phosphosites.identifiers import (
+from phospy.core.phosphosites.identifiers import (
     ParsedSiteToken,
     SiteIdentifierNormalisationRecord,
     SiteIdentifierNormalisationReport,
@@ -15,22 +15,26 @@ from phospy.phosphosites.identifiers import (
 
 
 def test_site_identifier_helpers_are_owned_by_sites_identifiers_module() -> None:
-    assert canonicalize_site_identifier.__module__ == "phospy.phosphosites.identifiers"
     assert (
-        parse_canonical_site_identifier.__module__ == "phospy.phosphosites.identifiers"
+        canonicalize_site_identifier.__module__
+        == "phospy.core.phosphosites.identifiers"
     )
-    assert try_parse_site_token.__module__ == "phospy.phosphosites.identifiers"
+    assert (
+        parse_canonical_site_identifier.__module__
+        == "phospy.core.phosphosites.identifiers"
+    )
+    assert try_parse_site_token.__module__ == "phospy.core.phosphosites.identifiers"
 
 
 def test_site_identifier_dataclasses_are_owned_by_sites_identifiers_module() -> None:
-    assert ParsedSiteToken.__module__ == "phospy.phosphosites.identifiers"
+    assert ParsedSiteToken.__module__ == "phospy.core.phosphosites.identifiers"
     assert (
         SiteIdentifierNormalisationRecord.__module__
-        == "phospy.phosphosites.identifiers"
+        == "phospy.core.phosphosites.identifiers"
     )
     assert (
         SiteIdentifierNormalisationReport.__module__
-        == "phospy.phosphosites.identifiers"
+        == "phospy.core.phosphosites.identifiers"
     )
 
 

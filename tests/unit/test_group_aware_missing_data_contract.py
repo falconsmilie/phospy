@@ -17,6 +17,7 @@ from phospy.api.advanced import (
     DatasetMissingDataConfig,
 )
 from phospy.core.errors.input import PhosPyInputError
+from phospy.core.quantitative.models import IntensityScaleKind
 from phospy.datasets.construction.contracts import (
     InterpretedDatasetBuildRequest,
     PreprocessedDatasetBuildTables,
@@ -45,7 +46,6 @@ from phospy.preprocessing.stages.missing_data.stage import (
     MISSING_DATA_STAGE_CONTRACT,
     MissingDataStage,
 )
-from phospy.quantitative.models import IntensityScaleKind
 
 
 def _valid_group_aware_kwargs() -> dict[str, Any]:

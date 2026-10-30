@@ -20,6 +20,10 @@ from phospy.api.advanced import (
     EmpiricalBayesConfig,
 )
 from phospy.core.errors import DatasetValidationError, PhosPyInputError
+from phospy.core.phosphosites.site_keys import (
+    build_protein_scoped_site_key,
+    encode_site_key,
+)
 from phospy.differential.diagnostics import (
     EmpiricalBayesPriorDiagnostics,
     MeanVarianceTrendDiagnostics,
@@ -49,10 +53,6 @@ from phospy.differential.results import (
     DifferentialAnalysisResult,
 )
 from phospy.differential.validation.workflow import DifferentialAnalysisValidator
-from phospy.phosphosites.site_keys import (
-    build_protein_scoped_site_key,
-    encode_site_key,
-)
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

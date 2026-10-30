@@ -8,6 +8,7 @@ from typing import NoReturn, TypedDict, cast
 import pandas as pd
 
 from phospy.core.errors.workflows import PhosPyWorkflowError, WorkflowBoundaryError
+from phospy.core.references.models import ReferenceBundle
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.kinase.attrition_metrics import (
     KinaseAttritionMetrics,
@@ -36,7 +37,6 @@ from phospy.kinase.scoring.motif import (
     KINASE_LIBRARY_RESIDUE_CLASS_SER_THR,
     KINASE_LIBRARY_RESIDUE_CLASS_TYR,
 )
-from phospy.references.models import ReferenceBundle
 
 
 class _OverlapSummary(TypedDict):

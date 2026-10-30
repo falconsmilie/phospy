@@ -20,6 +20,10 @@ from phospy.api.advanced import (
     DatasetSiteMatrixConfig,
 )
 from phospy.core.errors.build import DatasetBuildError
+from phospy.core.quantitative.quantitative_contracts import (
+    QuantitativeOperationContract,
+    preserve_quantitative_contract,
+)
 from phospy.datasets.construction.preprocessing import DatasetPreprocessor
 from phospy.preprocessing.contracts import (
     DATASET_PREPROCESSING_STAGE_BATCH_CORRECTION,
@@ -60,10 +64,6 @@ from phospy.preprocessing.provenance.models import (
 )
 from phospy.preprocessing.stages.batch_correction import (
     BATCH_CORRECTION_STAGE_CONTRACT,
-)
-from phospy.quantitative.quantitative_contracts import (
-    QuantitativeOperationContract,
-    preserve_quantitative_contract,
 )
 from tests.support.site_keys import site_key_index_from_display_ids
 

@@ -25,6 +25,10 @@ from phospy.core.frames.validation import (
     require_unique_columns,
     require_unique_index,
 )
+from phospy.core.statistics.multiple_testing import (
+    MULTIPLE_TESTING_CORRECTION_BENJAMINI_HOCHBERG,
+    MultipleTestingCorrection,
+)
 from phospy.differential.execution.linear_model import (
     DifferentialDesignDecomposition,
     DifferentialDesignDecompositionError,
@@ -36,10 +40,6 @@ from phospy.differential.moderation.config import (
 )
 from phospy.differential.quantification_depth import (
     log2_quantification_depth_series,
-)
-from phospy.statistics.multiple_testing import (
-    MULTIPLE_TESTING_CORRECTION_BENJAMINI_HOCHBERG,
-    MultipleTestingCorrection,
 )
 
 

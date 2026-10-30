@@ -4,6 +4,12 @@ from __future__ import annotations
 
 import pandas as pd
 
+from phospy.core.provenance import (
+    RowAttritionRecord,
+    RowAttritionReport,
+    collect_environment_provenance,
+    fingerprint_table,
+)
 from phospy.enrichment.assembly import (
     retained_foreground_fraction,
     unmatched_set_identifier_summary_for_request,
@@ -20,12 +26,6 @@ from phospy.enrichment.filtering import (
 )
 from phospy.enrichment.ora import OraResult
 from phospy.enrichment.planning import InterpretedEnrichmentWorkflowRequest
-from phospy.provenance import (
-    RowAttritionRecord,
-    RowAttritionReport,
-    collect_environment_provenance,
-    fingerprint_table,
-)
 from phospy.run_lineage.models import RunProvenance
 
 ENRICHMENT_OFFLINE_NO_ONLINE_RESOURCE_POLICY = "offline_user_supplied_collections_only"

@@ -11,7 +11,7 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 
 import phospy.kinase.activity.methods.ksea_zscore as ksea_zscore_module
-from phospy.activities.semantics import (
+from phospy.core.activities.semantics import (
     ActivityAggregationMetadata,
     ActivityAggregationRecord,
     ActivityInputMatrix,
@@ -21,6 +21,11 @@ from phospy.activities.semantics import (
 )
 from phospy.core.errors.validation import PhosPyValidationError
 from phospy.core.errors.workflows import WorkflowBoundaryError
+from phospy.core.provenance.hashing import fingerprint_table_normalized_axes
+from phospy.core.provenance.scientific_policy_models import (
+    ScientificPolicyId,
+    ScientificPolicyRecord,
+)
 from phospy.kinase.activity.diagnostics import (
     KseaZScoreActivityDiagnostics,
     SsgseaSubstrateEnrichmentActivityDiagnostics,
@@ -97,11 +102,6 @@ from phospy.kinase.activity.threshold_membership import (
     THRESHOLD_MEMBERSHIP_RULE,
     ActivityThresholdMembershipDiagnostics,
     threshold_membership_mask_array,
-)
-from phospy.provenance.hashing import fingerprint_table_normalized_axes
-from phospy.provenance.scientific_policy_models import (
-    ScientificPolicyId,
-    ScientificPolicyRecord,
 )
 from tests.support.site_keys import site_key_index_from_display_ids
 

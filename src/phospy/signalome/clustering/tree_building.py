@@ -9,8 +9,8 @@ from types import MappingProxyType
 import numpy as np
 import pandas as pd
 
-from phospy.provenance.hashing import fingerprint_matrix
-from phospy.provenance.models import (
+from phospy.core.provenance.hashing import fingerprint_matrix
+from phospy.core.provenance.models import (
     TableFingerprint,
 )
 from phospy.signalome.clustering.backends import (

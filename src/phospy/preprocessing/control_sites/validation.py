@@ -11,6 +11,7 @@ from typing import Protocol
 import pandas as pd
 
 from phospy.core.errors.input import PhosPyInputError
+from phospy.core.taxonomy.organisms import normalize_optional_organism
 from phospy.preprocessing.control_sites.contracts import (
     CONTROL_SITE_REASON_CONTROL_ANNOTATION_NOT_IN_SITE_ROWS,
     CONTROL_SITE_REASON_DUPLICATE_CONTROL_ANNOTATION,
@@ -20,7 +21,6 @@ from phospy.preprocessing.control_sites.contracts import (
     ControlSiteSet,
     ControlSiteStatus,
 )
-from phospy.taxonomy.organisms import normalize_optional_organism
 
 
 class _ValueProtocol(Protocol):

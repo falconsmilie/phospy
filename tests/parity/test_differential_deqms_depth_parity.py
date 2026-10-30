@@ -22,6 +22,9 @@ from phospy.api.advanced import (
     DifferentialAnalysisConfig,
     EmpiricalBayesConfig,
 )
+from phospy.core.evidence.quantification_depth import (
+    QUANTIFICATION_DEPTH_KIND_PSM_COUNT,
+)
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.differential.moderation.config import (
     EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,
@@ -29,7 +32,6 @@ from phospy.differential.moderation.config import (
 from phospy.differential.results import (
     DifferentialAnalysisResult,
 )
-from phospy.evidence.quantification_depth import QUANTIFICATION_DEPTH_KIND_PSM_COUNT
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

@@ -19,12 +19,18 @@ import pandas as pd
 from phospy.core.errors.input import PhosPyInputError
 from phospy.core.errors.validation import DatasetValidationError
 from phospy.core.errors.workflows import WorkflowBoundaryError
+from phospy.core.evidence.quantification_depth import (
+    QUANTIFICATION_DEPTH_COLUMN,
+)
 from phospy.core.frames.pandas_typing import (
     dataframe_column,
     dataframe_copy,
     dataframe_loc,
     index_snapshot,
 )
+from phospy.core.quantitative.models import IntensityScaleKind
+from phospy.core.references.provenance.serialization import reference_to_payload
+from phospy.core.statistics.multiple_testing import MultipleTestingCorrection
 from phospy.datasets.internal_view import (
     DatasetInternalView,
     ProteinAwarePreparationInternalView,
@@ -82,9 +88,6 @@ from phospy.differential.tables import (
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_COVARIATE_INVALID,
     DIFFERENTIAL_RESULT_STATUS_WITHHELD_PROTEIN_PREPARATION_INELIGIBLE,
 )
-from phospy.evidence.quantification_depth import (
-    QUANTIFICATION_DEPTH_COLUMN,
-)
 from phospy.preparation_records.policies import (
     TotalProteinCorrectionPolicy,
 )
@@ -92,9 +95,6 @@ from phospy.preparation_records.protein_aware import (
     DATASET_PROTEIN_AWARE_PREPARATION_POLICY_PREPARE_MODEL_INPUTS,
     ProteinAwarePreparationEligibility,
 )
-from phospy.quantitative.models import IntensityScaleKind
-from phospy.references.provenance.serialization import reference_to_payload
-from phospy.statistics.multiple_testing import MultipleTestingCorrection
 
 _FloatArray = npt.NDArray[np.float64]
 _PROTEIN_VARIANCE_RELATIVE_TOLERANCE = float(np.finfo(np.float64).eps ** 0.75)

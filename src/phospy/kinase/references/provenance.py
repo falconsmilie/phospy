@@ -5,15 +5,15 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 
-from phospy.provenance.immutability import (
+from phospy.core.provenance.immutability import (
     freeze_json_mapping,
     freeze_optional_json_mapping,
 )
-from phospy.provenance.models.tables import (
+from phospy.core.provenance.models.tables import (
     TableFingerprint,
     require_table_fingerprint_sequence,
 )
-from phospy.provenance.scalar_validation import JsonValue
+from phospy.core.provenance.scalar_validation import JsonValue
 
 
 @dataclass(frozen=True, slots=True)

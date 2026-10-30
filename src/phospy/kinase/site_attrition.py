@@ -6,6 +6,8 @@ import pandas as pd
 
 from phospy.core.errors.validation import WorkflowValidationError
 from phospy.core.errors.workflows import PhosPyWorkflowError
+from phospy.core.phosphosites.identifiers import canonicalize_site_identifier
+from phospy.core.phosphosites.site_keys import decode_site_key
 from phospy.datasets.processing_state import (
     PreprocessingSiteAttritionSummary,
     SiteSequenceResolutionReport,
@@ -28,8 +30,6 @@ from phospy.kinase.scoring.results import (
 from phospy.kinase.scoring.sequence_validation import (
     SEQUENCE_VALIDATION_STATUS_INVALID_SITE_ID,
 )
-from phospy.phosphosites.identifiers import canonicalize_site_identifier
-from phospy.phosphosites.site_keys import decode_site_key
 
 
 class _WorkflowIdentifierError(ValueError):

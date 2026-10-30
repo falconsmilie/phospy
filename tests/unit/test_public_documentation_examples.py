@@ -4,7 +4,7 @@ import ast
 import re
 from pathlib import Path
 
-from phospy.evidence.dataset_resolution import (
+from phospy.core.evidence.dataset_resolution import (
     SUPPORTED_DATASET_MULTI_SITE_POLICIES,
 )
 

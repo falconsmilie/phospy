@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 
 import pandas as pd
 
-from phospy.activities.semantics import (
+from phospy.core.activities.semantics import (
     ActivityInputSemantics,
     ActivityProfileMetadata,
 )
@@ -21,6 +21,7 @@ from phospy.core.frames.ownership import (
     export_optional_dataframe,
     export_series,
 )
+from phospy.core.provenance.scientific_policy_models import ScientificPolicyRecord
 from phospy.kinase.activity.diagnostics import (
     ActivityMethodDiagnostics,
     _build_activity_method_diagnostics,
@@ -56,7 +57,6 @@ from phospy.kinase.activity.tables import (
 from phospy.kinase.activity.threshold_membership import (
     ActivityThresholdMembershipDiagnostics,
 )
-from phospy.provenance.scientific_policy_models import ScientificPolicyRecord
 
 
 @dataclass(frozen=True, slots=True, init=False, eq=False)

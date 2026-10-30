@@ -21,6 +21,28 @@ from phospy.core.errors.transformations import (
     TransformerExecutionError,
 )
 from phospy.core.errors.validation import TransformationValidationError
+from phospy.core.phosphosites.site_keys import (
+    build_protein_scoped_site_key,
+    encode_site_key,
+)
+from phospy.core.quantitative.contracts import TransformationResult
+from phospy.core.quantitative.models import (
+    IntensityScaleEstablishmentMode,
+    IntensityScaleEstablishmentSource,
+    IntensityScaleEvidenceLevel,
+    IntensityScaleKind,
+    IntensityScaleState,
+    IntensityTransformationEvent,
+    MatrixIntensityScaleState,
+    QuantitativeMeaningEvidenceMode,
+    establish_intensity_scale_state,
+)
+from phospy.core.quantitative.serialization import (
+    intensity_scale_state_from_payload,
+    intensity_scale_state_to_payload,
+)
+from phospy.core.quantitative.transformers import IdentityTransformer
+from phospy.core.taxonomy import Organism
 from phospy.datasets.construction import transformation_state
 from phospy.datasets.construction.contracts import (
     InterpretedDatasetBuildRequest,
@@ -36,33 +58,11 @@ from phospy.datasets.construction.preprocessing import (
 from phospy.io.bundles._shared.processing_state import (
     processing_state_from_payload,
 )
-from phospy.phosphosites.site_keys import (
-    build_protein_scoped_site_key,
-    encode_site_key,
-)
 from phospy.preprocessing.contracts import (
     DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
     PreprocessingPlan,
     PreprocessingStageExecution,
 )
-from phospy.quantitative.contracts import TransformationResult
-from phospy.quantitative.models import (
-    IntensityScaleEstablishmentMode,
-    IntensityScaleEstablishmentSource,
-    IntensityScaleEvidenceLevel,
-    IntensityScaleKind,
-    IntensityScaleState,
-    IntensityTransformationEvent,
-    MatrixIntensityScaleState,
-    QuantitativeMeaningEvidenceMode,
-    establish_intensity_scale_state,
-)
-from phospy.quantitative.serialization import (
-    intensity_scale_state_from_payload,
-    intensity_scale_state_to_payload,
-)
-from phospy.quantitative.transformers import IdentityTransformer
-from phospy.taxonomy import Organism
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )
@@ -403,7 +403,7 @@ def test_fake_authority_object_is_rejected_even_with_supported_source() -> None:
 
 
 def test_user_created_matching_authority_token_is_rejected() -> None:
-    from phospy.quantitative.authority import EstablishmentAuthority
+    from phospy.core.quantitative.authority import EstablishmentAuthority
 
     fabricated = EstablishmentAuthority(
         source="phospy.science.datasets.builders.transformation_resolver"

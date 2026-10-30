@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from phospy.core.errors.input import PhosPyInputError
+from phospy.core.quantitative.models import IntensityScaleKind
 from phospy.preprocessing.contracts.configuration import (
     DATASET_PROTEIN_AWARE_PREPARATION_MAPPING_POLICIES,
     DATASET_PROTEIN_AWARE_PREPARATION_POLICIES,
@@ -47,7 +48,6 @@ from phospy.preprocessing.protein_aware.identity import (
 from phospy.preprocessing.validation.configuration_fields import (
     validate_protein_aware_preparation_config,
 )
-from phospy.quantitative.models import IntensityScaleKind
 
 
 class PreprocessingPlanInterpreter:

@@ -6,12 +6,12 @@ import pandas as pd
 
 from phospy.core.errors.input import UnsupportedInputFormatError
 from phospy.core.frames.ownership import own_dataframe
-from phospy.phosphosites.identifiers import canonicalize_site_components_series
-from phospy.phosphosites.site_keys import (
+from phospy.core.phosphosites.identifiers import canonicalize_site_components_series
+from phospy.core.phosphosites.site_keys import (
     build_protein_scoped_site_key,
     encode_site_key,
 )
-from phospy.taxonomy.organisms import Organism, normalize_organism
+from phospy.core.taxonomy.organisms import Organism, normalize_organism
 
 
 class DatasetSiteIdentityDeriver:
@@ -258,7 +258,7 @@ def _parse_site_for_key(
     field_name: str,
     value: object,
 ) -> _ResolvedSiteKeySiteComponents:
-    from phospy.phosphosites.identifiers import try_parse_site_token
+    from phospy.core.phosphosites.identifiers import try_parse_site_token
 
     parsed = try_parse_site_token(value)
     if parsed is not None:

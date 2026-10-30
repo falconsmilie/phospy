@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from phospy.quantitative.validation import WorkflowQuantitativeInputValidator
+from phospy.core.quantitative.validation import WorkflowQuantitativeInputValidator
 from phospy.signalome.alignment_diagnostics import (
     SignalomeAlignmentDiagnosticsBuilder,
 )

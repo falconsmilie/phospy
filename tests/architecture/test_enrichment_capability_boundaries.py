@@ -21,7 +21,7 @@ def test_enrichment_owner_has_no_forbidden_outward_dependency() -> None:
     forbidden_prefixes = (
         "phospy.io",
         "phospy.science.datasets",
-        "phospy.activities",
+        "phospy.core.activities",
         "phospy.kinase.activity",
         "phospy.differential",
         "phospy.science.prediction",
@@ -39,7 +39,7 @@ def test_enrichment_owner_has_no_forbidden_outward_dependency() -> None:
     reverse_provenance = [
         f"{record.source_module}:{record.line} -> {record.target}"
         for record in graph.records
-        if record.source_module.startswith("phospy.provenance")
+        if record.source_module.startswith("phospy.core.provenance")
         if record.target.startswith("phospy.enrichment")
     ]
 
@@ -105,14 +105,14 @@ def test_io_enrichment_reader_imports_only_the_two_passive_owner_leaves() -> Non
             "phospy.api",
         ),
         (
-            "phospy.provenance",
+            "phospy.core.provenance",
             "phospy.enrichment.provenance",
             "phospy.enrichment.contracts.results",
         ),
         (
             "phospy.enrichment.contracts.results",
             "phospy.enrichment.provenance",
-            "phospy.provenance",
+            "phospy.core.provenance",
         ),
     ),
 )

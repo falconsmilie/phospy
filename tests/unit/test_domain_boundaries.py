@@ -30,18 +30,18 @@ from phospy.core.errors import (
     UnsupportedInputFormatError,
     UnsupportedOrganismError,
 )
+from phospy.core.quantitative.models import (
+    MatrixIntensityScaleState,
+)
+from phospy.core.references.models import ReferenceBundle, ReferencePreset
+from phospy.core.references.resolution import ReferenceResolver
+from phospy.core.taxonomy import Organism
 from phospy.datasets.internal_view import DatasetInternalView
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.datasets.trusted_assertions import (
     TrustedDatasetConstructionAssertions,
     TrustedDatasetConstructionEvidence,
 )
-from phospy.quantitative.models import (
-    MatrixIntensityScaleState,
-)
-from phospy.references.models import ReferenceBundle, ReferencePreset
-from phospy.references.resolution import ReferenceResolver
-from phospy.taxonomy import Organism
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )
@@ -69,8 +69,8 @@ _REFERENCE_IDENTIFIER_COLUMN_HINT = re.compile(
     r"['\"](?:kinase|substrate_site)['\"]",
     re.IGNORECASE,
 )
-_REFERENCE_IDENTIFIER_BOUNDARY_OWNER = "src/phospy/references/identifiers.py"
-_PRODUCTION_REFERENCE_TABLES = "src/phospy/references/tables.py"
+_REFERENCE_IDENTIFIER_BOUNDARY_OWNER = "src/phospy/core/references/identifiers.py"
+_PRODUCTION_REFERENCE_TABLES = "src/phospy/core/references/tables.py"
 _FORBIDDEN_PROTEIN_ACCESSION_BOUNDARY_LEAK_TARGETS = (
     "src/phospy/science/sequences",
     "src/phospy/science/scoring",

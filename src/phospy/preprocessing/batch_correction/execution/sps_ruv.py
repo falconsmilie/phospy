@@ -10,6 +10,10 @@ import numpy as np
 import pandas as pd
 
 from phospy.core.errors.input import PhosPyInputError
+from phospy.core.provenance import fingerprint_matrix
+from phospy.core.provenance.models import (
+    TableFingerprint,
+)
 from phospy.preprocessing.batch_correction.contracts.missingness import (
     TemporaryImputationMethod,
 )
@@ -18,10 +22,6 @@ from phospy.preprocessing.batch_correction.contracts.output import (
 )
 from phospy.preprocessing.batch_correction.execution.missingness import (
     materialize_originally_missing,
-)
-from phospy.provenance import fingerprint_matrix
-from phospy.provenance.models import (
-    TableFingerprint,
 )
 
 SPS_RUV_STYLE_EXECUTOR_ID = "deterministic_sps_ruv_style_executor_v1"

@@ -15,6 +15,7 @@ from phospy.api.advanced import (
     DatasetTotalProteinCorrectionIdentityConfig,
 )
 from phospy.core.errors.input import PhosPyInputError
+from phospy.core.taxonomy import Organism
 from phospy.datasets.construction.executor import DatasetBuildExecutor
 from phospy.datasets.construction.interpreter import DatasetBuildRequestInterpreter
 from phospy.datasets.construction.preprocessing import DatasetPreprocessor
@@ -23,7 +24,6 @@ from phospy.preprocessing.contracts.configuration import (
     DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MATCHING_POLICY_GENE_SYMBOL_NORMALISED,
     DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ALLOW_UNCORRECTED,
 )
-from phospy.taxonomy import Organism
 
 
 def _phospho() -> pd.DataFrame:

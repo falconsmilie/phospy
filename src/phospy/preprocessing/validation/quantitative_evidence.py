@@ -8,6 +8,7 @@ from enum import Enum
 from typing import Final
 
 from phospy.core.errors.input import PhosPyInputError
+from phospy.core.quantitative.models import IntensityScaleKind
 from phospy.preparation_records.policies import NormalisationPolicy
 from phospy.preprocessing.batch_correction.contracts.configuration import (
     DATASET_BATCH_CORRECTION_METHOD_LINEAR_RESIDUALIZE_BATCH,
@@ -27,7 +28,6 @@ from phospy.preprocessing.results.quantitative_evidence import (
     QuantitativeOperationEvidenceContext,
     QuantitativeOperationEvidenceValidator,
 )
-from phospy.quantitative.models import IntensityScaleKind
 
 SUPPORTED_ADDITIVE_PREPROCESSING_SCALE_KINDS: Final[frozenset[IntensityScaleKind]] = (
     frozenset({IntensityScaleKind.LOG2})

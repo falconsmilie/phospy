@@ -6,11 +6,11 @@ from typing import NoReturn
 
 import pandas as pd
 
-from phospy.activities.contracts import (
+from phospy.core.activities.contracts import (
     MethodQuantitativeInputContract,
     ResolvedMethodQuantitativeInputContract,
 )
-from phospy.activities.validation import (
+from phospy.core.activities.validation import (
     MethodQuantitativeInputValidator,
 )
 from phospy.core.errors.validation import WorkflowValidationError
@@ -20,6 +20,18 @@ from phospy.core.frames.pandas_typing import (
     dataframe_reindex,
     index_as_strings,
     series_as_strings,
+)
+from phospy.core.provenance.row_attrition import make_row_attrition_record
+from phospy.core.references.compatibility import ReferenceCompatibilityValidator
+from phospy.core.references.config import ReferenceContextCompatibilityPolicy
+from phospy.core.references.context_compatibility import (
+    validate_reference_context_compatibility,
+)
+from phospy.core.references.models import ReferenceBundle, ReferencePreset
+from phospy.core.references.resolution import (
+    BundledReferenceProvider,
+    ReferenceResolver,
+    ReferenceResolverContract,
 )
 from phospy.datasets.internal_view import DatasetInternalView
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
@@ -52,18 +64,6 @@ from phospy.kinase.site_sequence_policy import (
 from phospy.kinase.site_sequence_support import (
     KINASE_SITE_SEQUENCE_CONFLICT_POLICY_ERROR,
     KinaseSiteSequenceSupportBuilder,
-)
-from phospy.provenance.row_attrition import make_row_attrition_record
-from phospy.references.compatibility import ReferenceCompatibilityValidator
-from phospy.references.config import ReferenceContextCompatibilityPolicy
-from phospy.references.context_compatibility import (
-    validate_reference_context_compatibility,
-)
-from phospy.references.models import ReferenceBundle, ReferencePreset
-from phospy.references.resolution import (
-    BundledReferenceProvider,
-    ReferenceResolver,
-    ReferenceResolverContract,
 )
 
 

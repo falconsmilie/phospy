@@ -709,7 +709,7 @@ Each record carries:
 
 Ownership of scientific policy modules is domain-scoped:
 
-- shared models: `phospy.provenance.scientific_policy_models`
+- shared models: `phospy.core.provenance.scientific_policy_models`
 - prediction: `phospy.kinase.prediction.policies`
 - kinase activity: `phospy.kinase.activity.policies`
 - preprocessing: `phospy.preprocessing.provenance.policies`

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from phospy.core.statistics.multiple_testing import MultipleTestingCorrection
 from phospy.enrichment.caveats import build_enrichment_result_caveats
 from phospy.enrichment.contracts.results import (
     EnrichmentResultRecord,
@@ -17,7 +18,6 @@ from phospy.enrichment.filtering import (
 from phospy.enrichment.ora import OraResult, OraResultRecord
 from phospy.enrichment.planning import InterpretedEnrichmentWorkflowRequest
 from phospy.run_lineage.models import RunProvenance
-from phospy.statistics.multiple_testing import MultipleTestingCorrection
 
 MAX_UNMATCHED_SET_IDENTIFIER_DIAGNOSTIC_COUNT = 50
 

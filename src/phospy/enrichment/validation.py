@@ -12,6 +12,14 @@ import pandas as pd
 
 from phospy.core.errors.validation import WorkflowValidationError
 from phospy.core.frames.validation import require_columns, require_dataframe
+from phospy.core.provenance.hashing import fingerprint_table
+from phospy.core.provenance.models.tables import TableFingerprint
+from phospy.core.provenance.serialization.tables import table_fingerprint_to_payload
+from phospy.core.quantitative.evidence import InputIntensityScaleEvidence
+from phospy.core.quantitative.models import (
+    IntensityScaleEvidenceLevel,
+    IntensityScaleKind,
+)
 from phospy.enrichment.contracts.collections import (
     EnrichmentSet,
     EnrichmentSetCollection,
@@ -48,14 +56,6 @@ from phospy.enrichment.contracts.vocabulary import (
 from phospy.enrichment.planning import (
     EnrichmentSelectedIdentifierSource,
     ValidatedEnrichmentWorkflowRequest,
-)
-from phospy.provenance.hashing import fingerprint_table
-from phospy.provenance.models.tables import TableFingerprint
-from phospy.provenance.serialization.tables import table_fingerprint_to_payload
-from phospy.quantitative.evidence import InputIntensityScaleEvidence
-from phospy.quantitative.models import (
-    IntensityScaleEvidenceLevel,
-    IntensityScaleKind,
 )
 
 _EnumT = TypeVar("_EnumT", bound=Enum)

@@ -16,6 +16,10 @@ from phospy.api.advanced import (
     KinaseScoringConfig,
     ReferenceContextCompatibilityPolicy,
 )
+from phospy.core.provenance.hashing import fingerprint_table
+from phospy.core.provenance.scientific_policy_models import ScientificPolicyId
+from phospy.core.quantitative.models import QuantitativeMeaning
+from phospy.core.references.models import SequenceWindowDefinition
 from phospy.kinase.activity.methods.ssgsea_substrate_enrichment import (
     SSGSEA_SIGNIFICANCE_STATUS_AVAILABLE,
 )
@@ -33,10 +37,6 @@ from phospy.kinase.scoring.config import (
     KINASE_SCORING_MODE_KINASE_LIBRARY_MOTIF_ONLY,
 )
 from phospy.kinase.scoring.motif.models import AMINO_ACIDS
-from phospy.provenance.hashing import fingerprint_table
-from phospy.provenance.scientific_policy_models import ScientificPolicyId
-from phospy.quantitative.models import QuantitativeMeaning
-from phospy.references.models import SequenceWindowDefinition
 from tests.support.analysis_ready_dataset_factories import (
     trusted_analysis_ready_dataset_from_tables,
 )

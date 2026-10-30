@@ -12,18 +12,18 @@ import pytest
 
 from phospy.api import Organism
 from phospy.core.errors import DatasetValidationError, PhosPyInputError
+from phospy.core.provenance import (
+    TableFingerprint,
+)
+from phospy.core.quantitative.state_coherence import observe_numeric_domain
+from phospy.core.references.provenance.context import ReferenceContext
+from phospy.core.references.provenance.models import ReferenceProvenance
 from phospy.datasets._construction import service as construction_service
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.datasets.trusted_assertions import (
     TrustedDatasetConstructionAssertions,
     TrustedDatasetConstructionEvidence,
 )
-from phospy.provenance import (
-    TableFingerprint,
-)
-from phospy.quantitative.state_coherence import observe_numeric_domain
-from phospy.references.provenance.context import ReferenceContext
-from phospy.references.provenance.models import ReferenceProvenance
 from phospy.run_lineage import RunProvenance, from_payload, to_payload
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,

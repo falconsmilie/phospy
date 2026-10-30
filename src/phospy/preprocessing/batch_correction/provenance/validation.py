@@ -7,6 +7,7 @@ from collections.abc import Mapping, Sequence
 from typing import cast
 
 from phospy.core.errors.input import PhosPyInputError
+from phospy.core.provenance.models.batch_correction import BatchCorrectionProvenance
 from phospy.preprocessing.batch_correction.contracts.request import (
     SUPPORTED_INTERNAL_BATCH_CORRECTION_EXECUTED_STAGE_ORDER,
 )
@@ -27,7 +28,6 @@ from phospy.preprocessing.batch_correction.validation.controls import (
     require_control_site_source_metadata,
     require_unique_selected_control_site_rows,
 )
-from phospy.provenance.models.batch_correction import BatchCorrectionProvenance
 
 _APPLIED_NATIVE_SPS_RUV_METHODS = frozenset({"sps_ruv_style", "ruv_iii_style"})
 _UNSUPPORTED_SPS_RUV_METHODS: frozenset[str] = frozenset()

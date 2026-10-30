@@ -9,7 +9,7 @@ from typing import cast
 import pandas as pd
 
 from phospy.core.errors.input import PhosPyInputError
-from phospy.evidence.quantification_depth import (
+from phospy.core.evidence.quantification_depth import (
     SUPPORTED_QUANTIFICATION_DEPTH_KINDS,
     QuantificationDepthKind,
 )

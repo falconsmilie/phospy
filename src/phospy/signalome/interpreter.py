@@ -16,7 +16,7 @@ from phospy.core.frames.pandas_typing import (
     index_snapshot,
     series_as_strings,
 )
-from phospy.provenance.row_attrition import make_row_attrition_record
+from phospy.core.provenance.row_attrition import make_row_attrition_record
 from phospy.signalome.alignment_diagnostics import (
     SignalomeAlignmentDiagnosticsBuilder,
 )

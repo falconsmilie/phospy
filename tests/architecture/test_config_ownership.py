@@ -24,10 +24,10 @@ SCIENCE_CONTRACT_IMPORT_ALLOWLIST: frozenset[str] = frozenset()
 PRIVATE_DUPLICATE_ALLOWLIST_WITH_REASONS: dict[str, str] = {}
 
 FULL_MODULE_REEXPORTS = (
-    ("phospy.evidence.config", "phospy.evidence.config"),
+    ("phospy.core.evidence.config", "phospy.core.evidence.config"),
     (
-        "phospy.references.config",
-        "phospy.references.config",
+        "phospy.core.references.config",
+        "phospy.core.references.config",
     ),
 )
 

@@ -6,6 +6,11 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 
 from phospy.core.errors.input import PhosPyInputError
+from phospy.core.quantitative.models import QuantitativeMeaning
+from phospy.core.quantitative.serialization import (
+    intensity_scale_state_from_payload,
+    intensity_scale_state_to_payload,
+)
 from phospy.datasets.processing_state import (
     ComparisonState,
     DatasetProcessingState,
@@ -30,11 +35,6 @@ from phospy.preparation_records.policies import (
     MissingDataPolicy,
     NormalisationPolicy,
     TotalProteinCorrectionPolicy,
-)
-from phospy.quantitative.models import QuantitativeMeaning
-from phospy.quantitative.serialization import (
-    intensity_scale_state_from_payload,
-    intensity_scale_state_to_payload,
 )
 
 
