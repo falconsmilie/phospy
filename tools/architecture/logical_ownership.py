@@ -63,6 +63,12 @@ SHARED_OWNERS = frozenset(
 PASSIVE_RECORD_OWNERS = frozenset({"preparation_records"})
 FOUNDATION_OWNERS = frozenset({"errors", "frames", "policies", "validation"})
 
+# Public facade tiers share the ``public_facades`` logical owner, so their
+# package-level policy boundary cannot be inferred from owner purity alone.
+# This is a namespace-resolution rule only: it grants no import permission and
+# does not make the future path live before its migration ticket.
+EXPLICIT_ARCHITECTURAL_PACKAGE_UNITS = frozenset({"phospy.api.advanced"})
+
 
 @dataclass(frozen=True, slots=True)
 class MixedModuleReview:
@@ -947,6 +953,119 @@ def load_module_owners(path: Path) -> tuple[ModuleOwner, ...]:
             )
             for row in rows
         )
+
+
+def architectural_package_unit(
+    module: str,
+    *,
+    owners_by_module: Mapping[str, str],
+) -> str | None:
+    """Resolve a module to its narrow owner namespace.
+
+    The returned unit is the shortest namespace containing only the module's
+    logical owner.  It therefore follows a moved owner through arbitrary
+    physical depth: both ``phospy.frames`` and ``phospy.core.frames`` resolve
+    to the Frames-owned package rather than an assumed second component.
+    Public facade tiers that intentionally share one owner use the one narrow
+    explicit boundary above.
+    """
+
+    parts = module.split(".")
+    if len(parts) < 2 or parts[0] != "phospy":
+        return None
+    try:
+        owner = owners_by_module[module]
+    except KeyError as error:
+        raise ValueError(f"module has no logical owner: {module}") from error
+
+    for boundary in sorted(EXPLICIT_ARCHITECTURAL_PACKAGE_UNITS):
+        if module == boundary or module.startswith(f"{boundary}."):
+            return boundary
+
+    for index in range(2, len(parts) + 1):
+        candidate = ".".join(parts[:index])
+        owners_below = _namespace_owners(
+            candidate,
+            owners_by_module=owners_by_module,
+        )
+        if owners_below == {owner}:
+            return candidate
+
+    # A mixed namespace initializer (the future ``phospy.core`` module) is an
+    # exact accounting unit, not a prefix that owns all descendants. Runtime
+    # prefix resolution rejects such a unit as ambiguous below.
+    return module
+
+
+def owner_namespace_prefixes(
+    owners: Iterable[str],
+    *,
+    owners_by_module: Mapping[str, str],
+) -> frozenset[str]:
+    """Return unambiguous runtime prefixes for the requested logical owners."""
+
+    requested = frozenset(owners)
+    available = frozenset(owners_by_module.values())
+    missing = sorted(requested - available)
+    if missing:
+        raise ValueError(f"owners have no mapped modules: {missing}")
+
+    prefixes: set[str] = set()
+    for module, owner in owners_by_module.items():
+        if owner not in requested:
+            continue
+        prefix = architectural_package_unit(
+            module,
+            owners_by_module=owners_by_module,
+        )
+        if prefix is None:
+            raise ValueError(
+                f"owner {owner!r} has no safe runtime namespace for {module!r}"
+            )
+        owners_below = _namespace_owners(
+            prefix,
+            owners_by_module=owners_by_module,
+        )
+        if owners_below != {owner}:
+            raise ValueError(
+                f"owner {owner!r} has ambiguous runtime prefix {prefix!r}: "
+                f"{sorted(owners_below)!r}"
+            )
+        prefixes.add(prefix)
+    return frozenset(prefixes)
+
+
+def modules_matching_prefixes(
+    modules: Iterable[str],
+    *,
+    prefixes: Iterable[str],
+) -> tuple[str, ...]:
+    """Return loaded modules at or below exact runtime namespace prefixes."""
+
+    runtime_prefixes = tuple(sorted(frozenset(prefixes)))
+    return tuple(
+        sorted(
+            module
+            for module in modules
+            if any(
+                module == prefix or module.startswith(f"{prefix}.")
+                for prefix in runtime_prefixes
+            )
+        )
+    )
+
+
+def _namespace_owners(
+    namespace: str,
+    *,
+    owners_by_module: Mapping[str, str],
+) -> frozenset[str]:
+    prefix = f"{namespace}."
+    return frozenset(
+        owner
+        for module, owner in owners_by_module.items()
+        if module == namespace or module.startswith(prefix)
+    )
 
 
 def load_permanent_condensation_classifications(

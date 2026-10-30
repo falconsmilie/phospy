@@ -16,17 +16,17 @@ from tools.architecture.import_graph import (
     ImportRecord,
     build_eager_import_graph,
     build_import_graph,
+    strongly_connected_components,
 )
 from tools.architecture.import_graph import (
     imported_modules as _imported_modules,
-)
-from tools.architecture.import_graph import (
-    package_name as _package_name,
 )
 from tools.architecture.logical_ownership import (
     CAPABILITY_OWNERS,
     SHARED_ALLOWED_TARGETS,
     SHARED_OWNERS,
+    architectural_package_unit,
+    owner_namespace_prefixes,
 )
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -34,39 +34,23 @@ SRC_ROOT = PROJECT_ROOT / "src"
 PACKAGE_ROOT = SRC_ROOT / "phospy"
 
 
-def _kinase_owned_modules() -> frozenset[str]:
+def _module_owners() -> dict[str, str]:
     owner_map = PROJECT_ROOT / "architecture/module-owners.csv"
     with owner_map.open(encoding="utf-8", newline="") as handle:
-        return frozenset(
-            row["module"] for row in csv.DictReader(handle) if row["owner"] == "kinase"
-        )
+        return {row["module"]: row["owner"] for row in csv.DictReader(handle)}
 
 
-_KINASE_OWNED_MODULES = _kinase_owned_modules()
+_MODULE_OWNERS = _module_owners()
+_KINASE_OWNED_MODULES = frozenset(
+    module for module, owner in _MODULE_OWNERS.items() if owner == "kinase"
+)
 
 
 def _package_roots_for_owners(owners: Iterable[str]) -> frozenset[str]:
-    requested_owners = frozenset(owners)
-    roots_by_owner: dict[str, set[str]] = {owner: set() for owner in requested_owners}
-    owner_map = PROJECT_ROOT / "architecture/module-owners.csv"
-    with owner_map.open(encoding="utf-8", newline="") as handle:
-        for row in csv.DictReader(handle):
-            owner = row["owner"]
-            if owner not in roots_by_owner:
-                continue
-            module_parts = row["module"].split(".")
-            assert module_parts[0] == "phospy", row["module"]
-            assert len(module_parts) >= 2, row["module"]
-            roots_by_owner[owner].add(".".join(module_parts[:2]))
-
-    missing_owners = sorted(
-        owner for owner, roots in roots_by_owner.items() if not roots
+    return owner_namespace_prefixes(
+        owners,
+        owners_by_module=_MODULE_OWNERS,
     )
-    assert not missing_owners, (
-        "forbidden owners have no current package roots in module-owners.csv: "
-        f"{missing_owners}"
-    )
-    return frozenset(root for roots in roots_by_owner.values() for root in roots)
 
 
 def _shared_owner_forbidden_roots(source_owner: str) -> frozenset[str]:
@@ -336,7 +320,7 @@ def test_package_dependency_graph_is_acyclic() -> None:
     package_edges = _architectural_package_edges(graph)
     cycles = [
         tuple(sorted(component))
-        for component in _strongly_connected_components(
+        for component in strongly_connected_components(
             _package_adjacency(package_edges)
         )
         if len(component) > 1
@@ -349,7 +333,7 @@ def test_complete_eager_module_graph_is_acyclic_without_classification() -> None
     graph = build_eager_import_graph(package_root=PACKAGE_ROOT, src_root=SRC_ROOT)
     cycles = [
         tuple(sorted(component))
-        for component in _strongly_connected_components(graph.module_edges)
+        for component in strongly_connected_components(graph.module_edges)
         if len(component) > 1
     ]
 
@@ -846,7 +830,10 @@ def _architectural_package_edges(
 
 
 def _architectural_package_name(module_name: str) -> str | None:
-    return _package_name(module_name)
+    return architectural_package_unit(
+        module_name,
+        owners_by_module=_MODULE_OWNERS,
+    )
 
 
 def _package_adjacency(
@@ -857,48 +844,6 @@ def _package_adjacency(
         adjacency.setdefault(source, set()).add(target)
         adjacency.setdefault(target, set())
     return {source: frozenset(targets) for source, targets in adjacency.items()}
-
-
-def _strongly_connected_components(
-    graph: dict[str, frozenset[str]],
-) -> list[tuple[str, ...]]:
-    index = 0
-    stack: list[str] = []
-    on_stack: set[str] = set()
-    indices: dict[str, int] = {}
-    lowlinks: dict[str, int] = {}
-    components: list[tuple[str, ...]] = []
-
-    def strong_connect(node: str) -> None:
-        nonlocal index
-        indices[node] = index
-        lowlinks[node] = index
-        index += 1
-        stack.append(node)
-        on_stack.add(node)
-
-        for target in graph.get(node, ()):
-            if target not in indices:
-                strong_connect(target)
-                lowlinks[node] = min(lowlinks[node], lowlinks[target])
-            elif target in on_stack:
-                lowlinks[node] = min(lowlinks[node], indices[target])
-
-        if lowlinks[node] != indices[node]:
-            return
-        component: list[str] = []
-        while True:
-            target = stack.pop()
-            on_stack.remove(target)
-            component.append(target)
-            if target == node:
-                break
-        components.append(tuple(component))
-
-    for node in graph:
-        if node not in indices:
-            strong_connect(node)
-    return components
 
 
 def _format_cycles(cycles: list[tuple[str, ...]]) -> str:
@@ -917,8 +862,8 @@ def _format_package_edges(
         examples = [
             record
             for record in records
-            if _package_name(record.source_module) == source
-            and _package_name(record.target) == target
+            if _architectural_package_name(record.source_module) == source
+            and _architectural_package_name(record.target) == target
         ][:8]
         for record in examples:
             lines.append(

@@ -84,6 +84,20 @@ Its source is the policy code and machine-readable inputs above. The governing
 decisions are [ADR-0053](adr/adr_0053_domain_first_capability_architecture.md) and
 [ADR-0054](adr/adr_0054_public_api_reset_and_compatibility_removal.md).
 
+[ADR-0055](adr/adr_0055_nested_owner_namespaces_and_api_consolidation.md)
+approves the next directory-only refinement: the reusable owners will become
+separate children of the inert `phospy.core` namespace, the specialist facade
+will become `phospy.api.advanced`, the private inventory will move beneath
+`phospy.api`, and the three root conveniences will be retired while remaining
+available through `phospy.api`. Until the corresponding migration tickets move
+those files atomically, the live routes and the maintained API baseline above
+remain authoritative.
+
+Architecture enforcement resolves owner-pure package units from the owner map,
+so nested siblings such as future `phospy.core.frames` and
+`phospy.core.quantitative` remain distinct. Physical top-level roots are
+reported separately and do not define owner permissions or owner-level cycles.
+
 Reusable graph analysis, ownership, final-policy, and inventory rendering code
 is maintained in `tools/architecture`. Architecture tests import that maintainer
 implementation; the runtime `phospy` package does not depend on it. From the

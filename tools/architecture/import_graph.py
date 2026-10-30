@@ -381,21 +381,88 @@ def static_dynamic_import_target(
 def package_edges(
     module_edges: Mapping[str, frozenset[str]],
 ) -> set[tuple[str, str]]:
+    """Return physical top-level package edges for reporting.
+
+    Physical roots deliberately remain separate from logical-owner package
+    units.  A future ``phospy.core`` root is useful inventory information, but
+    collapsing all of its children to that root would be incorrect for
+    dependency enforcement.
+    """
+
     edges: set[tuple[str, str]] = set()
     for source, targets in module_edges.items():
-        source_package = package_name(source)
+        source_package = physical_package_name(source)
         if source_package is None:
             continue
         for target in targets:
-            target_package = package_name(target)
+            target_package = physical_package_name(target)
             if target_package is None or target_package == source_package:
                 continue
             edges.add((source_package, target_package))
     return edges
 
 
-def package_name(name: str) -> str | None:
+def physical_package_name(name: str) -> str | None:
+    """Return the first physical package component beneath ``phospy``."""
+
     parts = name.split(".")
     if len(parts) < 2 or parts[0] != "phospy":
         return None
     return ".".join(parts[:2])
+
+
+def package_name(name: str) -> str | None:
+    """Backward-compatible name for physical-root reporting only.
+
+    Architecture enforcement must use
+    :func:`tools.architecture.logical_ownership.architectural_package_unit`,
+    which resolves owner namespaces independently of physical depth.
+    """
+
+    return physical_package_name(name)
+
+
+def strongly_connected_components(
+    graph: Mapping[str, Iterable[str]],
+) -> tuple[tuple[str, ...], ...]:
+    """Return deterministic strongly connected components for a module graph."""
+
+    nodes = set(graph)
+    nodes.update(target for targets in graph.values() for target in targets)
+    index = 0
+    stack: list[str] = []
+    on_stack: set[str] = set()
+    indices: dict[str, int] = {}
+    lowlinks: dict[str, int] = {}
+    components: list[tuple[str, ...]] = []
+
+    def strong_connect(node: str) -> None:
+        nonlocal index
+        indices[node] = index
+        lowlinks[node] = index
+        index += 1
+        stack.append(node)
+        on_stack.add(node)
+
+        for target in sorted(graph.get(node, ())):
+            if target not in indices:
+                strong_connect(target)
+                lowlinks[node] = min(lowlinks[node], lowlinks[target])
+            elif target in on_stack:
+                lowlinks[node] = min(lowlinks[node], indices[target])
+
+        if lowlinks[node] != indices[node]:
+            return
+        component: list[str] = []
+        while True:
+            target = stack.pop()
+            on_stack.remove(target)
+            component.append(target)
+            if target == node:
+                break
+        components.append(tuple(sorted(component)))
+
+    for node in sorted(nodes):
+        if node not in indices:
+            strong_connect(node)
+    return tuple(sorted(components))

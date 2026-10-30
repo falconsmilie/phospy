@@ -75,10 +75,15 @@ user API.
 | ADR-0052 | Partial-Reference SPS Consensus Ordering | Accepted | 2026-09-18 | [adr_0052_partial_reference_sps_consensus_ordering.md](adr_0052_partial_reference_sps_consensus_ordering.md) |
 | ADR-0053 | Domain-First Capability Architecture and Dependency Governance | Accepted | 2026-09-26 | [adr_0053_domain_first_capability_architecture.md](adr_0053_domain_first_capability_architecture.md) |
 | ADR-0054 | Public API Reset and Compatibility Removal | Accepted | 2026-09-26 | [adr_0054_public_api_reset_and_compatibility_removal.md](adr_0054_public_api_reset_and_compatibility_removal.md) |
+| ADR-0055 | Nested Owner Namespaces and API Consolidation | Accepted | 2026-10-30 | [adr_0055_nested_owner_namespaces_and_api_consolidation.md](adr_0055_nested_owner_namespaces_and_api_consolidation.md) |
 
 ADR-0028 is fully superseded by
 [ADR-0054](adr_0054_public_api_reset_and_compatibility_removal.md), which removes
 the semi-public API tier.
+
+ADR-0055 amends the final physical namespaces and root convenience policy in
+ADR-0053 and ADR-0054 while retaining their logical owners, exact API
+inventories and compatibility-removal decision.
 
 ## Decision Assessments (Non-ADRs)
 
