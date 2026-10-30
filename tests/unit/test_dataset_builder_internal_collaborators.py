@@ -5,8 +5,7 @@ from typing import get_type_hints
 import pandas as pd
 import pytest
 
-from phospy import AnalysisReadyDatasetBuilder
-from phospy.api import DatasetBuildRequest
+from phospy.api import AnalysisReadyDatasetBuilder, DatasetBuildRequest
 from phospy.datasets.construction.contracts import (
     InterpretedDatasetBuildRequest,
     PreprocessedDatasetBuildTables,

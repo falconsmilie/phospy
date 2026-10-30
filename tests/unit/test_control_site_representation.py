@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 
-from phospy.advanced import (
+from phospy.api.advanced import (
     ControlSiteSourceMetadata as AdvancedControlSiteSourceMetadata,
 )
 from phospy.preprocessing.control_sites.contracts import (

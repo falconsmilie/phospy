@@ -3,16 +3,18 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy import AnalysisReadyDatasetBuilder, KinaseWorkflow, SignalomeWorkflow
 from phospy.api import (
+    AnalysisReadyDatasetBuilder,
     DatasetBuildRequest,
     KinasePredictionResult,
     KinaseScoringResult,
+    KinaseWorkflow,
     KinaseWorkflowRequest,
     KinaseWorkflowResult,
     Organism,
     ReferenceBundle,
     ReferencePreset,
+    SignalomeWorkflow,
     SignalomeWorkflowRequest,
 )
 from phospy.errors import (

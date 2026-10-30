@@ -18,8 +18,9 @@ build signalome summaries. The supported user interface is the Python API.
 ## Project Status and API Stability
 
 PhosPy is currently beta software for Python 3.11 and 3.12. APIs may evolve
-during beta: `phospy.api` is the stable user-facing route, `phospy.advanced` is
-the supported route for advanced configuration and publishing helpers, and
+during beta: `phospy.api` is the stable user-facing route,
+`phospy.api.advanced` is the supported route for advanced configuration and
+publishing helpers, the package root provides version metadata only, and
 internal modules are unsupported import targets. See the
 [API stability guide](docs/api/guide.md) and the
 [maintainer release process](docs/maintenance.md).
@@ -48,8 +49,8 @@ dataset and bundled rat references.
 ```python
 import pandas as pd
 
-from phospy import AnalysisReadyDatasetBuilder, KinaseWorkflow
-from phospy.advanced import (
+from phospy.api import AnalysisReadyDatasetBuilder, KinaseWorkflow
+from phospy.api.advanced import (
     KinaseReliabilityProfile,
     KinaseScoringConfig,
     ReferenceContextCompatibilityPolicy,
@@ -128,13 +129,15 @@ replicates, and thresholds for real analyses.
 
 </details>
 
-The three curated conveniences are available from `phospy`; all other ordinary
-contracts and workflows come from `phospy.api`:
+All ordinary scientific contracts and workflows come from `phospy.api`:
 
 ```python
-from phospy import AnalysisReadyDatasetBuilder
-from phospy import KinaseWorkflow, SignalomeWorkflow
-from phospy.api import DifferentialAnalysisWorkflow
+from phospy.api import (
+    AnalysisReadyDatasetBuilder,
+    DifferentialAnalysisWorkflow,
+    KinaseWorkflow,
+    SignalomeWorkflow,
+)
 ```
 
 Enrichment is available from `phospy.api`:

@@ -74,7 +74,7 @@ values, ask PhosPy to calculate `log2(value + pseudocount)`. The default
 pseudocount is `1.0`.
 
 ```python
-from phospy.advanced import DatasetIntensityTransformConfig
+from phospy.api.advanced import DatasetIntensityTransformConfig
 
 intensity_transform = DatasetIntensityTransformConfig(policy="log2")
 ```
@@ -145,7 +145,7 @@ the tables, applies the configured preprocessing, and records provenance for
 the returned dataset.
 
 ```python
-from phospy import AnalysisReadyDatasetBuilder
+from phospy.api import AnalysisReadyDatasetBuilder
 
 builder = AnalysisReadyDatasetBuilder()
 dataset = builder.run(dataset_request)
@@ -282,7 +282,7 @@ Create a `DatasetBuildRequest`.
 | `input_intensity_scale` | `IntensityScaleKind`, `str`, or `None` | `None` | Declares an already established `"linear"` or `"log2"` scale when no transform establishes it. | Suspicious declarations fail by default. |
 | `allow_suspicious_declared_input_intensity_scale` | `bool` | `False` | Allows dataset construction with a suspicious declared log2 scale while retaining recorded warnings. | Applies only to dataset construction; use only when independent evidence supports the declaration. |
 | `quantitative_meaning` | `QuantitativeMeaning`, `str`, or `None` | `None` | Declares what the supplied matrix represents. | Must agree with the established scale and cannot claim an operation PhosPy did not perform. |
-| `corrected_preprocessing_output` | `CorrectedPreprocessingOutput` or `None` | `None` | Supplies externally corrected output created with `phospy.advanced.create_external_corrected_preprocessing_output`. | Cannot be combined with downstream matrix-changing preprocessing stages or another correction operation. |
+| `corrected_preprocessing_output` | `CorrectedPreprocessingOutput` or `None` | `None` | Supplies externally corrected output created with `phospy.api.advanced.create_external_corrected_preprocessing_output`. | Cannot be combined with downstream matrix-changing preprocessing stages or another correction operation. |
 
 Constructing the request stores these choices. Validation happens when
 `AnalysisReadyDatasetBuilder().run(request)` is called.
@@ -435,7 +435,7 @@ imputed. Mechanism-specific routing masks remain diagnostic details and are not
 public API objects.
 
 ```python
-from phospy.advanced import DatasetMissingDataConfig
+from phospy.api.advanced import DatasetMissingDataConfig
 
 missing_data = DatasetMissingDataConfig(
     policy="impute_group_aware",
@@ -549,7 +549,7 @@ not ComBat, not RUV, not limma `removeBatchEffect` parity, and not mixed-effects
 modelling.
 
 ```python
-from phospy.advanced import DatasetBatchCorrectionConfig
+from phospy.api.advanced import DatasetBatchCorrectionConfig
 
 batch_correction = DatasetBatchCorrectionConfig(
     method="linear_residualize_batch",
@@ -622,7 +622,7 @@ Minimal valid native-correction example:
 Replace the example keys with `site_key` values present in your dataset input.
 
 ```python
-from phospy.advanced import (
+from phospy.api.advanced import (
     ControlSiteSet,
     ControlSiteSourceMetadata,
     CorrectionMissingnessPolicy,
@@ -679,7 +679,7 @@ Upstream-imputed cells may remain identified with observation-mask provenance
 through an `ObservationMask`; they are not treated as observed evidence.
 
 ```python
-from phospy.advanced import (
+from phospy.api.advanced import (
     ObservationMask,
     OriginallyMissingCellTracking,
     TemporaryImputationMethod,
@@ -757,7 +757,7 @@ the controls or executed the correction.
 ```python
 import pandas as pd
 
-from phospy.advanced import (
+from phospy.api.advanced import (
     ControlSiteSet,
     ControlSiteSourceMetadata,
     CorrectedPreprocessingOutput,
@@ -863,7 +863,7 @@ log2 phosphosite minus matched log2 total protein. It requires a log2 transform,
 an aligned `total` table, and explicit identity matching.
 
 ```python
-from phospy.advanced import (
+from phospy.api.advanced import (
     DatasetTotalProteinCorrectionConfig,
     DatasetTotalProteinCorrectionIdentityConfig,
 )
@@ -890,7 +890,7 @@ not subtract total protein, does not normalise intensities, and does not itself
 run differential analysis. It also does not claim MSstatsPTM-style inference.
 
 ```python
-from phospy.advanced import DatasetProteinAwarePreparationConfig
+from phospy.api.advanced import DatasetProteinAwarePreparationConfig
 
 preprocessing = DatasetPreprocessingConfig(
     protein_aware_preparation=DatasetProteinAwarePreparationConfig(
@@ -1061,7 +1061,7 @@ site_metadata = pd.DataFrame(
     index=phospho.index,
 )
 
-from phospy.advanced import DatasetIntensityTransformConfig
+from phospy.api.advanced import DatasetIntensityTransformConfig
 
 intensity_transform = DatasetIntensityTransformConfig(policy="log2")
 
@@ -1089,7 +1089,7 @@ dataset_request = DatasetBuildRequest(
     preprocessing_config=preprocessing_config,
 )
 
-from phospy import AnalysisReadyDatasetBuilder
+from phospy.api import AnalysisReadyDatasetBuilder
 
 builder = AnalysisReadyDatasetBuilder()
 dataset = builder.run(dataset_request)

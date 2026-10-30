@@ -3,20 +3,18 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy import (
+from phospy.api import (
+    AnalysisReadyPhosphoDataset,
     KinaseWorkflow,
+    KinaseWorkflowRequest,
+    Organism,
+    ReferenceBundle,
 )
-from phospy.advanced import (
+from phospy.api.advanced import (
     KinaseActivityConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,
     ReferenceContextCompatibilityPolicy,
-)
-from phospy.api import (
-    AnalysisReadyPhosphoDataset,
-    KinaseWorkflowRequest,
-    Organism,
-    ReferenceBundle,
 )
 from phospy.kinase.activity.methods.ssgsea_substrate_enrichment import (
     SSGSEA_SIGNIFICANCE_STATUS_AVAILABLE,

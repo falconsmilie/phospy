@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import pytest
 
-from phospy.advanced import KinaseScoringConfig
 from phospy.api import (
     ContractValidationError,
     EnrichmentIdentifierSetProvenance,
@@ -14,6 +13,7 @@ from phospy.api import (
     ResultCaveat,
     WorkflowValidationError,
 )
+from phospy.api.advanced import KinaseScoringConfig
 from phospy.enrichment.contracts.vocabulary import (
     ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,
 )

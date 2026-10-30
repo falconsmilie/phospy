@@ -17,7 +17,8 @@ class DocumentedImport:
     names: tuple[str, ...]
 
 
-SUPPORTED_AGGREGATES = frozenset({"phospy", "phospy.api", "phospy.advanced"})
+SUPPORTED_AGGREGATES = frozenset({"phospy", "phospy.api", "phospy.api.advanced"})
+HISTORICAL_MARKDOWN_PATHS = frozenset({"docs/release-notes.md"})
 _NAV_MARKDOWN = re.compile(r":\s+([^#\s]+\.md)\s*$", re.MULTILINE)
 
 
@@ -39,6 +40,7 @@ def user_facing_markdown_paths(root: Path) -> tuple[Path, ...]:
                 *current_docs,
                 *nav_paths,
             }
+            - {root / path for path in HISTORICAL_MARKDOWN_PATHS}
         )
     )
 

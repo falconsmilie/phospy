@@ -20,18 +20,9 @@ import pytest
 
 import phospy.datasets._internal.frame_store as internal_frame_store_module
 import phospy.differential.planning.interpreter as differential_interpreter_module
-from phospy import (
-    AnalysisReadyDatasetBuilder,
-    KinaseWorkflow,
-    SignalomeWorkflow,
-)
 from phospy.activities.semantics import ActivityInputMatrix
-from phospy.advanced import (
-    KinasePredictionConfig,
-    KinaseScoringConfig,
-    ReferenceContextCompatibilityPolicy,
-)
 from phospy.api import (
+    AnalysisReadyDatasetBuilder,
     AnalysisReadyPhosphoDataset,
     Contrast,
     DatasetBuildRequest,
@@ -40,14 +31,21 @@ from phospy.api import (
     DifferentialAnalysisWorkflow,
     ExperimentalDesign,
     KinasePredictionResult,
+    KinaseWorkflow,
     KinaseWorkflowRequest,
     KinaseWorkflowResult,
     Organism,
     PhosphositeImportResult,
     ReferenceBundle,
     SampleDesignRecord,
+    SignalomeWorkflow,
     SignalomeWorkflowRequest,
     SignalomeWorkflowResult,
+)
+from phospy.api.advanced import (
+    KinasePredictionConfig,
+    KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
 )
 from phospy.datasets.construction.executor import DatasetBuildExecutor
 from phospy.datasets.construction.interpreter import DatasetBuildRequestInterpreter

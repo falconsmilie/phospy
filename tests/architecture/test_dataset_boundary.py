@@ -114,7 +114,7 @@ def test_dataset_model_and_durable_roles_do_not_import_preprocessing_or_builders
         if _is_dataset_model_or_durable_module(record.source_module)
         if record.target.startswith("phospy.preprocessing")
         or record.target.startswith("phospy.science.datasets.builders")
-        or record.target in {"phospy", "phospy.api", "phospy.advanced"}
+        or record.target in {"phospy", "phospy.api", "phospy.api.advanced"}
     )
 
     assert offenders == []
@@ -353,7 +353,7 @@ api = importlib.import_module("phospy.api")
 root = importlib.import_module("phospy")
 assert importlib.import_module({first!r}) is first
 assert importlib.import_module({second!r}) is second
-assert root.AnalysisReadyDatasetBuilder is api.AnalysisReadyDatasetBuilder
+assert not hasattr(root, "AnalysisReadyDatasetBuilder")
 assert api.AnalysisReadyDatasetBuilder is owner.AnalysisReadyDatasetBuilder
 assert owner.AnalysisReadyDatasetBuilder.__module__ == "phospy.datasets.builder"
 """

@@ -19,17 +19,17 @@ from phospy.activities.semantics import (
 from phospy.activities.validation import (
     MethodQuantitativeInputValidator,
 )
-from phospy.advanced import (
-    KinaseActivityConfig,
-    KinasePredictionConfig,
-    KinaseScoringConfig,
-    ReferenceContextCompatibilityPolicy,
-)
 from phospy.api import (
     KinaseWorkflow,
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
+)
+from phospy.api.advanced import (
+    KinaseActivityConfig,
+    KinasePredictionConfig,
+    KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
 )
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors import WorkflowBoundaryError, WorkflowValidationError

@@ -3,18 +3,8 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy import (
-    AnalysisReadyDatasetBuilder,
-    KinaseWorkflow,
-    SignalomeWorkflow,
-)
-from phospy.advanced import (
-    DatasetSiteMatrixConfig,
-    KinasePredictionConfig,
-    KinaseScoringConfig,
-    ReferenceContextCompatibilityPolicy,
-)
 from phospy.api import (
+    AnalysisReadyDatasetBuilder,
     AnalysisReadyPhosphoDataset,
     Contrast,
     DatasetBuildRequest,
@@ -24,12 +14,20 @@ from phospy.api import (
     ExperimentalDesign,
     KinasePredictionResult,
     KinaseScoringResult,
+    KinaseWorkflow,
     KinaseWorkflowRequest,
     KinaseWorkflowResult,
     Organism,
     ReferencePreset,
     SampleDesignRecord,
+    SignalomeWorkflow,
     SignalomeWorkflowRequest,
+)
+from phospy.api.advanced import (
+    DatasetSiteMatrixConfig,
+    KinasePredictionConfig,
+    KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
 )
 from phospy.differential.validation.workflow import DifferentialAnalysisValidator
 from phospy.errors import WorkflowValidationError

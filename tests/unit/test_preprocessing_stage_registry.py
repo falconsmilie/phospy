@@ -9,15 +9,15 @@ import pytest
 
 import phospy.preprocessing.execution.pipeline as pipeline_module
 import phospy.preprocessing.planning.registry as stage_registry_module
-from phospy.advanced import (
+from phospy.api import (
+    DatasetLocalisationConfig,
+    DatasetPreprocessingConfig,
+)
+from phospy.api.advanced import (
     DatasetComparisonBuildingConfig,
     DatasetIntensityTransformConfig,
     DatasetNormalisationConfig,
     DatasetSiteMatrixConfig,
-)
-from phospy.api import (
-    DatasetLocalisationConfig,
-    DatasetPreprocessingConfig,
 )
 from phospy.datasets.construction.preprocessing import DatasetPreprocessor
 from phospy.errors.build import DatasetBuildError

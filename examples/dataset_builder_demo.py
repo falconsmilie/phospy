@@ -5,8 +5,8 @@ from __future__ import annotations
 
 import pandas as pd
 
-from phospy import AnalysisReadyDatasetBuilder
 from phospy.api import (
+    AnalysisReadyDatasetBuilder,
     AnalysisReadyPhosphoDataset,
     DatasetBuildRequest,
     DatasetLocalisationConfig,

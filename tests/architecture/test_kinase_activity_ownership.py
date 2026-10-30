@@ -9,8 +9,8 @@ import pytest
 
 from phospy.activities.contracts import MethodQuantitativeInputContract
 from phospy.activities.semantics import ActivityInputMatrix
-from phospy.advanced import KinaseActivityConfig as FacadeKinaseActivityConfig
 from phospy.api import KinaseActivityResult as FacadeKinaseActivityResult
+from phospy.api.advanced import KinaseActivityConfig as FacadeKinaseActivityConfig
 from phospy.kinase.activity.config import KinaseActivityConfig
 from phospy.kinase.activity.results import KinaseActivityResult
 
@@ -67,10 +67,10 @@ def test_activity_facade_and_owner_import_orders_preserve_identity(
     imports = (
         "from phospy.kinase.activity.config import KinaseActivityConfig as OwnerConfig\n"
         "from phospy.kinase.activity.results import KinaseActivityResult as OwnerResult\n"
-        "from phospy.advanced import KinaseActivityConfig as PublicConfig\n"
+        "from phospy.api.advanced import KinaseActivityConfig as PublicConfig\n"
         "from phospy.api import KinaseActivityResult as PublicResult\n"
         if owner_first
-        else "from phospy.advanced import KinaseActivityConfig as PublicConfig\n"
+        else "from phospy.api.advanced import KinaseActivityConfig as PublicConfig\n"
         "from phospy.api import KinaseActivityResult as PublicResult\n"
         "from phospy.kinase.activity.config import KinaseActivityConfig as OwnerConfig\n"
         "from phospy.kinase.activity.results import KinaseActivityResult as OwnerResult\n"

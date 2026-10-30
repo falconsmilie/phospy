@@ -4,8 +4,7 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phospy import AnalysisReadyDatasetBuilder
-from phospy.api import DatasetBuildRequest, Organism
+from phospy.api import AnalysisReadyDatasetBuilder, DatasetBuildRequest, Organism
 from phospy.errors import DatasetValidationError
 from phospy.errors.input import PhosPyInputError
 from phospy.phosphosites.site_keys import (

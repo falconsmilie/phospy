@@ -6,20 +6,18 @@ from functools import lru_cache
 
 import pandas as pd
 
-from phospy import (
-    AnalysisReadyDatasetBuilder,
-    KinaseWorkflow,
-)
-from phospy.advanced import (
-    KinasePredictionConfig,
-    KinaseScoringConfig,
-    ReferenceContextCompatibilityPolicy,
-)
 from phospy.api import (
+    AnalysisReadyDatasetBuilder,
     DatasetBuildRequest,
+    KinaseWorkflow,
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
+)
+from phospy.api.advanced import (
+    KinasePredictionConfig,
+    KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
 )
 from tests.support.rewrite_fixture_data import (
     load_public_predmat_historical_baseline_default,

@@ -5,7 +5,7 @@ import importlib
 from pathlib import Path
 from typing import get_type_hints
 
-from phospy.advanced import DifferentialAnalysisConfig
+from phospy.api.advanced import DifferentialAnalysisConfig
 from phospy.differential.planning.interpreter import _resolve_execution_config
 from phospy.differential.planning.models import ResolvedDifferentialExecutionConfig
 from phospy.kinase.contracts import ResolvedKinaseExecutionConfig
@@ -114,7 +114,7 @@ def test_science_package_does_not_import_horizontal_contracts() -> None:
 
 def test_public_api_config_imports_remain_available() -> None:
     ordinary = importlib.import_module("phospy.api")
-    advanced = importlib.import_module("phospy.advanced")
+    advanced = importlib.import_module("phospy.api.advanced")
 
     missing = [
         symbol_name

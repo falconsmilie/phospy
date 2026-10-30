@@ -8,17 +8,6 @@ import pytest
 import phospy
 import phospy.api as request_models
 import phospy.api as workflow_models
-from phospy import (
-    KinaseWorkflow,
-    SignalomeWorkflow,
-)
-from phospy.advanced import (
-    DifferentialAnalysisConfig,
-    KinaseScoringConfig,
-    MultipleTestingConfig,
-    SignalomeConfig,
-    SignalomeOutputConfig,
-)
 from phospy.api import (
     Contrast,
     DatasetBuildRequest,
@@ -29,12 +18,21 @@ from phospy.api import (
     EnrichmentWorkflowRequest,
     EnrichmentWorkflowResult,
     ExperimentalDesign,
+    KinaseWorkflow,
     KinaseWorkflowRequest,
     KinaseWorkflowResult,
+    SignalomeWorkflow,
     SignalomeWorkflowRequest,
     SignalomeWorkflowResult,
     all_pairwise_contrasts,
     contrasts_vs_control,
+)
+from phospy.api.advanced import (
+    DifferentialAnalysisConfig,
+    KinaseScoringConfig,
+    MultipleTestingConfig,
+    SignalomeConfig,
+    SignalomeOutputConfig,
 )
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors import ContractValidationError
@@ -96,12 +94,7 @@ def test_public_workflow_and_request_exports_match_contract() -> None:
         "KinaseWorkflow",
         "SignalomeWorkflow",
     } <= set(workflow_models.__all__)
-    assert {
-        "KinaseWorkflow",
-        "SignalomeWorkflow",
-    }.issubset(set(phospy.__all__))
-    assert "DifferentialAnalysisWorkflow" not in phospy.__all__
-    assert "EnrichmentWorkflow" not in phospy.__all__
+    assert phospy.__all__ == []
     assert "KinaseWorkflowRequest" not in phospy.__all__
     assert "SignalomeWorkflowRequest" not in phospy.__all__
     assert "KinaseWorkflowResult" not in phospy.__all__

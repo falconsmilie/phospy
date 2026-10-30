@@ -13,18 +13,16 @@ import pytest
 import phospy
 import phospy.api as public_api
 import phospy.io as phospy_io
-from phospy import (
-    AnalysisReadyDatasetBuilder,
-)
-from phospy.advanced import (
-    DatasetMissingDataConfig,
-    DatasetSiteMatrixConfig,
-)
 from phospy.api import (
+    AnalysisReadyDatasetBuilder,
     DatasetBuildRequest,
     DatasetPreprocessingConfig,
     Organism,
     PhosPyInputError,
+)
+from phospy.api.advanced import (
+    DatasetMissingDataConfig,
+    DatasetSiteMatrixConfig,
 )
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.preprocessing.contracts.configuration import (
@@ -87,12 +85,13 @@ def test_source_tree_does_not_expose_archived_namespace() -> None:
 
 def test_public_dataset_ingestion_story_is_builder_only() -> None:
     dataset_exports = {
-        name for name in phospy.__all__ if "Dataset" in name or name.endswith("Builder")
+        name
+        for name in public_api.__all__
+        if "Dataset" in name or name.endswith("Builder")
     }
     dataset_exports = {name for name in dataset_exports if not name.endswith("Error")}
-    assert dataset_exports == {
-        "AnalysisReadyDatasetBuilder",
-    }
+    assert "AnalysisReadyDatasetBuilder" in dataset_exports
+    assert phospy.__all__ == []
     assert not hasattr(phospy, "build_dataset_from_files")
     assert not hasattr(phospy_io, "build_dataset_from_files")
 

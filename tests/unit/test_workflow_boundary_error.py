@@ -3,7 +3,6 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy.advanced import ReferenceContextCompatibilityPolicy
 from phospy.api import (
     AnalysisReadyPhosphoDataset,
     DatasetBuildRequest,
@@ -13,6 +12,7 @@ from phospy.api import (
     Organism,
     SignalomeWorkflowRequest,
 )
+from phospy.api.advanced import ReferenceContextCompatibilityPolicy
 from phospy.datasets.construction.interpreter import DatasetBuildRequestInterpreter
 from phospy.datasets.internal_view import DatasetInternalView
 from phospy.errors import PhosPyInputError, WorkflowValidationError

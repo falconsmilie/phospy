@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import pytest
 
-from phospy.advanced import (
-    DatasetGroupCoverageFilterConfig,
-)
 from phospy.api import (
     DatasetPreprocessingConfig,
+)
+from phospy.api.advanced import (
+    DatasetGroupCoverageFilterConfig,
 )
 from phospy.errors.input import PhosPyInputError
 from phospy.preprocessing.contracts import PreprocessingPlan

@@ -111,7 +111,7 @@ dataset_request = DatasetBuildRequest(
 ```
 
 ```python
-from phospy import AnalysisReadyDatasetBuilder
+from phospy.api import AnalysisReadyDatasetBuilder
 
 dataset_builder = AnalysisReadyDatasetBuilder()
 dataset = dataset_builder.run(dataset_request)
@@ -124,7 +124,7 @@ unknown dataset/reference context with a recorded caveat. The deterministic
 prediction policy makes the upstream result repeatable.
 
 ```python
-from phospy.advanced import (
+from phospy.api.advanced import (
     KinaseReliabilityProfile,
     KinaseScoringConfig,
     ReferenceContextCompatibilityPolicy,
@@ -139,7 +139,7 @@ kinase_scoring_config = KinaseScoringConfig(
 ```
 
 ```python
-from phospy.advanced import KinasePredictionConfig
+from phospy.api.advanced import KinasePredictionConfig
 
 kinase_prediction_config = KinasePredictionConfig.deterministic()
 ```
@@ -159,7 +159,7 @@ kinase_request = KinaseWorkflowRequest(
 ```
 
 ```python
-from phospy import KinaseWorkflow
+from phospy.api import KinaseWorkflow
 
 kinase_workflow = KinaseWorkflow()
 kinase_result = kinase_workflow.run(kinase_request)
@@ -176,7 +176,7 @@ reference compatibility. Ordinary production use should require a known match.
 ```python
 from dataclasses import replace
 
-from phospy.advanced import SignalomeConfig
+from phospy.api.advanced import SignalomeConfig
 
 production_config = SignalomeConfig.production()
 signalome_config = replace(
@@ -206,7 +206,7 @@ signalome_request = SignalomeWorkflowRequest(
 ```
 
 ```python
-from phospy import SignalomeWorkflow
+from phospy.api import SignalomeWorkflow
 
 signalome_workflow = SignalomeWorkflow()
 signalome_result = signalome_workflow.run(signalome_request)
@@ -596,12 +596,12 @@ dataset_request = DatasetBuildRequest(
     preprocessing_config=preprocessing_config,
 )
 
-from phospy import AnalysisReadyDatasetBuilder
+from phospy.api import AnalysisReadyDatasetBuilder
 
 dataset_builder = AnalysisReadyDatasetBuilder()
 dataset = dataset_builder.run(dataset_request)
 
-from phospy.advanced import (
+from phospy.api.advanced import (
     KinaseReliabilityProfile,
     KinaseScoringConfig,
     ReferenceContextCompatibilityPolicy,
@@ -614,7 +614,7 @@ kinase_scoring_config = KinaseScoringConfig(
     ),
 )
 
-from phospy.advanced import KinasePredictionConfig
+from phospy.api.advanced import KinasePredictionConfig
 
 kinase_prediction_config = KinasePredictionConfig.deterministic()
 
@@ -628,14 +628,14 @@ kinase_request = KinaseWorkflowRequest(
     activity_config=None,
 )
 
-from phospy import KinaseWorkflow
+from phospy.api import KinaseWorkflow
 
 kinase_workflow = KinaseWorkflow()
 kinase_result = kinase_workflow.run(kinase_request)
 
 from dataclasses import replace
 
-from phospy.advanced import SignalomeConfig
+from phospy.api.advanced import SignalomeConfig
 
 production_config = SignalomeConfig.production()
 signalome_config = replace(
@@ -655,7 +655,7 @@ signalome_request = SignalomeWorkflowRequest(
     config=signalome_config,
 )
 
-from phospy import SignalomeWorkflow
+from phospy.api import SignalomeWorkflow
 
 signalome_workflow = SignalomeWorkflow()
 signalome_result = signalome_workflow.run(signalome_request)

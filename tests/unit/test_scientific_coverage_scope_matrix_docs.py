@@ -504,9 +504,9 @@ def test_pyright_docs_match_current_include_and_strict_scope() -> None:
 
     expected_include_paths = (
         "src/phospy/__init__.py",
-        "src/phospy/_api_inventory.py",
+        "src/phospy/api/_inventory.py",
         "src/phospy/activities",
-        "src/phospy/advanced",
+        "src/phospy/api/advanced",
         "src/phospy/api",
         "src/phospy/datasets",
         "src/phospy/differential",

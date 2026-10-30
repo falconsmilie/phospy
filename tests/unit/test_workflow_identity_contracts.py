@@ -5,11 +5,6 @@ from collections.abc import Callable
 import pandas as pd
 import pytest
 
-from phospy.advanced import (
-    KinasePredictionConfig,
-    KinaseScoringConfig,
-    ReferenceContextCompatibilityPolicy,
-)
 from phospy.api import (
     AnalysisReadyPhosphoDataset,
     Contrast,
@@ -24,6 +19,11 @@ from phospy.api import (
     ReferencePreset,
     SampleDesignRecord,
     SignalomeWorkflowRequest,
+)
+from phospy.api.advanced import (
+    KinasePredictionConfig,
+    KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
 )
 from phospy.differential.validation.workflow import DifferentialAnalysisValidator
 from phospy.errors import (

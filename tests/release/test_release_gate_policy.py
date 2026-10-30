@@ -1711,7 +1711,7 @@ def test_readme_documents_beta_status_without_release_manual() -> None:
     assert "phospy is currently beta software" in normalized
     assert "python 3.11 and 3.12" in normalized
     assert "`phospy.api` is the stable user-facing route" in text
-    assert "`phospy.advanced` is" in text
+    assert "`phospy.api.advanced` is" in text
     assert "internal modules are unsupported import targets" in normalized
     assert "apis may evolve during beta" in normalized
     assert "(docs/api/guide.md)" in text
@@ -1728,7 +1728,7 @@ def test_api_guide_documents_beta_supported_aggregates() -> None:
     assert "three exact aggregate surfaces" in normalized
     assert "phospy is currently beta software" in normalized
     assert "`phospy.api` is the stable user-facing route" in text
-    assert "`phospy.advanced` is a supported advanced route" in text
+    assert "`phospy.api.advanced` is a supported advanced route" in text
     assert "internal modules" in normalized
     assert "unsupported import targets" in normalized
     assert "adr_0054_public_api_reset_and_compatibility_removal.md" in text

@@ -6,19 +6,17 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phospy import (
+from phospy.api import (
     KinaseWorkflow,
+    KinaseWorkflowRequest,
+    ReferencePreset,
     SignalomeWorkflow,
+    SignalomeWorkflowRequest,
 )
-from phospy.advanced import (
+from phospy.api.advanced import (
     KinasePredictionConfig,
     KinaseScoringConfig,
     ReferenceContextCompatibilityPolicy,
-)
-from phospy.api import (
-    KinaseWorkflowRequest,
-    ReferencePreset,
-    SignalomeWorkflowRequest,
 )
 from phospy.signalome.network import build_kinase_network
 from tests.support.parity_reporting import format_shape, record_parity_metrics

@@ -121,17 +121,16 @@ ALLOWED_PACKAGE_EDGES = frozenset(
         ("phospy.activities", "phospy.errors"),
         ("phospy.activities", "phospy.frames"),
         ("phospy.activities", "phospy.quantitative"),
-        ("phospy.advanced", "phospy._api_inventory"),
-        ("phospy.advanced", "phospy.differential"),
-        ("phospy.advanced", "phospy.evidence"),
-        ("phospy.advanced", "phospy.enrichment"),
-        ("phospy.advanced", "phospy.io"),
-        ("phospy.advanced", "phospy.kinase"),
-        ("phospy.advanced", "phospy.preprocessing"),
-        ("phospy.advanced", "phospy.references"),
-        ("phospy.advanced", "phospy.signalome"),
-        ("phospy.advanced", "phospy.statistics"),
-        ("phospy.api", "phospy._api_inventory"),
+        ("phospy.api.advanced", "phospy.api"),
+        ("phospy.api.advanced", "phospy.differential"),
+        ("phospy.api.advanced", "phospy.evidence"),
+        ("phospy.api.advanced", "phospy.enrichment"),
+        ("phospy.api.advanced", "phospy.io"),
+        ("phospy.api.advanced", "phospy.kinase"),
+        ("phospy.api.advanced", "phospy.preprocessing"),
+        ("phospy.api.advanced", "phospy.references"),
+        ("phospy.api.advanced", "phospy.signalome"),
+        ("phospy.api.advanced", "phospy.statistics"),
         ("phospy.api", "phospy.io"),
         ("phospy.api", "phospy.datasets"),
         ("phospy.api", "phospy.differential"),
@@ -280,7 +279,7 @@ def test_advanced_workflow_dependency_is_limited_to_sps_public_boundary() -> Non
     advanced_workflow_targets = {
         record.target
         for record in graph.records
-        if record.source_module.startswith("phospy.advanced")
+        if record.source_module.startswith("phospy.api.advanced")
         if record.target.startswith("phospy.workflows")
     }
 
@@ -507,10 +506,10 @@ def _assert_imports_load_in_clean_interpreter(code_lines: Iterable[str]) -> None
 def test_supported_aggregate_facades_load_in_clean_interpreter() -> None:
     _assert_imports_load_in_clean_interpreter(
         [
-            "from phospy import AnalysisReadyDatasetBuilder, KinaseWorkflow",
-            "from phospy.api import DatasetBuildRequest, PhosPyError, "
+            "from phospy.api import AnalysisReadyDatasetBuilder, "
+            "DatasetBuildRequest, KinaseWorkflow, PhosPyError, "
             "ReferenceBundle, ReferenceBundleBuilder",
-            "from phospy.advanced import SpsDiscoveryRequest",
+            "from phospy.api.advanced import SpsDiscoveryRequest",
             "assert AnalysisReadyDatasetBuilder",
             "assert KinaseWorkflow",
             "assert DatasetBuildRequest",
@@ -525,8 +524,8 @@ def test_supported_aggregate_facades_load_in_clean_interpreter() -> None:
 def test_internal_owner_modules_load_after_facades_in_clean_interpreter() -> None:
     _assert_imports_load_in_clean_interpreter(
         [
-            "from phospy import AnalysisReadyDatasetBuilder, KinaseWorkflow",
-            "from phospy.api import ReferenceBundleBuilder",
+            "from phospy.api import AnalysisReadyDatasetBuilder, KinaseWorkflow, "
+            "ReferenceBundleBuilder",
             "from phospy.datasets.contracts import DatasetBuildRequest",
             "from phospy.errors import PhosPyError",
             "from phospy.references.models import ReferenceBundle",

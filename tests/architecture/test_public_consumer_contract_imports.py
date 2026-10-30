@@ -5,13 +5,19 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
+import pytest
+
+import phospy.api as ordinary_api
+import phospy.api.advanced as specialist_api
+
 ROOT = Path(__file__).resolve().parents[2]
 CONTRACT_TEST_ROOT = ROOT / "tests" / "contract"
 
-UNSUPPORTED_PHOSPY_PREFIXES = (
-    "phospy.science",
-    "phospy.validation",
-)
+SUPPORTED_EXTERNAL_MODULES = {
+    "phospy": frozenset(),
+    "phospy.api": frozenset(ordinary_api.__all__),
+    "phospy.api.advanced": frozenset(specialist_api.__all__),
+}
 UNSUPPORTED_WORKFLOW_IMPLEMENTATION_MODULES = frozenset(
     {
         "contracts",
@@ -45,6 +51,35 @@ def test_contract_tests_use_only_supported_external_consumer_imports() -> None:
     ]
 
     assert violations == []
+
+
+@pytest.mark.parametrize(
+    "route",
+    (
+        "phospy.datasets.models",
+        "phospy.kinase.public",
+        "phospy.validation",
+        "phospy.core.errors",
+        "phospy.core.quantitative.models",
+        "phospy.api.builders",
+        "phospy.advanced",
+    ),
+)
+def test_external_consumer_policy_rejects_owner_and_retired_routes(route: str) -> None:
+    assert _imports_unsupported_phospy_prefix(route)
+
+
+def test_external_consumer_policy_accepts_only_governed_aggregate_exports() -> None:
+    assert not _imports_unsupported_phospy_prefix("phospy")
+    assert not _imports_unsupported_phospy_prefix("phospy.api")
+    assert not _imports_unsupported_phospy_prefix(
+        "phospy.api.AnalysisReadyDatasetBuilder"
+    )
+    assert not _imports_unsupported_phospy_prefix("phospy.api.advanced")
+    assert not _imports_unsupported_phospy_prefix(
+        "phospy.api.advanced.KinaseScoringConfig"
+    )
+    assert _imports_unsupported_phospy_prefix("phospy.AnalysisReadyDatasetBuilder")
 
 
 def _import_routes(path: Path) -> Iterator[ImportRoute]:
@@ -83,10 +118,19 @@ def _imports_project_test_helper(route: str) -> bool:
 
 
 def _imports_unsupported_phospy_prefix(route: str) -> bool:
-    return any(
-        route == prefix or route.startswith(f"{prefix}.")
-        for prefix in UNSUPPORTED_PHOSPY_PREFIXES
-    )
+    if route == "phospy":
+        return False
+    for module_name in sorted(SUPPORTED_EXTERNAL_MODULES, key=len, reverse=True):
+        if route == module_name:
+            return False
+        prefix = f"{module_name}."
+        if not route.startswith(prefix):
+            continue
+        relative = route.removeprefix(prefix)
+        return (
+            "." in relative or relative not in SUPPORTED_EXTERNAL_MODULES[module_name]
+        )
+    return route.startswith("phospy.")
 
 
 def _imports_private_phospy_module(route: str) -> bool:

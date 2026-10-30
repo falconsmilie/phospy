@@ -3,32 +3,9 @@
   "python": "3.11.15",
   "surfaces": {
     "phospy": {
-      "count": 3,
-      "ordered_names": [
-        "AnalysisReadyDatasetBuilder",
-        "KinaseWorkflow",
-        "SignalomeWorkflow"
-      ],
-      "definitions": [
-        {
-          "name": "AnalysisReadyDatasetBuilder",
-          "runtime_type": "builtins.type",
-          "definition": "phospy.datasets.builder:AnalysisReadyDatasetBuilder",
-          "kind": "callable_or_type"
-        },
-        {
-          "name": "KinaseWorkflow",
-          "runtime_type": "builtins.type",
-          "definition": "phospy.kinase.public:KinaseWorkflow",
-          "kind": "callable_or_type"
-        },
-        {
-          "name": "SignalomeWorkflow",
-          "runtime_type": "builtins.type",
-          "definition": "phospy.signalome.public:SignalomeWorkflow",
-          "kind": "callable_or_type"
-        }
-      ]
+      "count": 0,
+      "ordered_names": [],
+      "definitions": []
     },
     "phospy.api": {
       "count": 66,
@@ -499,7 +476,7 @@
         }
       ]
     },
-    "phospy.advanced": {
+    "phospy.api.advanced": {
       "count": 126,
       "ordered_names": [
         "ControlSiteAnnotation",

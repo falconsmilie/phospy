@@ -5,11 +5,11 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from phospy.advanced import (
-    DatasetSiteSequenceResolutionConfig,
-)
 from phospy.api import (
     DatasetPreprocessingConfig,
+)
+from phospy.api.advanced import (
+    DatasetSiteSequenceResolutionConfig,
 )
 from phospy.datasets.construction.preprocessing import (
     DatasetPreprocessor,

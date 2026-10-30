@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from phospy.advanced import (
+from phospy.api.advanced import (
     KinasePredictionConfig,
 )
 from phospy.errors import (

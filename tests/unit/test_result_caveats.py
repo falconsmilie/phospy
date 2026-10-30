@@ -7,12 +7,6 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from phospy.advanced import (
-    KinaseActivityConfig,
-    KinasePredictionConfig,
-    KinaseScoringConfig,
-    ReferenceContextCompatibilityPolicy,
-)
 from phospy.api import (
     Contrast,
     DifferentialAnalysisRequest,
@@ -27,6 +21,12 @@ from phospy.api import (
     ReferenceBundle,
     ResultCaveat,
     SampleDesignRecord,
+)
+from phospy.api.advanced import (
+    KinaseActivityConfig,
+    KinasePredictionConfig,
+    KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
 )
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.differential.caveats import (

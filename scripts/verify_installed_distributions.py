@@ -57,6 +57,8 @@ RETIRED_CAPABILITY_ROUTES = (
 )
 
 RETIRED_HORIZONTAL_ROUTES = (
+    "phospy._api_inventory",
+    "phospy.advanced",
     "phospy.contracts",
     "phospy.contracts.configs",
     "phospy.contracts.requests",
@@ -145,9 +147,9 @@ from unittest.mock import patch
 import pandas as pd
 
 import phospy
-import phospy.advanced as advanced
+import phospy.api.advanced as advanced
 import phospy.api as api
-import phospy._api_inventory as api_inventory
+import phospy.api._inventory as api_inventory
 import phospy.evidence.config as evidence_config
 import phospy.kinase.activity.config as kinase_activity_config
 import phospy.kinase.prediction.config as kinase_prediction_config
@@ -160,22 +162,22 @@ import phospy.signalome.config as signalome_config
 import phospy.kinase.policies as kinase_policies
 import phospy.kinase.caveats as kinase_caveats
 import phospy.differential.policies as differential_policies
-from phospy.advanced import (
+from phospy.api.advanced import (
     DIFFERENTIAL_PROTEIN_AWARE_METHOD_PROTEIN_COVARIATE_ADJUSTED_MODERATED_LINEAR_MODEL_V1,
 )
-from phospy.advanced import DatasetIntensityTransformConfig
-from phospy.advanced import DatasetMissingDataConfig, DatasetNormalisationConfig
-from phospy.advanced import DatasetProteinAwarePreparationConfig
-from phospy.advanced import DatasetSiteMatrixConfig, KinaseReliabilityProfile
-from phospy.advanced import DifferentialProteinAwareModelConfig
-from phospy.advanced import PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION
-from phospy.advanced import KinaseScoringConfig
-from phospy.advanced import LocalisationRequirement
-from phospy.advanced import ReferenceContextCompatibilityPolicy
-from phospy.advanced import SignalomeClusteringConfig, SignalomeConfig
-from phospy.advanced import SignalomeOutputConfig, SignalomeScientificConfig
-from phospy.advanced import SignalomeValidationConfig
-from phospy.advanced import (
+from phospy.api.advanced import DatasetIntensityTransformConfig
+from phospy.api.advanced import DatasetMissingDataConfig, DatasetNormalisationConfig
+from phospy.api.advanced import DatasetProteinAwarePreparationConfig
+from phospy.api.advanced import DatasetSiteMatrixConfig, KinaseReliabilityProfile
+from phospy.api.advanced import DifferentialProteinAwareModelConfig
+from phospy.api.advanced import PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION
+from phospy.api.advanced import KinaseScoringConfig
+from phospy.api.advanced import LocalisationRequirement
+from phospy.api.advanced import ReferenceContextCompatibilityPolicy
+from phospy.api.advanced import SignalomeClusteringConfig, SignalomeConfig
+from phospy.api.advanced import SignalomeOutputConfig, SignalomeScientificConfig
+from phospy.api.advanced import SignalomeValidationConfig
+from phospy.api.advanced import (
     ControlSiteSet,
     CorrectionMissingnessPolicy,
     DatasetBatchCorrectionConfig,
@@ -190,11 +192,11 @@ from phospy.advanced import (
     TemporaryImputationMethod,
     TemporaryImputationPolicy,
 )
-from phospy.advanced import publish_dataset, publish_kinase_workflow
-from phospy.advanced import publish_signalome_workflow
-from phospy import AnalysisReadyDatasetBuilder
-from phospy import KinaseWorkflow
-from phospy import SignalomeWorkflow
+from phospy.api.advanced import publish_dataset, publish_kinase_workflow
+from phospy.api.advanced import publish_signalome_workflow
+from phospy.api import AnalysisReadyDatasetBuilder
+from phospy.api import KinaseWorkflow
+from phospy.api import SignalomeWorkflow
 from phospy.api import Contrast, DatasetBuildRequest, DatasetLocalisationConfig
 from phospy.api import DatasetPreprocessingConfig, DifferentialAnalysisRequest
 from phospy.api import DifferentialAnalysisWorkflow
@@ -401,11 +403,11 @@ def main() -> None:
 
 
 def _verify_public_surface() -> dict[str, object]:
-    expected_counts = {"phospy": 3, "phospy.api": 66, "phospy.advanced": 126}
+    expected_counts = {"phospy": 0, "phospy.api": 66, "phospy.api.advanced": 126}
     observed_counts = {
         "phospy": len(phospy.__all__),
         "phospy.api": len(api.__all__),
-        "phospy.advanced": len(advanced.__all__),
+        "phospy.api.advanced": len(advanced.__all__),
     }
     if observed_counts != expected_counts:
         raise AssertionError(
@@ -414,17 +416,17 @@ def _verify_public_surface() -> dict[str, object]:
     expected_inventories = {
         "phospy": api_inventory.ROOT_PUBLIC_API,
         "phospy.api": api_inventory.ORDINARY_PUBLIC_API,
-        "phospy.advanced": api_inventory.ADVANCED_PUBLIC_API,
+        "phospy.api.advanced": api_inventory.ADVANCED_PUBLIC_API,
     }
     observed_inventories = {
         "phospy": tuple(phospy.__all__),
         "phospy.api": tuple(api.__all__),
-        "phospy.advanced": tuple(advanced.__all__),
+        "phospy.api.advanced": tuple(advanced.__all__),
     }
     expected_inventory_sha256 = {
-        "phospy": "e1ba016281f8a1d46bf4c2cabe61525c4d3e2b7d3fed53ea833daeeec9c02120",
+        "phospy": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
         "phospy.api": "75988b66501a85463a19df9a9c16a6048906123b19f727be1e79828ef96783be",
-        "phospy.advanced": "665d92da2f8fb0cc75578957e861058bfe63dea2dcbfbc3fbc2f142a0320cb82",
+        "phospy.api.advanced": "665d92da2f8fb0cc75578957e861058bfe63dea2dcbfbc3fbc2f142a0320cb82",
     }
     inventory_sha256 = {
         name: hashlib.sha256(
@@ -455,7 +457,7 @@ def _verify_public_surface() -> dict[str, object]:
         if name in api.__all__:
             raise AssertionError(f"advanced API name leaked into phospy.api: {name}")
         if name not in advanced.__all__:
-            raise AssertionError(f"phospy.advanced.__all__ is missing {name!r}")
+            raise AssertionError(f"phospy.api.advanced.__all__ is missing {name!r}")
         getattr(advanced, name)
     if differential_policies.PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION != (
         "duplicate_correlation"
@@ -468,16 +470,17 @@ def _verify_public_surface() -> dict[str, object]:
         not in differential_policies.SUPPORTED_PAIRED_DESIGN_POLICIES
     ):
         raise AssertionError("supported paired-design policies omit duplicate_correlation")
-    if phospy.AnalysisReadyDatasetBuilder is not api.AnalysisReadyDatasetBuilder:
-        raise AssertionError("root AnalysisReadyDatasetBuilder is not api export")
     for removed_root_name in (
+        "AnalysisReadyDatasetBuilder",
         "AnalysisReadyPhosphoDataset",
         "DifferentialAnalysisWorkflow",
+        "KinaseWorkflow",
+        "SignalomeWorkflow",
     ):
         if hasattr(phospy, removed_root_name):
             raise AssertionError(f"removed root name survived: {removed_root_name}")
-    if phospy.KinaseWorkflow is not api.KinaseWorkflow:
-        raise AssertionError("root KinaseWorkflow is not api export")
+    if not phospy.__version__:
+        raise AssertionError("package root version metadata is unavailable")
     if api.ReferenceBundleBuilder is not OwnerReferenceBundleBuilder:
         raise AssertionError("ReferenceBundleBuilder is not the References owner")
     _verify_direct_aggregate_identities()
@@ -502,12 +505,14 @@ def _verify_public_surface() -> dict[str, object]:
         raise AssertionError("Kinase workflow request owner changed")
     for removed_module in (
         "phospy._deprecations",
+        "phospy._api_inventory",
+        "phospy.advanced",
         "phospy.api._compat",
         "phospy.api.requests",
         "phospy.api.results",
         "phospy.api.workflows",
-        "phospy.advanced.configs",
-        "phospy.advanced.results",
+        "phospy.api.advanced.configs",
+        "phospy.api.advanced.results",
         "phospy.contracts.configs.enrichment",
         "phospy.contracts.enrichment_identifier_sets",
         "phospy.contracts.results.enrichment",
@@ -615,11 +620,30 @@ def _verify_retired_routes() -> dict[str, object]:
                 f"{route_result!r}"
             )
         route_results.append(route_result)
+    root_probe = subprocess.run(
+        (
+            sys.executable,
+            "-I",
+            "-c",
+            "import phospy; assert phospy.__version__; assert phospy.__all__ == []; "
+            "assert not any(hasattr(phospy, name) for name in "
+            "('AnalysisReadyDatasetBuilder', 'KinaseWorkflow', 'SignalomeWorkflow'))",
+        ),
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if root_probe.returncode != 0:
+        raise AssertionError(
+            "installed metadata-only root probe failed: "
+            f"stdout={root_probe.stdout!r}; stderr={root_probe.stderr!r}"
+        )
     return {
         "status": "ok",
         "fresh_process_failure": True,
         "retired_module_count": len(route_results),
         "retired_modules": list(retired_modules),
+        "root_conveniences_absent": True,
         "route_results": route_results,
     }
 
@@ -657,7 +681,7 @@ order = sys.argv[2]
 
 def supported():
     import phospy.api as api
-    import phospy.advanced as advanced
+    import phospy.api.advanced as advanced
     from phospy.kinase.prediction.config import KinaseAdaptivePolicy
     from phospy.kinase.prediction.config import KinasePredictionConfig
     from phospy.kinase.prediction.config import KinasePredictionMode
@@ -1438,14 +1462,14 @@ def _verify_enrichment_import_orders(
         ),
         (
             "phospy.api",
-            "phospy.advanced",
+            "phospy.api.advanced",
             "phospy.enrichment.workflow",
             "phospy.enrichment.contracts.results",
         ),
         (
             "phospy.enrichment.contracts.results",
             "phospy.enrichment.workflow",
-            "phospy.advanced",
+            "phospy.api.advanced",
             "phospy.api",
         ),
         (
@@ -1578,7 +1602,7 @@ def _verify_control_site_import_orders(
                 "        pass",
                 "    else:",
                 "        raise AssertionError(f'checkout import origin: {origin}')",
-                "from phospy.advanced import (ControlSiteSet, CorrectionMissingnessPolicy,",
+                "from phospy.api.advanced import (ControlSiteSet, CorrectionMissingnessPolicy,",
                 "    ObservationMask, OriginallyMissingCellTracking, SpsDiscoveryConfig,",
                 "    SpsDiscoveryRequest, SpsDiscoveryResult, SpsDiscoveryWorkflow,",
                 "    SpsReferenceDataset, SpsRuvBatchCorrectionConfig)",
@@ -1762,7 +1786,7 @@ assert payload['report']['schema_version'] == 1
 assert payload['provenance'] is None
 import phospy
 import phospy.api as api
-import phospy.advanced as advanced
+import phospy.api.advanced as advanced
 from phospy.api import (
     AnalysisReadyDatasetBuilder,
     DatasetBuildRequest,

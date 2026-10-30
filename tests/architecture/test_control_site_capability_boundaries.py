@@ -71,7 +71,7 @@ def test_public_facade_rejects_internal_control_site_planning_and_validation() -
     assert {
         record.target
         for record in graph.records
-        if record.source_module == "phospy.advanced"
+        if record.source_module == "phospy.api.advanced"
         if record.target in internal_modules
     } == set()
 
@@ -153,7 +153,7 @@ def test_correction_consumes_only_published_control_site_contract_boundaries() -
 
 
 def test_advanced_exports_are_direct_control_site_owner_identities() -> None:
-    import phospy.advanced as advanced
+    import phospy.api.advanced as advanced
     from phospy.preprocessing.control_sites.contracts import ControlSiteSet
     from phospy.preprocessing.control_sites.discovery_contracts import (
         SpsDiscoveryRequest,
@@ -196,7 +196,7 @@ for module_name in {module_order!r}:
     importlib.import_module(module_name)
 
 import pandas as pd
-from phospy.advanced import (
+from phospy.api.advanced import (
     ControlSiteSet,
     CorrectionMissingnessPolicy,
     ObservationMask,

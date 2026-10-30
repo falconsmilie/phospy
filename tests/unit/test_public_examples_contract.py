@@ -117,7 +117,7 @@ def test_protein_aware_differential_example_uses_explicit_opt_in() -> None:
         "DatasetProteinAwarePreparationConfig",
         "DifferentialAnalysisConfig",
         "DifferentialProteinAwareModelConfig",
-    } <= _imported_names(tree, "phospy.advanced")
+    } <= _imported_names(tree, "phospy.api.advanced")
     assert "prepare_model_inputs" in _literal_keyword_values(
         _calls_named(tree, "DatasetProteinAwarePreparationConfig"),
         "policy",

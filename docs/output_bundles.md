@@ -29,7 +29,7 @@ for the result you want to write:
 ```python
 from pathlib import Path
 
-from phospy.advanced import publish_kinase_workflow
+from phospy.api.advanced import publish_kinase_workflow
 
 output_directory = Path("kinase-output")
 

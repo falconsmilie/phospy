@@ -138,7 +138,6 @@ def _is_direct_imported_name_alias(
 TOP_LEVEL_ROOT_CLASSIFICATIONS: Mapping[str, str] = {
     ".": "public_facade_machinery",
     "activities": "passive_shared_scientific_foundation",
-    "advanced": "public_facade",
     "api": "public_facade",
     "data": "packaged_resource_payload",
     "datasets": "capability",
@@ -166,7 +165,7 @@ TOP_LEVEL_ROOT_CLASSIFICATIONS: Mapping[str, str] = {
 RETIRED_TOP_LEVEL_ROOTS = frozenset({"contracts", "science", "tables", "workflows"})
 
 PERMANENT_SPECIAL_MODULES: Mapping[str, str] = {
-    "src/phospy/_api_inventory.py": (
+    "src/phospy/api/_inventory.py": (
         "authoritative aggregate inventory data; explicitly free of compatibility routes"
     ),
     "src/phospy/differential/aggregation/experimental.py": (
@@ -176,7 +175,6 @@ PERMANENT_SPECIAL_MODULES: Mapping[str, str] = {
 }
 
 PERMANENT_LAZY_LOADERS: Mapping[str, str] = {
-    "src/phospy/__init__.py": "three-name supported root facade",
     "src/phospy/io/__init__.py": "IO adapter composition",
     "src/phospy/io/bundles/__init__.py": "IO bundle adapter composition",
     "src/phospy/io/readers/__init__.py": "IO reader adapter composition",

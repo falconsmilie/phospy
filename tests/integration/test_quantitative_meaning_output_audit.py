@@ -7,20 +7,21 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from phospy import AnalysisReadyDatasetBuilder, KinaseWorkflow
-from phospy.advanced import (
+from phospy.api import (
+    AnalysisReadyDatasetBuilder,
+    DatasetBuildRequest,
+    DatasetPreprocessingConfig,
+    KinaseWorkflow,
+    KinaseWorkflowRequest,
+    Organism,
+    ReferenceBundle,
+)
+from phospy.api.advanced import (
     DatasetIntensityTransformConfig,
     DatasetTotalProteinCorrectionConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,
     ReferenceContextCompatibilityPolicy,
-)
-from phospy.api import (
-    DatasetBuildRequest,
-    DatasetPreprocessingConfig,
-    KinaseWorkflowRequest,
-    Organism,
-    ReferenceBundle,
 )
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.io.bundles._shared.processing_state import processing_state_to_payload

@@ -3,11 +3,6 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy.advanced import (
-    DatasetProteinAwarePreparationConfig,
-    DifferentialAnalysisConfig,
-    DifferentialProteinAwareModelConfig,
-)
 from phospy.api import (
     Contrast,
     DatasetBuildRequest,
@@ -16,6 +11,11 @@ from phospy.api import (
     ExperimentalDesign,
     Organism,
     SampleDesignRecord,
+)
+from phospy.api.advanced import (
+    DatasetProteinAwarePreparationConfig,
+    DifferentialAnalysisConfig,
+    DifferentialProteinAwareModelConfig,
 )
 from phospy.datasets.construction.executor import DatasetBuildExecutor
 from phospy.datasets.construction.interpreter import DatasetBuildRequestInterpreter

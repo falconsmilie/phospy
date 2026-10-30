@@ -4,8 +4,8 @@ import ast
 from pathlib import Path
 
 import phospy
-import phospy.advanced as advanced_api
 import phospy.api as public_api
+import phospy.api.advanced as advanced_api
 from phospy.preprocessing.batch_correction.provenance.validation import (
     validate_applied_native_sps_ruv_correction_provenance,
 )

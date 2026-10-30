@@ -5,13 +5,13 @@ from dataclasses import fields
 import pytest
 
 import phospy
-import phospy.advanced as advanced_api
 import phospy.api as public_api
-from phospy.advanced import (
+import phospy.api.advanced as advanced_api
+from phospy.api import DatasetPreprocessingConfig, PhosPyInputError
+from phospy.api.advanced import (
     DatasetProteinAwarePreparationConfig,
     DatasetTotalProteinCorrectionConfig,
 )
-from phospy.api import DatasetPreprocessingConfig, PhosPyInputError
 from phospy.preprocessing.contracts import (
     DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
     PreprocessingPlan,

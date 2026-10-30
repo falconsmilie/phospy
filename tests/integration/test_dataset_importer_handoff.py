@@ -3,8 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy import AnalysisReadyDatasetBuilder
-from phospy.api import Organism, PhosphositeImportRequest
+from phospy.api import AnalysisReadyDatasetBuilder, Organism, PhosphositeImportRequest
 from phospy.io.readers import MappedPhosphositeTableImporter
 
 pytestmark = pytest.mark.integration

@@ -5,7 +5,10 @@ from typing import get_args
 
 import pytest
 
-from phospy.advanced import (
+from phospy.api import (
+    DatasetPreprocessingConfig,
+)
+from phospy.api.advanced import (
     ControlSiteSet,
     CorrectionMissingnessPolicy,
     DatasetBatchCorrectionConfig,
@@ -18,9 +21,6 @@ from phospy.advanced import (
     SpsRuvBatchCorrectionMethod,
     TemporaryImputationMethod,
     TemporaryImputationPolicy,
-)
-from phospy.api import (
-    DatasetPreprocessingConfig,
 )
 from phospy.errors import PhosPyInputError
 from phospy.preprocessing.batch_correction.contracts.configuration import (

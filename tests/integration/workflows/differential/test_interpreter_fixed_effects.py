@@ -8,7 +8,6 @@ import pandas.testing as pdt
 import pytest
 
 import phospy.differential.execution.model_executor as differential_executor_module
-from phospy.advanced import DifferentialAnalysisConfig
 from phospy.api import (
     AnalysisReadyPhosphoDataset,
     CategoricalCovariate,
@@ -20,6 +19,7 @@ from phospy.api import (
     Organism,
     SampleDesignRecord,
 )
+from phospy.api.advanced import DifferentialAnalysisConfig
 from phospy.differential.caveats import (
     DIFFERENTIAL_DUPLICATE_CORRELATION_CONSENSUS_CAVEAT_CODE,
 )

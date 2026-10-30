@@ -7,10 +7,6 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from phospy.advanced import (
-    DifferentialAnalysisConfig,
-    EmpiricalBayesConfig,
-)
 from phospy.api import (
     Contrast,
     DifferentialAnalysisRequest,
@@ -18,6 +14,10 @@ from phospy.api import (
     ExperimentalDesign,
     Organism,
     SampleDesignRecord,
+)
+from phospy.api.advanced import (
+    DifferentialAnalysisConfig,
+    EmpiricalBayesConfig,
 )
 from phospy.differential.diagnostics import (
     EmpiricalBayesPriorDiagnostics,

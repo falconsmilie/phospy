@@ -9,8 +9,8 @@ from types import ModuleType
 import pytest
 
 import phospy
-import phospy.advanced as advanced_api
 import phospy.api as ordinary_api
+import phospy.api.advanced as advanced_api
 import phospy.evidence.config as evidence_config
 import phospy.kinase.activity.config as kinase_activity_config
 import phospy.kinase.prediction.config as kinase_prediction_config
@@ -68,7 +68,7 @@ def _wildcard_names(module_name: str) -> set[str]:
 @pytest.mark.parametrize(
     ("module", "expected", "count"),
     (
-        (phospy, _adr_root_names(), 3),
+        (phospy, _adr_root_names(), 0),
         (ordinary_api, _adr_table_names("Retain ordinary"), 66),
         (advanced_api, _adr_table_names("Retain advanced"), 126),
     ),
@@ -153,13 +153,15 @@ def test_builder_definitions_have_exact_owner_identities() -> None:
     assert ReferenceBundleBuilder is OwnerBuilder
     assert tuple(inspect.signature(ReferenceBundleBuilder).parameters) == ()
     assert ordinary_api.AnalysisReadyDatasetBuilder is AnalysisReadyDatasetBuilder
-    assert phospy.AnalysisReadyDatasetBuilder is AnalysisReadyDatasetBuilder
 
 
 def test_removed_root_and_ordinary_names_fail_direct_imports() -> None:
     assert phospy.__version__
     assert "__version__" not in phospy.__all__
     removed = (
+        ("phospy", "AnalysisReadyDatasetBuilder"),
+        ("phospy", "KinaseWorkflow"),
+        ("phospy", "SignalomeWorkflow"),
         ("phospy", "AnalysisReadyPhosphoDataset"),
         ("phospy", "DifferentialAnalysisWorkflow"),
         ("phospy.api", "DesignMatrix"),
@@ -173,6 +175,5 @@ def test_removed_root_and_ordinary_names_fail_direct_imports() -> None:
 
 
 def test_aggregate_facades_have_no_dynamic_export_dispatch() -> None:
-    for module in (ordinary_api, advanced_api):
+    for module in (phospy, ordinary_api, advanced_api):
         assert "__getattr__" not in vars(module)
-    assert "__getattr__" in vars(phospy)

@@ -4,17 +4,15 @@ import pandas as pd
 import pytest
 
 import phospy.kinase.executor as kinase_executor
-from phospy import (
+from phospy.api import (
     KinaseWorkflow,
+    KinaseWorkflowRequest,
+    ReferencePreset,
 )
-from phospy.advanced import (
+from phospy.api.advanced import (
     KinasePredictionConfig,
     KinaseScoringConfig,
     ReferenceContextCompatibilityPolicy,
-)
-from phospy.api import (
-    KinaseWorkflowRequest,
-    ReferencePreset,
 )
 from phospy.kinase.prediction.config import (
     KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,

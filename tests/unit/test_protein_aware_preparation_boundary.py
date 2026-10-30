@@ -9,18 +9,16 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phospy import (
-    AnalysisReadyDatasetBuilder,
-)
-from phospy.advanced import (
-    DatasetProteinAwarePreparationConfig,
-    DatasetTotalProteinCorrectionConfig,
-)
 from phospy.api import (
+    AnalysisReadyDatasetBuilder,
     AnalysisReadyPhosphoDataset,
     DatasetBuildRequest,
     DatasetPreprocessingConfig,
     Organism,
+)
+from phospy.api.advanced import (
+    DatasetProteinAwarePreparationConfig,
+    DatasetTotalProteinCorrectionConfig,
 )
 from phospy.datasets.internal_view import DatasetInternalView
 from phospy.datasets.processing_state import DatasetPreprocessingReport

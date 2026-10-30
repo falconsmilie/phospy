@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from phospy import AnalysisReadyDatasetBuilder
 from phospy.api import (
+    AnalysisReadyDatasetBuilder,
     DatasetLocalisationConfig,
     DatasetPreprocessingConfig,
     Organism,

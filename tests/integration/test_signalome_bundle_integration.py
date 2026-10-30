@@ -8,25 +8,23 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from phospy import (
+from phospy.api import (
     AnalysisReadyDatasetBuilder,
+    DatasetBuildRequest,
+    DatasetPreprocessingConfig,
     KinaseWorkflow,
+    KinaseWorkflowRequest,
+    Organism,
+    ReferencePreset,
     SignalomeWorkflow,
+    SignalomeWorkflowRequest,
+    SignalomeWorkflowResult,
 )
-from phospy.advanced import (
+from phospy.api.advanced import (
     DatasetBatchCorrectionConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,
     ReferenceContextCompatibilityPolicy,
-)
-from phospy.api import (
-    DatasetBuildRequest,
-    DatasetPreprocessingConfig,
-    KinaseWorkflowRequest,
-    Organism,
-    ReferencePreset,
-    SignalomeWorkflowRequest,
-    SignalomeWorkflowResult,
 )
 from phospy.errors import (
     ContractValidationError,

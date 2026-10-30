@@ -1,9 +1,9 @@
 # ruff: noqa: F401
-"""The advanced supported PhosPy API defined by ADR-0054."""
+"""The specialist supported PhosPy API defined by ADR-0054 and ADR-0055."""
 
 from __future__ import annotations
 
-from phospy._api_inventory import ADVANCED_PUBLIC_API as __all__
+from phospy.api._inventory import ADVANCED_PUBLIC_API as __all__
 from phospy.differential.config import (
     DifferentialAnalysisConfig,
     DifferentialProteinAwareModelConfig,

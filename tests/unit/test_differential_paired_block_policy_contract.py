@@ -5,12 +5,12 @@ from typing import get_type_hints
 
 import pytest
 
-import phospy.advanced as advanced_api
-from phospy.advanced import DifferentialAnalysisConfig
+import phospy.api.advanced as advanced_api
 from phospy.api import (
     ExperimentalDesign,
     SampleDesignRecord,
 )
+from phospy.api.advanced import DifferentialAnalysisConfig
 from phospy.differential.policies import (
     PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION,
     PAIRED_DESIGN_POLICY_FIXED_BLOCK,

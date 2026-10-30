@@ -5,18 +5,19 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from phospy import AnalysisReadyDatasetBuilder, KinaseWorkflow
-from phospy.advanced import (
-    KinasePredictionConfig,
-    KinaseScoringConfig,
-    ReferenceContextCompatibilityPolicy,
-)
 from phospy.api import (
+    AnalysisReadyDatasetBuilder,
     DatasetBuildRequest,
+    KinaseWorkflow,
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundleBuilder,
     ReferenceBundleBuildRequest,
+)
+from phospy.api.advanced import (
+    KinasePredictionConfig,
+    KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
 )
 
 pytestmark = pytest.mark.integration

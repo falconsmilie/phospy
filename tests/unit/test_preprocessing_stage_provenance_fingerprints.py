@@ -2,18 +2,18 @@ from __future__ import annotations
 
 import pandas as pd
 
-from phospy import AnalysisReadyDatasetBuilder
-from phospy.advanced import (
+from phospy.api import (
+    AnalysisReadyDatasetBuilder,
+    DatasetBuildRequest,
+    DatasetPreprocessingConfig,
+    Organism,
+)
+from phospy.api.advanced import (
     DatasetComparisonBuildingConfig,
     DatasetIntensityTransformConfig,
     DatasetMissingDataConfig,
     DatasetSiteMatrixConfig,
     DatasetTotalProteinCorrectionConfig,
-)
-from phospy.api import (
-    DatasetBuildRequest,
-    DatasetPreprocessingConfig,
-    Organism,
 )
 from phospy.preprocessing.contracts import (
     PreprocessingPlan,

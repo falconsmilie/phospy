@@ -3,28 +3,26 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-import phospy.advanced as advanced_result_models
 import phospy.api as result_models
-from phospy import (
-    KinaseWorkflow,
-    SignalomeWorkflow,
-)
-from phospy.advanced import (
-    KinaseActivityConfig,
-    KinasePredictionConfig,
-    KinaseScoringConfig,
-    ReferenceContextCompatibilityPolicy,
-)
+import phospy.api.advanced as advanced_result_models
 from phospy.api import (
     AnalysisReadyPhosphoDataset,
     KinasePredictionResult,
     KinaseScoringResult,
+    KinaseWorkflow,
     KinaseWorkflowRequest,
     KinaseWorkflowResult,
     Organism,
     ReferenceBundle,
+    SignalomeWorkflow,
     SignalomeWorkflowRequest,
     SignalomeWorkflowResult,
+)
+from phospy.api.advanced import (
+    KinaseActivityConfig,
+    KinasePredictionConfig,
+    KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
 )
 from phospy.provenance.scientific_policy_models import ScientificPolicyId
 from tests.support.analysis_ready_dataset_factories import (

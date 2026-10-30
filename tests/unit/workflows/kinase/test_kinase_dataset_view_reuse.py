@@ -12,11 +12,6 @@ import pytest
 import phospy.datasets._internal.frame_store as internal_frame_store_module
 import phospy.kinase.interpreter as interpreter_module
 import phospy.kinase.validator as validator_module
-from phospy.advanced import (
-    KinasePredictionConfig,
-    KinaseScoringConfig,
-    ReferenceContextCompatibilityPolicy,
-)
 from phospy.api import (
     KinasePredictionResult,
     KinaseScoringResult,
@@ -24,6 +19,11 @@ from phospy.api import (
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
+)
+from phospy.api.advanced import (
+    KinasePredictionConfig,
+    KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
 )
 from phospy.datasets.internal_view import DatasetInternalView
 from phospy.datasets.models import AnalysisReadyPhosphoDataset

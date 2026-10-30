@@ -9,13 +9,6 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from phospy.advanced import (
-    PAIRED_DESIGN_POLICY_FIXED_BLOCK,
-    DifferentialAnalysisConfig,
-    DifferentialProteinAwareModelConfig,
-    MultipleTestingConfig,
-    TechnicalReplicatePolicy,
-)
 from phospy.api import (
     AnalysisReadyPhosphoDataset,
     ContinuousCovariate,
@@ -27,6 +20,13 @@ from phospy.api import (
     FixedEffectCovariate,
     Organism,
     SampleDesignRecord,
+)
+from phospy.api.advanced import (
+    PAIRED_DESIGN_POLICY_FIXED_BLOCK,
+    DifferentialAnalysisConfig,
+    DifferentialProteinAwareModelConfig,
+    MultipleTestingConfig,
+    TechnicalReplicatePolicy,
 )
 from phospy.datasets.internal_view import (
     DatasetInternalView,

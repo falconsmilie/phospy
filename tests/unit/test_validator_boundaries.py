@@ -4,8 +4,15 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from phospy import AnalysisReadyDatasetBuilder
-from phospy.advanced import (
+from phospy.api import (
+    AnalysisReadyDatasetBuilder,
+    DatasetBuildRequest,
+    DatasetPreprocessingConfig,
+    KinaseWorkflowRequest,
+    KinaseWorkflowResult,
+    SignalomeWorkflowRequest,
+)
+from phospy.api.advanced import (
     DatasetComparisonBuildingConfig,
     DatasetIntensityTransformConfig,
     DatasetMissingDataConfig,
@@ -25,13 +32,6 @@ from phospy.advanced import (
     SignalomeOutputConfig,
     SignalomeScientificConfig,
     SignalomeValidationConfig,
-)
-from phospy.api import (
-    DatasetBuildRequest,
-    DatasetPreprocessingConfig,
-    KinaseWorkflowRequest,
-    KinaseWorkflowResult,
-    SignalomeWorkflowRequest,
 )
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.datasets.validation.request import DatasetBuildRequestValidator

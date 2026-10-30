@@ -4,10 +4,6 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from phospy.advanced import (
-    DifferentialAnalysisConfig,
-    EmpiricalBayesConfig,
-)
 from phospy.api import (
     BatchCovariate,
     ContinuousCovariate,
@@ -17,6 +13,10 @@ from phospy.api import (
     ExperimentalDesign,
     Organism,
     SampleDesignRecord,
+)
+from phospy.api.advanced import (
+    DifferentialAnalysisConfig,
+    EmpiricalBayesConfig,
 )
 from phospy.differential.moderation.empirical_bayes import fit_empirical_bayes
 from phospy.differential.policies import (

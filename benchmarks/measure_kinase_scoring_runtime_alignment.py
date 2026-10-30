@@ -72,7 +72,7 @@ def _run_once(
     emulate_unfiltered_motif_lane: bool,
 ) -> tuple[float, float]:
     import phospy.kinase.executor as kinase_executor
-    from phospy import (
+    from phospy.api import (
         KinasePredictionConfig,
         KinaseScoringConfig,
         KinaseWorkflow,

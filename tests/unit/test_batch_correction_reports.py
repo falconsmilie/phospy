@@ -5,13 +5,13 @@ from typing import cast
 
 import pandas as pd
 
-from phospy.advanced import DatasetBatchCorrectionConfig
 from phospy.api import (
     AnalysisReadyDatasetBuilder,
     DatasetBuildRequest,
     DatasetPreprocessingConfig,
     Organism,
 )
+from phospy.api.advanced import DatasetBatchCorrectionConfig
 from phospy.datasets.processing_state import DatasetPreprocessingReport
 from phospy.preparation_records.batch_correction import (
     BatchCorrectionDiagnostics,

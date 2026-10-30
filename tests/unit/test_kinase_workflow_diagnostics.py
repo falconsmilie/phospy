@@ -3,24 +3,22 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy import (
-    AnalysisReadyDatasetBuilder,
-    KinaseWorkflow,
-)
 from phospy.activities.semantics import ActivityInputMatrix
-from phospy.advanced import (
-    KinaseActivityConfig,
-    KinasePredictionConfig,
-    KinaseScoringConfig,
-    ReferenceContextCompatibilityPolicy,
-)
 from phospy.api import (
+    AnalysisReadyDatasetBuilder,
     AnalysisReadyPhosphoDataset,
     DatasetBuildRequest,
+    KinaseWorkflow,
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
     ReferencePreset,
+)
+from phospy.api.advanced import (
+    KinaseActivityConfig,
+    KinasePredictionConfig,
+    KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
 )
 from phospy.datasets.internal_view import DatasetInternalView
 from phospy.errors import WorkflowBoundaryError

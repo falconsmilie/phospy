@@ -19,17 +19,19 @@ ENRICHMENT_WORKFLOW_DOC = WORKFLOW_DOCS_DIR / "enrichment.md"
 KINASE_WORKFLOW_DOC = WORKFLOW_DOCS_DIR / "kinase.md"
 SIGNALOME_WORKFLOW_DOC = WORKFLOW_DOCS_DIR / "signalome.md"
 
-README_IMPORT_SNIPPET = """from phospy import AnalysisReadyDatasetBuilder
-from phospy import KinaseWorkflow, SignalomeWorkflow
-from phospy.api import DifferentialAnalysisWorkflow
+README_IMPORT_SNIPPET = """from phospy.api import (
+    AnalysisReadyDatasetBuilder,
+    DifferentialAnalysisWorkflow,
+    KinaseWorkflow,
+    SignalomeWorkflow,
+)
 """
 
-API_GUIDE_IMPORT_SNIPPET = """from phospy import (
+API_GUIDE_IMPORT_SNIPPET = """from phospy.api import (
     AnalysisReadyDatasetBuilder,
     KinaseWorkflow,
     SignalomeWorkflow,
 )
-from phospy.api import DifferentialAnalysisWorkflow
 """
 
 API_GUIDE_API_IMPORT_SNIPPET = """from phospy.api import (
@@ -49,7 +51,7 @@ API_GUIDE_API_IMPORT_SNIPPET = """from phospy.api import (
 )
 """
 
-API_GUIDE_ADVANCED_IMPORT_SNIPPET = """from phospy.advanced import (
+API_GUIDE_ADVANCED_IMPORT_SNIPPET = """from phospy.api.advanced import (
     SignalomeConfig,
 )
 """
@@ -308,13 +310,13 @@ def test_readme_differential_import_example_matches_supported_route() -> None:
 
     _assert_python_imports(
         source,
-        "phospy",
+        "phospy.api",
         (
             "AnalysisReadyDatasetBuilder",
             "KinaseWorkflow",
             "SignalomeWorkflow",
         ),
-        context="README public import contract",
+        context="README ordinary public import contract",
     )
     _assert_python_imports(
         source,
@@ -340,7 +342,7 @@ def test_readme_primary_workflow_example_is_kinase() -> None:
 
     _assert_python_imports(
         source,
-        "phospy",
+        "phospy.api",
         ("AnalysisReadyDatasetBuilder", "KinaseWorkflow"),
         context="README primary workflow example",
     )
@@ -473,13 +475,13 @@ def test_api_guide_differential_import_examples_match_supported_route() -> None:
 
     _assert_python_imports(
         source,
-        "phospy",
+        "phospy.api",
         (
             "AnalysisReadyDatasetBuilder",
             "KinaseWorkflow",
             "SignalomeWorkflow",
         ),
-        context="API guide top-level import contract",
+        context="API guide ordinary import contract",
     )
     _assert_python_imports(
         source,
@@ -509,7 +511,7 @@ def test_api_guide_differential_import_examples_match_supported_route() -> None:
     )
     _assert_python_imports(
         source,
-        "phospy.advanced",
+        "phospy.api.advanced",
         ("SignalomeConfig",),
         context="API guide advanced import contract",
     )

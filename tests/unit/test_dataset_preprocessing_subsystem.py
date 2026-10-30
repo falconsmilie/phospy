@@ -9,7 +9,12 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phospy.advanced import (
+from phospy.api import (
+    DatasetBuildRequest,
+    DatasetLocalisationConfig,
+    DatasetPreprocessingConfig,
+)
+from phospy.api.advanced import (
     DatasetComparisonBuildingConfig,
     DatasetIntensityTransformConfig,
     DatasetMissingDataConfig,
@@ -18,11 +23,6 @@ from phospy.advanced import (
     DatasetSiteMatrixConfig,
     DatasetSiteSequenceResolutionConfig,
     DatasetTotalProteinCorrectionConfig,
-)
-from phospy.api import (
-    DatasetBuildRequest,
-    DatasetLocalisationConfig,
-    DatasetPreprocessingConfig,
 )
 from phospy.datasets.construction.contracts import (
     DatasetPreprocessorContract,

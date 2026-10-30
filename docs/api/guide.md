@@ -25,25 +25,25 @@ The guides introduce requests, configuration, workflows, and results only when
 they are needed. You do not need to learn the complete API before running an
 analysis.
 
-## Understand the Three Public Surfaces
+## Understand the Supported Import Tree
 
 PhosPy is currently beta software for Python 3.11 and 3.12. APIs may evolve
-during beta. ADR-0054 defines three exact aggregate surfaces.
+during beta. ADR-0054 as amended by ADR-0055 defines two exact aggregate
+scientific surfaces beneath `phospy.api`.
 
 ### `phospy`
 
-Use the package root for the dataset builder and the Kinase and Signalome
-workflow conveniences. It deliberately contains only a small set of common
-entry points.
+The package root provides version metadata, including `phospy.__version__`. It
+does not forward scientific entry points.
 
 ### `phospy.api`
 
 `phospy.api` is the stable user-facing route during beta for ordinary requests,
 configurations, results, references, enums, errors, and workflow classes.
 
-### `phospy.advanced`
+### `phospy.api.advanced`
 
-`phospy.advanced` is a supported advanced route for documented specialist
+`phospy.api.advanced` is a supported advanced route for documented specialist
 policies, diagnostics, reference helpers, and publishers. It is expected to
 evolve more readily than `phospy.api`.
 
@@ -71,18 +71,18 @@ request against the supplied data when `run(...)` is called.
 
 ## Import Common Entry Points
 
-The package root contains only the three curated conveniences:
+Common entry points live in `phospy.api`:
 
 ```python
-from phospy import (
+from phospy.api import (
     AnalysisReadyDatasetBuilder,
     KinaseWorkflow,
     SignalomeWorkflow,
 )
 ```
 
-`phospy.__all__` contains exactly these three names. Differential analysis,
-enrichment, and all request and result contracts use `phospy.api`.
+`phospy.__all__` is empty. Differential analysis, enrichment, and all request
+and result contracts also use `phospy.api`.
 
 ## Import Stable API Objects
 
@@ -124,11 +124,11 @@ for identifier sets derived from quantitative results.
 
 ## Import Advanced Supported Objects
 
-Use `phospy.advanced` when a workflow guide or reference page asks for a
+Use `phospy.api.advanced` when a workflow guide or reference page asks for a
 specialist object:
 
 ```python
-from phospy.advanced import (
+from phospy.api.advanced import (
     SignalomeConfig,
     publish_dataset,
     publish_kinase_workflow,
@@ -153,7 +153,7 @@ Use `AnalysisReadyDatasetBuilder` to turn input tables into a validated,
 analysis-ready dataset:
 
 ```python
-from phospy import AnalysisReadyDatasetBuilder
+from phospy.api import AnalysisReadyDatasetBuilder
 
 builder = AnalysisReadyDatasetBuilder()
 dataset = builder.run(dataset_request)
@@ -175,7 +175,7 @@ tables and explains each step.
 First, establish the log2 transformation and localisation requirement:
 
 ```python
-from phospy.advanced import DatasetIntensityTransformConfig
+from phospy.api.advanced import DatasetIntensityTransformConfig
 from phospy.api import DatasetLocalisationConfig, DatasetPreprocessingConfig
 
 intensity_transform = DatasetIntensityTransformConfig(policy="log2")
@@ -197,7 +197,7 @@ the upstream evidence and study policy.
 Next, describe and build the dataset:
 
 ```python
-from phospy import AnalysisReadyDatasetBuilder
+from phospy.api import AnalysisReadyDatasetBuilder
 from phospy.api import DatasetBuildRequest, Organism
 
 dataset_request = DatasetBuildRequest(
@@ -278,7 +278,7 @@ boundary.
 Common public exception families are available from `phospy.api`:
 
 ```python
-from phospy import KinaseWorkflow
+from phospy.api import KinaseWorkflow
 from phospy.api import PhosPyValidationError, WorkflowValidationError
 
 try:

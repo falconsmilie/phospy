@@ -5,17 +5,17 @@ from typing import NoReturn, cast
 import pandas as pd
 import pytest
 
-from phospy.advanced import (
-    KinasePredictionConfig,
-    KinaseScoringConfig,
-    ReferenceContextCompatibilityPolicy,
-)
 from phospy.api import (
     KinaseWorkflow,
     KinaseWorkflowRequest,
     KinaseWorkflowResult,
     Organism,
     ReferenceBundle,
+)
+from phospy.api.advanced import (
+    KinasePredictionConfig,
+    KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
 )
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors.workflows import WorkflowBoundaryError

@@ -6,10 +6,6 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from phospy.advanced import (
-    DifferentialAnalysisConfig,
-    TechnicalReplicatePolicy,
-)
 from phospy.api import (
     AnalysisReadyPhosphoDataset,
     Contrast,
@@ -18,6 +14,10 @@ from phospy.api import (
     ExperimentalDesign,
     Organism,
     SampleDesignRecord,
+)
+from phospy.api.advanced import (
+    DifferentialAnalysisConfig,
+    TechnicalReplicatePolicy,
 )
 from phospy.differential.caveats import (
     DIFFERENTIAL_EXPLORATORY_SINGLE_REPLICATE_CAVEAT_CODE,

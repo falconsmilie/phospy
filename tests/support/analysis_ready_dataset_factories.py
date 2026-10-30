@@ -6,10 +6,8 @@ from collections.abc import Mapping
 
 import pandas as pd
 
-from phospy import (
-    AnalysisReadyDatasetBuilder,
-)
 from phospy.api import (
+    AnalysisReadyDatasetBuilder,
     AnalysisReadyPhosphoDataset,
     DatasetBuildRequest,
 )

@@ -3,16 +3,14 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy import (
-    AnalysisReadyDatasetBuilder,
-)
-from phospy.advanced import DatasetSiteMatrixConfig
 from phospy.api import (
+    AnalysisReadyDatasetBuilder,
     DatasetBuildRequest,
     DatasetPreprocessingConfig,
     Organism,
     PhosPyInputError,
 )
+from phospy.api.advanced import DatasetSiteMatrixConfig
 from phospy.errors.references import UnsupportedOrganismError
 from phospy.errors.validation import DatasetValidationError
 from phospy.evidence.dataset_resolution.models import (

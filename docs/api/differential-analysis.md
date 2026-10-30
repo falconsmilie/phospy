@@ -56,7 +56,7 @@ are linear, so this configuration asks PhosPy to calculate
 `log2(value + pseudocount)`. The default pseudocount is `1.0`.
 
 ```python
-from phospy.advanced import DatasetIntensityTransformConfig
+from phospy.api.advanced import DatasetIntensityTransformConfig
 
 intensity_transform = DatasetIntensityTransformConfig(policy="log2")
 ```
@@ -105,7 +105,7 @@ dataset_request = DatasetBuildRequest(
 ```
 
 ```python
-from phospy import AnalysisReadyDatasetBuilder
+from phospy.api import AnalysisReadyDatasetBuilder
 
 dataset_builder = AnalysisReadyDatasetBuilder()
 dataset = dataset_builder.run(dataset_request)
@@ -300,9 +300,9 @@ covariate.
 ```python
 import pandas as pd
 
-from phospy import AnalysisReadyDatasetBuilder
+from phospy.api import AnalysisReadyDatasetBuilder
 from phospy.api import DifferentialAnalysisWorkflow
-from phospy.advanced import (
+from phospy.api.advanced import (
     DatasetIntensityTransformConfig,
     DifferentialAnalysisConfig,
     EmpiricalBayesConfig,
@@ -412,9 +412,9 @@ exact DEqMS-compatible numerical equivalence.
 ```python
 import pandas as pd
 
-from phospy import AnalysisReadyDatasetBuilder
+from phospy.api import AnalysisReadyDatasetBuilder
 from phospy.api import DifferentialAnalysisWorkflow
-from phospy.advanced import (
+from phospy.api.advanced import (
     DatasetIntensityTransformConfig,
     DifferentialAnalysisConfig,
     PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION,
@@ -558,9 +558,9 @@ that sidecar unless `DifferentialAnalysisConfig.protein_aware_model` is set.
 ```python
 import pandas as pd
 
-from phospy import AnalysisReadyDatasetBuilder
+from phospy.api import AnalysisReadyDatasetBuilder
 from phospy.api import DifferentialAnalysisWorkflow
-from phospy.advanced import (
+from phospy.api.advanced import (
     DatasetProteinAwarePreparationConfig,
     DifferentialAnalysisConfig,
     DifferentialProteinAwareModelConfig,
@@ -1326,7 +1326,7 @@ site_metadata = pd.DataFrame(
     index=phospho.index,
 )
 
-from phospy.advanced import DatasetIntensityTransformConfig
+from phospy.api.advanced import DatasetIntensityTransformConfig
 
 intensity_transform = DatasetIntensityTransformConfig(policy="log2")
 
@@ -1354,7 +1354,7 @@ dataset_request = DatasetBuildRequest(
     preprocessing_config=preprocessing_config,
 )
 
-from phospy import AnalysisReadyDatasetBuilder
+from phospy.api import AnalysisReadyDatasetBuilder
 
 dataset_builder = AnalysisReadyDatasetBuilder()
 dataset = dataset_builder.run(dataset_request)

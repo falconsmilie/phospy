@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import pandas as pd
 
-from phospy.advanced import DifferentialAnalysisConfig
 from phospy.api import (
     AnalysisReadyPhosphoDataset,
     BatchCovariate,
@@ -15,6 +14,7 @@ from phospy.api import (
     Organism,
     SampleDesignRecord,
 )
+from phospy.api.advanced import DifferentialAnalysisConfig
 from phospy.differential.policies import PAIRED_DESIGN_POLICY_FIXED_BLOCK
 from phospy.differential.provenance.models import (
     DifferentialFixedEffectCovariateProvenance,

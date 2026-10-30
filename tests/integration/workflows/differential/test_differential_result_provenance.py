@@ -4,7 +4,6 @@ import json
 
 import pandas as pd
 
-from phospy.advanced import DifferentialAnalysisConfig
 from phospy.api import (
     AnalysisReadyPhosphoDataset,
     BatchCovariate,
@@ -15,6 +14,7 @@ from phospy.api import (
     Organism,
     SampleDesignRecord,
 )
+from phospy.api.advanced import DifferentialAnalysisConfig
 from phospy.datasets.construction.intensity_scale import (
     DatasetIntensityScaleResolver,
 )

@@ -189,9 +189,9 @@ Pyright is the configured type checker. The checked scope is listed in
 `pyproject.toml` under `[tool.pyright]` and includes:
 
 - `src/phospy/__init__.py`
-- `src/phospy/_api_inventory.py`
+- `src/phospy/api/_inventory.py`
 - `src/phospy/activities`
-- `src/phospy/advanced`
+- `src/phospy/api/advanced`
 - `src/phospy/api`
 - `src/phospy/datasets`
 - `src/phospy/differential`
@@ -353,7 +353,7 @@ optional user intent belong to the owning capability, such as `phospy.datasets`,
 `phospy.signalome`. Shared contracts belong to the narrow shared domain that
 defines their meaning, while passive cross-capability records belong to an
 accepted record or composition owner such as `phospy.preparation_records` or
-`phospy.run_lineage`. Public `phospy.api` and `phospy.advanced` facades may
+`phospy.run_lineage`. Public `phospy.api` and `phospy.api.advanced` facades may
 re-export those owner-defined objects only by exact identity.
 
 Capability-specific validation belongs with its capability. Root
@@ -385,8 +385,9 @@ wording:
 > **Governed by ADR-0054:** the tables below record compatibility behaviour that
 > remains relevant to maintenance. None of the removed warning routes,
 > forwarding subfacades, semi-public aliases, or compatibility behaviors below
-> remains supported. Current public imports are only the exact `phospy`,
-> `phospy.api`, and `phospy.advanced` aggregates. The supported inventory is
+> remains supported. Current scientific imports are only the exact
+> `phospy.api` and `phospy.api.advanced` aggregates; the package root provides
+> version metadata only. The supported inventory is
 > enforced by `architecture/public-api-baseline.json`.
 
 This ledger is the maintainer checkpoint for deprecated APIs, retained

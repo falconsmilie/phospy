@@ -7,10 +7,6 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phospy.advanced import (
-    DifferentialAnalysisConfig,
-    EmpiricalBayesConfig,
-)
 from phospy.api import (
     Contrast,
     DifferentialAnalysisRequest,
@@ -18,6 +14,10 @@ from phospy.api import (
     ExperimentalDesign,
     Organism,
     SampleDesignRecord,
+)
+from phospy.api.advanced import (
+    DifferentialAnalysisConfig,
+    EmpiricalBayesConfig,
 )
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.differential.tables import (

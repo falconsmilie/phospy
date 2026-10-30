@@ -6,7 +6,7 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from phospy.advanced import (
+from phospy.api.advanced import (
     SpsDiscoveryConfig,
     SpsDiscoveryRequest,
     SpsDiscoveryResult,

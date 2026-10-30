@@ -3,15 +3,15 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy import AnalysisReadyDatasetBuilder
-from phospy.advanced import (
-    DatasetGroupCoverageFilterConfig,
-    DatasetMissingDataConfig,
-)
 from phospy.api import (
+    AnalysisReadyDatasetBuilder,
     DatasetBuildRequest,
     DatasetPreprocessingConfig,
     Organism,
+)
+from phospy.api.advanced import (
+    DatasetGroupCoverageFilterConfig,
+    DatasetMissingDataConfig,
 )
 from phospy.errors.input import PhosPyInputError
 

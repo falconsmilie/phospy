@@ -4,11 +4,11 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phospy.advanced import (
-    DatasetMissingDataConfig,
-)
 from phospy.api import (
     DatasetPreprocessingConfig,
+)
+from phospy.api.advanced import (
+    DatasetMissingDataConfig,
 )
 from phospy.datasets.construction.intensity_scale import (
     DatasetIntensityScaleResolver,

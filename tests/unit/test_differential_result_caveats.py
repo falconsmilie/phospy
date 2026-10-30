@@ -5,7 +5,6 @@ from collections.abc import Mapping
 import pandas as pd
 import pytest
 
-from phospy.advanced import DifferentialAnalysisConfig
 from phospy.api import (
     Contrast,
     DifferentialAnalysisRequest,
@@ -14,6 +13,7 @@ from phospy.api import (
     Organism,
     SampleDesignRecord,
 )
+from phospy.api.advanced import DifferentialAnalysisConfig
 from phospy.datasets.construction.intensity_scale import (
     DatasetIntensityScaleResolver,
 )

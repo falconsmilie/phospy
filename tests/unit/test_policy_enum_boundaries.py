@@ -6,7 +6,10 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from phospy.advanced import (
+from phospy.api import (
+    DatasetPreprocessingConfig,
+)
+from phospy.api.advanced import (
     DatasetComparisonBuildingConfig,
     DatasetIntensityTransformConfig,
     DatasetMissingDataConfig,
@@ -18,9 +21,6 @@ from phospy.advanced import (
     LocalisationRequirement,
     ReferenceContextCompatibilityPolicy,
     SignalomeValidationConfig,
-)
-from phospy.api import (
-    DatasetPreprocessingConfig,
 )
 from phospy.errors.input import PhosPyInputError
 from phospy.errors.validation import ContractValidationError

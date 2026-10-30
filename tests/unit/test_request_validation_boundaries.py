@@ -5,16 +5,8 @@ from dataclasses import is_dataclass
 import pandas as pd
 import pytest
 
-from phospy import (
-    AnalysisReadyDatasetBuilder,
-    KinaseWorkflow,
-    SignalomeWorkflow,
-)
-from phospy.advanced import (
-    KinaseScoringConfig,
-    ReferenceContextCompatibilityPolicy,
-)
 from phospy.api import (
+    AnalysisReadyDatasetBuilder,
     AnalysisReadyPhosphoDataset,
     Contrast,
     DatasetBuildRequest,
@@ -24,12 +16,18 @@ from phospy.api import (
     ExperimentalDesign,
     KinasePredictionResult,
     KinaseScoringResult,
+    KinaseWorkflow,
     KinaseWorkflowRequest,
     KinaseWorkflowResult,
     Organism,
     ReferenceBundle,
     SampleDesignRecord,
+    SignalomeWorkflow,
     SignalomeWorkflowRequest,
+)
+from phospy.api.advanced import (
+    KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
 )
 from phospy.errors import PhosPyInputError, WorkflowValidationError
 from tests.support.analysis_ready_dataset_factories import (

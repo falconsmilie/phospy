@@ -6,18 +6,16 @@ from dataclasses import replace
 import pandas as pd
 import pytest
 
-from phospy import (
-    AnalysisReadyDatasetBuilder,
-)
-from phospy.advanced import (
-    DatasetIntensityTransformConfig,
-    DatasetNormalisationConfig,
-)
 from phospy.api import (
+    AnalysisReadyDatasetBuilder,
     AnalysisReadyPhosphoDataset,
     DatasetBuildRequest,
     DatasetPreprocessingConfig,
     Organism,
+)
+from phospy.api.advanced import (
+    DatasetIntensityTransformConfig,
+    DatasetNormalisationConfig,
 )
 from phospy.datasets.construction.preprocessing import (
     build_dataset_processing_state,

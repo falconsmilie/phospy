@@ -21,20 +21,20 @@ import phospy.signalome.clustering.tree_building as tree_building_module
 import phospy.signalome.result_assembly as result_assembly_module
 import phospy.signalome.result_validation as result_validation_module
 import phospy.signalome.validator as validator_module
-from phospy import KinaseWorkflow
-from phospy.advanced import (
-    KinasePredictionConfig,
-    KinaseScoringConfig,
-    ReferenceContextCompatibilityPolicy,
-)
 from phospy.api import (
     KinasePredictionResult,
     KinaseScoringResult,
+    KinaseWorkflow,
     KinaseWorkflowRequest,
     KinaseWorkflowResult,
     Organism,
     ReferenceBundle,
     SignalomeWorkflowRequest,
+)
+from phospy.api.advanced import (
+    KinasePredictionConfig,
+    KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
 )
 from phospy.datasets.internal_view import DatasetInternalView
 from phospy.datasets.models import AnalysisReadyPhosphoDataset

@@ -3,12 +3,10 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy import (
-    KinaseWorkflow,
-    SignalomeWorkflow,
-)
 from phospy.api import (
     DifferentialAnalysisWorkflow,
+    KinaseWorkflow,
+    SignalomeWorkflow,
 )
 from phospy.errors import WorkflowValidationError
 from phospy.signalome.constants import (

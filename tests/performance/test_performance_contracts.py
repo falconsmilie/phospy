@@ -10,20 +10,22 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from phospy import AnalysisReadyDatasetBuilder, KinaseWorkflow, SignalomeWorkflow
-from phospy.advanced import (
-    KinasePredictionConfig,
-    KinaseScoringConfig,
-    ReferenceContextCompatibilityPolicy,
-)
 from phospy.api import (
+    AnalysisReadyDatasetBuilder,
     DatasetBuildRequest,
     KinaseScoringResult,
+    KinaseWorkflow,
     KinaseWorkflowRequest,
     KinaseWorkflowResult,
     Organism,
     ReferenceBundle,
+    SignalomeWorkflow,
     SignalomeWorkflowRequest,
+)
+from phospy.api.advanced import (
+    KinasePredictionConfig,
+    KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
 )
 from phospy.io.bundles._signalome.snapshots import SignalomeWorkflowConfigSnapshot
 from phospy.io.bundles.signalome import save_signalome_workflow_bundle

@@ -10,8 +10,8 @@ from pathlib import Path
 import pytest
 
 import phospy
-import phospy.advanced
 import phospy.api
+import phospy.api.advanced
 from tools.architecture.import_graph import build_import_graph
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -93,9 +93,9 @@ def test_old_differential_routes_are_absent() -> None:
 
 def test_public_inventories_and_owner_identities_are_exact() -> None:
     assert tuple(
-        map(len, (phospy.__all__, phospy.api.__all__, phospy.advanced.__all__))
+        map(len, (phospy.__all__, phospy.api.__all__, phospy.api.advanced.__all__))
     ) == (
-        3,
+        0,
         66,
         126,
     )
@@ -137,7 +137,7 @@ def test_public_inventories_and_owner_identities_are_exact() -> None:
         "rank_differential_results": "phospy.differential.tables",
     }
     for name, module_name in advanced_owner_routes.items():
-        assert getattr(phospy.advanced, name) is getattr(
+        assert getattr(phospy.api.advanced, name) is getattr(
             importlib.import_module(module_name), name
         )
 

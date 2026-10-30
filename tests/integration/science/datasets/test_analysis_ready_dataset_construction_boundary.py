@@ -5,8 +5,7 @@ from collections.abc import Mapping
 import pandas as pd
 import pytest
 
-from phospy import AnalysisReadyDatasetBuilder
-from phospy.api import DatasetBuildRequest, Organism
+from phospy.api import AnalysisReadyDatasetBuilder, DatasetBuildRequest, Organism
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors import DatasetValidationError, PhosPyInputError
 from tests.support.analysis_ready_dataset_factories import (

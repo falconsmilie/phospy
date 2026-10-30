@@ -3,13 +3,13 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy.advanced import DatasetBatchCorrectionConfig
 from phospy.api import (
     AnalysisReadyDatasetBuilder,
     DatasetBuildRequest,
     DatasetPreprocessingConfig,
     Organism,
 )
+from phospy.api.advanced import DatasetBatchCorrectionConfig
 from phospy.errors import PhosPyInputError
 from phospy.preprocessing.batch_correction.metadata import (
     BatchCorrectionMetadataResolver,

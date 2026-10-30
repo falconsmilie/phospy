@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from phospy.advanced import (
+from phospy.api.advanced import (
     LocalisationRequirement,
     ReferenceContextCompatibilityPolicy,
     SignalomeAssignmentPolicy,

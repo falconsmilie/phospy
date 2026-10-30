@@ -6,19 +6,17 @@ from typing import cast
 import pandas as pd
 import pytest
 
-from phospy import (
-    KinaseWorkflow,
-)
-from phospy.advanced import (
-    KinasePredictionConfig,
-    KinaseScoringConfig,
-    ReferenceContextCompatibilityPolicy,
-)
 from phospy.api import (
     AnalysisReadyPhosphoDataset,
+    KinaseWorkflow,
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
+)
+from phospy.api.advanced import (
+    KinasePredictionConfig,
+    KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
 )
 from phospy.datasets.internal_view import DatasetInternalView
 from phospy.errors.workflows import WorkflowBoundaryError

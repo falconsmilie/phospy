@@ -3,10 +3,6 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy.advanced import (
-    KinaseScoringConfig,
-    ReferenceContextCompatibilityPolicy,
-)
 from phospy.api import (
     AnalysisReadyPhosphoDataset,
     Contrast,
@@ -19,6 +15,10 @@ from phospy.api import (
     Organism,
     SampleDesignRecord,
     SignalomeWorkflowRequest,
+)
+from phospy.api.advanced import (
+    KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
 )
 from phospy.differential.validation.workflow import DifferentialAnalysisValidator
 from phospy.errors import WorkflowValidationError

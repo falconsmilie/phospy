@@ -3,7 +3,6 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy.advanced import ReferenceContextCompatibilityPolicy
 from phospy.api import (
     KinasePredictionResult,
     KinaseScoringResult,
@@ -12,6 +11,7 @@ from phospy.api import (
     ReferenceBundle,
     SignalomeWorkflowRequest,
 )
+from phospy.api.advanced import ReferenceContextCompatibilityPolicy
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors import WorkflowValidationError
 from phospy.signalome.validator import SignalomeWorkflowValidator

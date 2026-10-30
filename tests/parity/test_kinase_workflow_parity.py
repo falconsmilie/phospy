@@ -6,21 +6,19 @@ from typing import Any
 import pandas as pd
 import pytest
 
-from phospy import (
-    AnalysisReadyDatasetBuilder,
-    KinaseWorkflow,
-)
-from phospy.advanced import (
-    KinasePredictionConfig,
-    KinaseScoringConfig,
-    ReferenceContextCompatibilityPolicy,
-)
 from phospy.api import (
+    AnalysisReadyDatasetBuilder,
     DatasetBuildRequest,
+    KinaseWorkflow,
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
     ReferencePreset,
+)
+from phospy.api.advanced import (
+    KinasePredictionConfig,
+    KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
 )
 from phospy.kinase.contracts import (
     ResolvedKinaseWorkflowRequest,

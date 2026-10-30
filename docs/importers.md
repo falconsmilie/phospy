@@ -218,7 +218,7 @@ candidates, and still relies on dataset-builder validation.
 ```python
 import pandas as pd
 
-from phospy import AnalysisReadyDatasetBuilder
+from phospy.api import AnalysisReadyDatasetBuilder
 from phospy.api import Organism, PhosphositeImporter, PhosphositeImportRequest
 
 source = pd.DataFrame(

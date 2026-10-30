@@ -5,14 +5,14 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from phospy.advanced import (
-    DatasetSiteMatrixConfig,
-    DatasetSiteSequenceResolutionConfig,
-)
 from phospy.api import (
     AnalysisReadyDatasetBuilder,
     DatasetBuildRequest,
     DatasetPreprocessingConfig,
+)
+from phospy.api.advanced import (
+    DatasetSiteMatrixConfig,
+    DatasetSiteSequenceResolutionConfig,
 )
 from phospy.errors.input import PhosPyInputError
 from phospy.taxonomy import Organism

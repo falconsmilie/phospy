@@ -9,8 +9,8 @@ from pathlib import Path
 import pytest
 
 import phospy
-import phospy.advanced
 import phospy.api
+import phospy.api.advanced
 from phospy.statistics.multiple_testing import MultipleTestingCorrection
 from tools.architecture.import_graph import (
     ImportGraph,
@@ -680,7 +680,7 @@ def test_current_public_api_matches_baseline() -> None:
     surfaces = {
         "phospy": phospy,
         "phospy.api": phospy.api,
-        "phospy.advanced": phospy.advanced,
+        "phospy.api.advanced": phospy.api.advanced,
     }
     for module_name, module in surfaces.items():
         baseline = payload["surfaces"][module_name]
@@ -1111,7 +1111,7 @@ def _runtime_definition_identity(module: object, name: str) -> dict[str, object]
         "name": name,
         "runtime_type": f"{type(value).__module__}.{type(value).__qualname__}",
     }
-    if module is phospy.advanced and name == "MultipleTestingCorrection":
+    if module is phospy.api.advanced and name == "MultipleTestingCorrection":
         assert value is MultipleTestingCorrection
         result["definition"] = (
             "phospy.statistics.multiple_testing:MultipleTestingCorrection"

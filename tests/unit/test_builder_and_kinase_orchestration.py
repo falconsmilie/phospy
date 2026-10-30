@@ -4,34 +4,32 @@ from dataclasses import replace
 
 import pandas as pd
 
-from phospy import (
-    AnalysisReadyDatasetBuilder,
-    KinaseWorkflow,
-    SignalomeWorkflow,
-)
 from phospy.activities.semantics import ActivityInputMatrix
-from phospy.advanced import (
-    DatasetMissingDataConfig,
-    KinaseActivityConfig,
-    KinasePredictionConfig,
-    KinaseScoringConfig,
-    ReferenceContextCompatibilityPolicy,
-    SignalomeConfig,
-)
 from phospy.api import (
+    AnalysisReadyDatasetBuilder,
     AnalysisReadyPhosphoDataset,
     DatasetBuildRequest,
     DatasetPreprocessingConfig,
     KinaseActivityResult,
     KinasePredictionResult,
     KinaseScoringResult,
+    KinaseWorkflow,
     KinaseWorkflowRequest,
     KinaseWorkflowResult,
     Organism,
     ReferenceBundle,
     ReferencePreset,
+    SignalomeWorkflow,
     SignalomeWorkflowRequest,
     SignalomeWorkflowResult,
+)
+from phospy.api.advanced import (
+    DatasetMissingDataConfig,
+    KinaseActivityConfig,
+    KinasePredictionConfig,
+    KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
+    SignalomeConfig,
 )
 from phospy.datasets.construction.contracts import InterpretedDatasetBuildRequest
 from phospy.datasets.internal_view import DatasetInternalView

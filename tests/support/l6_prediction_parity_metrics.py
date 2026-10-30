@@ -8,17 +8,15 @@ from typing import Any, Literal, cast
 
 import pandas as pd
 
-from phospy import (
+from phospy.api import (
     KinaseWorkflow,
+    KinaseWorkflowRequest,
+    ReferencePreset,
 )
-from phospy.advanced import (
+from phospy.api.advanced import (
     KinasePredictionConfig,
     KinaseScoringConfig,
     ReferenceContextCompatibilityPolicy,
-)
-from phospy.api import (
-    KinaseWorkflowRequest,
-    ReferencePreset,
 )
 from tests.support.rewrite_fixture_data import (
     build_rat_l6_dataset,

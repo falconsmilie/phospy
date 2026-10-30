@@ -1,13 +1,13 @@
 source_path,module,owner,rationale
-src/phospy/__init__.py,phospy,public_facades,Supported or compatibility aggregate adapter
-src/phospy/_api_inventory.py,phospy._api_inventory,public_facades,Supported or compatibility aggregate adapter
+src/phospy/__init__.py,phospy,public_facades,Metadata-only package root
 src/phospy/activities/__init__.py,phospy.activities,activities,Passive activity quantitative contract package
 src/phospy/activities/contracts.py,phospy.activities.contracts,activities,Generic activity quantitative method contract
 src/phospy/activities/semantics.py,phospy.activities.semantics,activities,Generic activity profile and quantitative semantics
 src/phospy/activities/validation.py,phospy.activities.validation,activities,Generic activity quantitative contract validation
-src/phospy/advanced/__init__.py,phospy.advanced,public_facades,Supported or compatibility aggregate adapter
 src/phospy/api/__init__.py,phospy.api,public_facades,Supported or compatibility aggregate adapter
-src/phospy/api/builders.py,phospy.api.builders,public_facades,Supported or compatibility aggregate adapter
+src/phospy/api/_inventory.py,phospy.api._inventory,public_facades,Supported aggregate inventory
+src/phospy/api/advanced/__init__.py,phospy.api.advanced,public_facades,Supported specialist aggregate adapter
+src/phospy/api/builders.py,phospy.api.builders,public_facades,Internal API composition route; unsupported for direct consumer import
 src/phospy/datasets/__init__.py,phospy.datasets,datasets,Dataset model construction invariant or durable attached record
 src/phospy/datasets/_construction/__init__.py,phospy.datasets._construction,datasets,Dataset model construction invariant or durable attached record
 src/phospy/datasets/_construction/fingerprints.py,phospy.datasets._construction.fingerprints,datasets,Dataset model construction invariant or durable attached record

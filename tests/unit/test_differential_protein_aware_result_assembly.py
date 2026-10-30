@@ -8,12 +8,6 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from phospy.advanced import (
-    DIFFERENTIAL_PROTEIN_AWARE_METHOD_PROTEIN_COVARIATE_ADJUSTED_MODERATED_LINEAR_MODEL_V1,
-    PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION,
-    DifferentialAnalysisConfig,
-    DifferentialProteinAwareModelConfig,
-)
 from phospy.api import (
     Contrast,
     DifferentialAnalysisRequest,
@@ -21,6 +15,12 @@ from phospy.api import (
     ExperimentalDesign,
     Organism,
     SampleDesignRecord,
+)
+from phospy.api.advanced import (
+    DIFFERENTIAL_PROTEIN_AWARE_METHOD_PROTEIN_COVARIATE_ADJUSTED_MODERATED_LINEAR_MODEL_V1,
+    PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION,
+    DifferentialAnalysisConfig,
+    DifferentialProteinAwareModelConfig,
 )
 from phospy.datasets.processing_state import DatasetPreprocessingReport
 from phospy.datasets.protein_aware import (

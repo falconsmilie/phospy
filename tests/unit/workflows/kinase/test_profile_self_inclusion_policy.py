@@ -5,18 +5,18 @@ from collections.abc import Mapping
 import pandas as pd
 import pandas.testing as pdt
 
-from phospy.advanced import (
-    KinasePredictionConfig,
-    KinaseScoringConfig,
-    ProfileSelfInclusionPolicy,
-    ReferenceContextCompatibilityPolicy,
-)
 from phospy.api import (
     AnalysisReadyPhosphoDataset,
     KinaseWorkflow,
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
+)
+from phospy.api.advanced import (
+    KinasePredictionConfig,
+    KinaseScoringConfig,
+    ProfileSelfInclusionPolicy,
+    ReferenceContextCompatibilityPolicy,
 )
 from phospy.datasets.internal_view import DatasetInternalView
 from phospy.kinase.caveats import (

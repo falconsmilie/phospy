@@ -9,7 +9,7 @@ from typing import Any, cast
 
 import pandas as pd
 
-from phospy.advanced import (
+from phospy.api.advanced import (
     ControlSiteSet,
     CorrectionMissingnessPolicy,
     ObservationMask,

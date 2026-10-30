@@ -10,7 +10,7 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phospy.advanced import (
+from phospy.api.advanced import (
     SpsDiscoveryConfig,
     SpsDiscoveryRequest,
     SpsDiscoveryWorkflow,

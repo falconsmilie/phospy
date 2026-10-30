@@ -271,7 +271,7 @@ def test_structural_forwarding_candidates_have_exact_policy_dispositions() -> No
         for path, item in classified.items()
         if item["disposition"] == "supported_aggregate_facade"
     } == {
-        "src/phospy/advanced/__init__.py",
+        "src/phospy/api/advanced/__init__.py",
         "src/phospy/api/__init__.py",
     }
     assert all(item["rationale"].strip() for item in classified.values())

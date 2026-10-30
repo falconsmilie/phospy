@@ -5,8 +5,7 @@ from collections.abc import Mapping
 import pandas as pd
 import pytest
 
-from phospy import AnalysisReadyDatasetBuilder
-from phospy.api import DatasetBuildRequest, Organism
+from phospy.api import AnalysisReadyDatasetBuilder, DatasetBuildRequest, Organism
 from phospy.errors import DatasetValidationError, PhosPyInputError
 
 _CENTRED_Y_SEQUENCE = "AAAAAAAAAAAAAAAYAAAAAAAAAAAAAAA"

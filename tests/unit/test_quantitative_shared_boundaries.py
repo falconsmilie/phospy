@@ -3,8 +3,8 @@ from __future__ import annotations
 import json
 from dataclasses import fields
 
-import phospy.advanced
 import phospy.api
+import phospy.api.advanced
 from phospy.quantitative.evidence import InputIntensityScaleEvidence
 from phospy.quantitative.models import IntensityScaleKind
 from phospy.quantitative.serialization import intensity_scale_state_to_payload
@@ -50,7 +50,7 @@ def test_input_intensity_scale_evidence_shape_payload_order_and_facade_identitie
     )
     assert phospy.api.InputIntensityScaleEvidence is InputIntensityScaleEvidence
     assert phospy.api.IntensityScaleKind is IntensityScaleKind
-    assert phospy.advanced.MultipleTestingCorrection is MultipleTestingCorrection
+    assert phospy.api.advanced.MultipleTestingCorrection is MultipleTestingCorrection
 
 
 def test_intensity_scale_serialization_order_and_json_bytes_are_exact() -> None:

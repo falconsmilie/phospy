@@ -7,7 +7,8 @@ from typing import cast
 import pandas as pd
 import pytest
 
-from phospy.advanced import (
+from phospy.api import Organism
+from phospy.api.advanced import (
     ControlSiteSet,
     ControlSiteStatus,
     CorrectionMissingnessPolicy,
@@ -24,7 +25,6 @@ from phospy.advanced import (
     SpsSelectionBoundaryCounts,
     SpsSiteStabilityRecord,
 )
-from phospy.api import Organism
 from phospy.errors.input import PhosPyInputError
 from phospy.phosphosites.site_keys import decode_site_key
 from phospy.preprocessing.control_sites import (

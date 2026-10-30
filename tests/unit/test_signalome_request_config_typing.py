@@ -10,9 +10,9 @@ from typing import get_type_hints
 
 import pytest
 
-import phospy.advanced as advanced_api
-import phospy.advanced as advanced_configs
 import phospy.api as request_api
+import phospy.api.advanced as advanced_api
+import phospy.api.advanced as advanced_configs
 from phospy.api import (
     SignalomeWorkflowRequest,
 )
@@ -57,10 +57,10 @@ def test_signalome_request_type_hints_do_not_depend_on_advanced_import_order() -
             "from typing import get_type_hints",
             "from phospy.api import SignalomeWorkflowRequest",
             "from phospy.signalome.config import SignalomeConfig",
-            "assert 'phospy.advanced.configs' not in sys.modules",
+            "assert 'phospy.api.advanced.configs' not in sys.modules",
             "assert SignalomeWorkflowRequest.__annotations__['config'] == 'SignalomeConfig'",
             "assert get_type_hints(SignalomeWorkflowRequest)['config'] is SignalomeConfig",
-            "assert 'phospy.advanced.configs' not in sys.modules",
+            "assert 'phospy.api.advanced.configs' not in sys.modules",
         ]
     )
     environment = dict(os.environ)
@@ -100,8 +100,8 @@ def test_stable_api_modules_do_not_static_import_advanced_modules() -> None:
             continue
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         for imported_module, line_number in _static_imports(tree):
-            if imported_module == "phospy.advanced" or imported_module.startswith(
-                "phospy.advanced."
+            if imported_module == "phospy.api.advanced" or imported_module.startswith(
+                "phospy.api.advanced."
             ):
                 relative = path.relative_to(PROJECT_ROOT)
                 offenders.append(f"{relative}:{line_number} -> {imported_module}")
@@ -134,7 +134,7 @@ def test_pyright_accepts_signalome_request_construction_with_advanced_reexport(
                 "",
                 "from typing import assert_type",
                 "",
-                "from phospy.advanced import SignalomeConfig",
+                "from phospy.api.advanced import SignalomeConfig",
                 "from phospy.api import SignalomeWorkflowRequest",
                 "from phospy.kinase.results import KinaseWorkflowResult",
                 "",

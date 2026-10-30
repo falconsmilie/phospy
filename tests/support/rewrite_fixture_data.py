@@ -9,10 +9,8 @@ from typing import Any, cast
 
 import pandas as pd
 
-from phospy import (
-    AnalysisReadyDatasetBuilder,
-)
 from phospy.api import (
+    AnalysisReadyDatasetBuilder,
     AnalysisReadyPhosphoDataset,
     DatasetBuildRequest,
     Organism,

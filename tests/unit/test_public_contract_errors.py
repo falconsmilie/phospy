@@ -8,11 +8,8 @@ import pytest
 import phospy
 import phospy.api as public_api
 import phospy.errors as public_errors
-from phospy import (
-    AnalysisReadyDatasetBuilder,
-)
-from phospy.advanced import DatasetSiteMatrixConfig
 from phospy.api import (
+    AnalysisReadyDatasetBuilder,
     AnalysisReadyPhosphoDataset,
     DatasetBuildRequest,
     DatasetPreprocessingConfig,
@@ -26,6 +23,7 @@ from phospy.api import (
     SignalomeWorkflowResult,
     UnsupportedInputFormatError,
 )
+from phospy.api.advanced import DatasetSiteMatrixConfig
 from phospy.datasets.validation.request import DatasetBuildRequestValidator
 from phospy.errors import (
     ContractValidationError,

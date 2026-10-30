@@ -8,10 +8,14 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phospy import (
+from phospy.api import (
     AnalysisReadyDatasetBuilder,
+    DatasetBuildRequest,
+    DatasetPreprocessingConfig,
+    Organism,
+    ReferencePreset,
 )
-from phospy.advanced import (
+from phospy.api.advanced import (
     DatasetComparisonBuildingConfig,
     DatasetIntensityTransformConfig,
     DatasetMissingDataConfig,
@@ -21,12 +25,6 @@ from phospy.advanced import (
     DatasetSiteSequenceResolutionConfig,
     DatasetTotalProteinCorrectionConfig,
     DatasetTotalProteinCorrectionIdentityConfig,
-)
-from phospy.api import (
-    DatasetBuildRequest,
-    DatasetPreprocessingConfig,
-    Organism,
-    ReferencePreset,
 )
 from phospy.errors import PhosPyInputError
 from phospy.io.publishers.workflows import publish_dataset

@@ -6,23 +6,21 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from phospy import (
+from phospy.api import (
+    AnalysisReadyPhosphoDataset,
     KinaseWorkflow,
+    KinaseWorkflowRequest,
+    Organism,
+    ReferenceBundle,
     SignalomeWorkflow,
+    SignalomeWorkflowRequest,
 )
-from phospy.advanced import (
+from phospy.api.advanced import (
     KinasePredictionConfig,
     KinaseScoringConfig,
     ReferenceContextCompatibilityPolicy,
     SignalomeConfig,
     SignalomeOutputConfig,
-)
-from phospy.api import (
-    AnalysisReadyPhosphoDataset,
-    KinaseWorkflowRequest,
-    Organism,
-    ReferenceBundle,
-    SignalomeWorkflowRequest,
 )
 from phospy.kinase.scoring.profile import build_kinase_profiles
 from phospy.signalome.assignments import build_module_assignments

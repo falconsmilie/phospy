@@ -7,11 +7,11 @@ from typing import Any
 import pandas as pd
 import pytest
 
-from phospy.advanced import (
+from phospy.api import DatasetPreprocessingConfig
+from phospy.api.advanced import (
     DatasetIntensityTransformConfig,
     DatasetTotalProteinCorrectionConfig,
 )
-from phospy.api import DatasetPreprocessingConfig
 from phospy.datasets.construction.input_resolution import (
     DatasetInputReader,
     _DatasetInputSourceValidator,

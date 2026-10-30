@@ -4,10 +4,8 @@ from collections.abc import Iterable
 
 import pytest
 
-from phospy import (
-    AnalysisReadyDatasetBuilder,
-)
 from phospy.api import (
+    AnalysisReadyDatasetBuilder,
     Contrast,
     DatasetBuildRequest,
     DatasetPreprocessingConfig,

@@ -9,15 +9,15 @@ import pandas as pd
 import pytest
 
 import phospy.io as phospy_io
-from phospy.advanced import (
-    DatasetMissingDataConfig,
-    DatasetSiteMatrixConfig,
-)
 from phospy.api import (
     AnalysisReadyDatasetBuilder,
     DatasetBuildRequest,
     DatasetPreprocessingConfig,
     KinasePredictionResult,
+)
+from phospy.api.advanced import (
+    DatasetMissingDataConfig,
+    DatasetSiteMatrixConfig,
 )
 from phospy.datasets.internal_view import DatasetInternalView
 from phospy.datasets.models import AnalysisReadyPhosphoDataset

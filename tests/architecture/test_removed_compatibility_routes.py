@@ -116,14 +116,16 @@ RETIRED_HORIZONTAL_MODULES = (
 COMPATIBILITY_ONLY_MODULES = (
     (
         "phospy._deprecations",
+        "phospy._api_inventory",
+        "phospy.advanced",
         "phospy.api._compat",
         "phospy.api.datasets",
         "phospy.api.enums",
         "phospy.api.requests",
         "phospy.api.results",
         "phospy.api.workflows",
-        "phospy.advanced.configs",
-        "phospy.advanced.results",
+        "phospy.api.advanced.configs",
+        "phospy.api.advanced.results",
         "phospy.contracts.configs._validation",
         "phospy.contracts.configs.common",
         "phospy.contracts.configs.enrichment",
@@ -377,12 +379,12 @@ if survivors:
             "phospy.signalome.results",
             "phospy.signalome.errors",
             "phospy.api",
-            "phospy.advanced",
+            "phospy.api.advanced",
             "phospy",
         ),
         (
             "phospy",
-            "phospy.advanced",
+            "phospy.api.advanced",
             "phospy.api",
             "phospy.signalome.errors",
             "phospy.signalome.results",
@@ -403,7 +405,7 @@ for module_name in json.loads(sys.argv[1]):
     importlib.import_module(module_name)
 
 import phospy
-import phospy.advanced as advanced
+import phospy.api.advanced as advanced
 import phospy.api as api
 from phospy.signalome.config import SignalomeConfig
 from phospy.signalome.errors import SignalomeScaleError
@@ -411,7 +413,8 @@ from phospy.signalome.public import SignalomeWorkflow
 from phospy.signalome.requests import SignalomeWorkflowRequest
 from phospy.signalome.results import SignalomeWorkflowResult
 
-assert phospy.SignalomeWorkflow is api.SignalomeWorkflow is SignalomeWorkflow
+assert not hasattr(phospy, "SignalomeWorkflow")
+assert api.SignalomeWorkflow is SignalomeWorkflow
 assert api.SignalomeWorkflowRequest is SignalomeWorkflowRequest
 assert advanced.SignalomeConfig is SignalomeConfig
 assert api.SignalomeWorkflowResult is SignalomeWorkflowResult

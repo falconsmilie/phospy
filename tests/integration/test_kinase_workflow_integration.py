@@ -11,22 +11,20 @@ import pandas as pd
 import pytest
 
 import phospy.kinase.executor as kinase_executor
-from phospy import (
-    AnalysisReadyDatasetBuilder,
-    KinaseWorkflow,
-)
-from phospy.advanced import (
-    KinaseActivityConfig,
-    KinasePredictionConfig,
-    KinaseScoringConfig,
-    ReferenceContextCompatibilityPolicy,
-)
 from phospy.api import (
+    AnalysisReadyDatasetBuilder,
     DatasetBuildRequest,
+    KinaseWorkflow,
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
     ReferencePreset,
+)
+from phospy.api.advanced import (
+    KinaseActivityConfig,
+    KinasePredictionConfig,
+    KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
 )
 from phospy.errors import DatasetValidationError, WorkflowBoundaryError
 from phospy.io.publishers.workflows import publish_kinase_workflow

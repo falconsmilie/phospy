@@ -9,19 +9,8 @@ import pandas as pd
 import pytest
 
 import phospy.differential.execution.protein_covariate_adjusted as kernel_module
-from phospy import (
-    AnalysisReadyDatasetBuilder,
-)
-from phospy.advanced import (
-    PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION,
-    PAIRED_DESIGN_POLICY_FIXED_BLOCK,
-    DatasetProteinAwarePreparationConfig,
-    DifferentialAnalysisConfig,
-    DifferentialProteinAwareModelConfig,
-    EmpiricalBayesConfig,
-    TechnicalReplicatePolicy,
-)
 from phospy.api import (
+    AnalysisReadyDatasetBuilder,
     Contrast,
     DatasetBuildRequest,
     DatasetPreprocessingConfig,
@@ -31,6 +20,15 @@ from phospy.api import (
     FixedEffectCovariate,
     Organism,
     SampleDesignRecord,
+)
+from phospy.api.advanced import (
+    PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION,
+    PAIRED_DESIGN_POLICY_FIXED_BLOCK,
+    DatasetProteinAwarePreparationConfig,
+    DifferentialAnalysisConfig,
+    DifferentialProteinAwareModelConfig,
+    EmpiricalBayesConfig,
+    TechnicalReplicatePolicy,
 )
 from phospy.differential.execution.linear_model import (
     DIFFERENTIAL_LINEAR_MODEL_MAX_CONDITION_NUMBER,

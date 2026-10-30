@@ -5,19 +5,8 @@ from collections.abc import Mapping
 import pandas as pd
 import pytest
 
-from phospy import (
-    AnalysisReadyDatasetBuilder,
-)
-from phospy.advanced import (
-    DatasetIntensityTransformConfig,
-    DatasetMissingDataConfig,
-    DatasetSiteMatrixConfig,
-    KinaseActivityConfig,
-    KinasePredictionConfig,
-    KinaseScoringConfig,
-    ReferenceContextCompatibilityPolicy,
-)
 from phospy.api import (
+    AnalysisReadyDatasetBuilder,
     AnalysisReadyPhosphoDataset,
     DatasetBuildRequest,
     DatasetPreprocessingConfig,
@@ -31,6 +20,15 @@ from phospy.api import (
     ReferencePreset,
     SignalomeWorkflow,
     SignalomeWorkflowRequest,
+)
+from phospy.api.advanced import (
+    DatasetIntensityTransformConfig,
+    DatasetMissingDataConfig,
+    DatasetSiteMatrixConfig,
+    KinaseActivityConfig,
+    KinasePredictionConfig,
+    KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
 )
 from phospy.io.bundles._shared.processing_state import (
     processing_state_from_payload,

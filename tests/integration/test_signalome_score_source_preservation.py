@@ -13,7 +13,6 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from phospy import SignalomeWorkflow
 from phospy.api import (
     AnalysisReadyPhosphoDataset,
     KinasePredictionResult,
@@ -21,6 +20,7 @@ from phospy.api import (
     KinaseWorkflowResult,
     Organism,
     ReferenceBundle,
+    SignalomeWorkflow,
     SignalomeWorkflowRequest,
 )
 from phospy.run_lineage.serialization import to_payload as provenance_to_payload

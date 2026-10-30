@@ -5,12 +5,6 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from phospy.advanced import (
-    DatasetIntensityTransformConfig,
-    DatasetSiteMatrixConfig,
-    DifferentialAnalysisConfig,
-    EmpiricalBayesConfig,
-)
 from phospy.api import (
     AnalysisReadyDatasetBuilder,
     Contrast,
@@ -21,6 +15,12 @@ from phospy.api import (
     Organism,
     PhosphositeImportResult,
     SampleDesignRecord,
+)
+from phospy.api.advanced import (
+    DatasetIntensityTransformConfig,
+    DatasetSiteMatrixConfig,
+    DifferentialAnalysisConfig,
+    EmpiricalBayesConfig,
 )
 from phospy.differential.moderation.config import (
     EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,

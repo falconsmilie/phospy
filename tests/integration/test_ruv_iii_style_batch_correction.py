@@ -8,7 +8,13 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from phospy.advanced import (
+from phospy.api import (
+    AnalysisReadyDatasetBuilder,
+    DatasetBuildRequest,
+    DatasetPreprocessingConfig,
+    Organism,
+)
+from phospy.api.advanced import (
     ControlSiteSet,
     ControlSiteSourceMetadata,
     CorrectionMissingnessPolicy,
@@ -21,12 +27,6 @@ from phospy.advanced import (
     SpsRuvBatchCorrectionConfig,
     TemporaryImputationMethod,
     TemporaryImputationPolicy,
-)
-from phospy.api import (
-    AnalysisReadyDatasetBuilder,
-    DatasetBuildRequest,
-    DatasetPreprocessingConfig,
-    Organism,
 )
 from phospy.errors import PhosPyInputError
 from phospy.preprocessing.batch_correction import (

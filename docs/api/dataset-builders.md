@@ -19,7 +19,7 @@ the resulting scientific state, and returns an
 `AnalysisReadyPhosphoDataset`.
 
 ```python
-from phospy import AnalysisReadyDatasetBuilder
+from phospy.api import AnalysisReadyDatasetBuilder
 
 builder = AnalysisReadyDatasetBuilder()
 dataset = builder.run(dataset_request)

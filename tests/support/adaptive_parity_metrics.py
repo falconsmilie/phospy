@@ -5,7 +5,7 @@ from functools import lru_cache
 
 import pandas as pd
 
-from phospy.advanced import KinasePredictionConfig
+from phospy.api.advanced import KinasePredictionConfig
 from phospy.kinase.prediction.candidates import build_candidate_substrate_list
 from phospy.kinase.prediction.execution import run_adaptive_ensemble_prediction
 from tests.support.rewrite_fixture_data import (

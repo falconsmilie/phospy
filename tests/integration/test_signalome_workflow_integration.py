@@ -13,21 +13,19 @@ from pandas.api.types import (
     is_string_dtype,
 )
 
-from phospy import (
-    KinaseWorkflow,
-    SignalomeWorkflow,
-)
-from phospy.advanced import (
-    KinasePredictionConfig,
-    KinaseScoringConfig,
-    ReferenceContextCompatibilityPolicy,
-)
 from phospy.api import (
     KinaseScoringResult,
+    KinaseWorkflow,
     KinaseWorkflowRequest,
     KinaseWorkflowResult,
     ReferencePreset,
+    SignalomeWorkflow,
     SignalomeWorkflowRequest,
+)
+from phospy.api.advanced import (
+    KinasePredictionConfig,
+    KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
 )
 from phospy.errors import WorkflowBoundaryError, WorkflowValidationError
 from phospy.signalome.config import SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL

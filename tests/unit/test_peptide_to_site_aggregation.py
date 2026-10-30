@@ -9,11 +9,8 @@ from scipy import stats
 
 import phospy.differential as differential_public
 import phospy.differential.aggregation as aggregation_public
-from phospy import (
-    AnalysisReadyDatasetBuilder,
-)
-from phospy.advanced import DatasetIntensityTransformConfig
 from phospy.api import (
+    AnalysisReadyDatasetBuilder,
     Contrast,
     DatasetBuildRequest,
     DatasetPreprocessingConfig,
@@ -23,6 +20,7 @@ from phospy.api import (
     Organism,
     SampleDesignRecord,
 )
+from phospy.api.advanced import DatasetIntensityTransformConfig
 from phospy.differential.aggregation.experimental import (
     EXPERIMENTAL_INTERNAL_API,
     EXPERIMENTAL_INTERNAL_REASON,

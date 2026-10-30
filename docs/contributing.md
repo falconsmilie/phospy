@@ -87,7 +87,7 @@ software behavior.
 - Keep testing-audit material in `docs/testing/`.
 - Use `phospy.api` for public request, configuration, result, enum, reference,
   and error imports unless a documented route says otherwise.
-- Use `phospy.advanced` only for supported advanced configuration.
+- Use `phospy.api.advanced` only for supported advanced configuration.
 - Never present private validators or internal execution modules as public API.
 
 ## Local Setup

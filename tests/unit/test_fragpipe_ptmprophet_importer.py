@@ -6,13 +6,6 @@ from typing import Any, cast
 import pandas as pd
 import pytest
 
-from phospy.advanced import (
-    DatasetIntensityTransformConfig,
-    DatasetSiteMatrixConfig,
-    DatasetSiteMatrixDuplicateSitePolicy,
-    DifferentialAnalysisConfig,
-    EmpiricalBayesConfig,
-)
 from phospy.api import (
     AnalysisReadyDatasetBuilder,
     Contrast,
@@ -23,6 +16,13 @@ from phospy.api import (
     Organism,
     PhosphositeImportResult,
     SampleDesignRecord,
+)
+from phospy.api.advanced import (
+    DatasetIntensityTransformConfig,
+    DatasetSiteMatrixConfig,
+    DatasetSiteMatrixDuplicateSitePolicy,
+    DifferentialAnalysisConfig,
+    EmpiricalBayesConfig,
 )
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.differential.moderation.config import (

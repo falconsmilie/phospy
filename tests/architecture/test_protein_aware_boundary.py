@@ -33,8 +33,8 @@ def test_protein_aware_contracts_have_one_owner_and_expected_modules() -> None:
 
 def test_stage_output_is_absent_from_public_and_obsolete_aggregates() -> None:
     import phospy
-    import phospy.advanced as advanced
     import phospy.api as ordinary
+    import phospy.api.advanced as advanced
 
     for module in (phospy, ordinary, advanced):
         assert not hasattr(module, "ProteinAwarePreparationStageOutput")

@@ -5,8 +5,8 @@ import json
 from pathlib import Path
 
 import phospy
-import phospy.advanced
 import phospy.api
+import phospy.api.advanced
 from phospy.preprocessing.provenance import models as preprocessing_models
 from phospy.provenance.models import tables as provenance_tables
 from phospy.references.provenance import models as reference_models
@@ -89,7 +89,7 @@ def test_superseded_private_helpers_are_removed_without_aliases() -> None:
 
 
 def test_internal_validation_contracts_stay_out_of_supported_facades() -> None:
-    supported_facades = (phospy, phospy.api, phospy.advanced)
+    supported_facades = (phospy, phospy.api, phospy.api.advanced)
     baseline = json.loads(PUBLIC_API_BASELINE.read_text(encoding="utf-8"))
     baseline_names = {
         name

@@ -10,7 +10,7 @@ import pytest
 
 import phospy.preprocessing.control_sites.discovery_execution as sps_execution
 import phospy.preprocessing.control_sites.discovery_results as sps_results
-from phospy.advanced import (
+from phospy.api.advanced import (
     SpsDiscoveryConfig,
     SpsDiscoveryRequest,
     SpsDiscoveryValidationError,

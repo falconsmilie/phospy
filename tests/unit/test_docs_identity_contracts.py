@@ -4,14 +4,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from phospy import (
-    AnalysisReadyDatasetBuilder,
-)
-from phospy.advanced import (
-    DatasetIntensityTransformConfig,
-    DatasetSiteMatrixConfig,
-)
 from phospy.api import (
+    AnalysisReadyDatasetBuilder,
     Contrast,
     DatasetBuildRequest,
     DatasetPreprocessingConfig,
@@ -20,6 +14,10 @@ from phospy.api import (
     ExperimentalDesign,
     Organism,
     SampleDesignRecord,
+)
+from phospy.api.advanced import (
+    DatasetIntensityTransformConfig,
+    DatasetSiteMatrixConfig,
 )
 
 ROOT = Path(__file__).resolve().parents[2]

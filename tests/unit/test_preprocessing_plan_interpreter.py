@@ -3,16 +3,16 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy.advanced import (
+from phospy.api import (
+    DatasetPreprocessingConfig,
+)
+from phospy.api.advanced import (
     DatasetIntensityTransformConfig,
     DatasetMissingDataConfig,
     DatasetProteinAwarePreparationConfig,
     DatasetSiteMatrixConfig,
     DatasetTotalProteinCorrectionConfig,
     DatasetTotalProteinCorrectionIdentityConfig,
-)
-from phospy.api import (
-    DatasetPreprocessingConfig,
 )
 from phospy.errors.input import PhosPyInputError
 from phospy.preparation_records.policies import (

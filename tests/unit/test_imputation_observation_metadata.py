@@ -4,13 +4,13 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from phospy.advanced import DatasetMissingDataConfig
 from phospy.api import (
     AnalysisReadyDatasetBuilder,
     DatasetBuildRequest,
     DatasetPreprocessingConfig,
     Organism,
 )
+from phospy.api.advanced import DatasetMissingDataConfig
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors.validation import DatasetValidationError
 from tests.support.analysis_ready_dataset_factories import (

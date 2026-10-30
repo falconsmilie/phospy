@@ -171,7 +171,7 @@ matrix and binds the supplied scale and baseline evidence to that exact matrix;
 it does not transform the values.
 
 ```python
-from phospy.advanced import SpsReferenceDataset
+from phospy.api.advanced import SpsReferenceDataset
 
 reference_a = SpsReferenceDataset.from_condition_relative_log2(
     dataset_id="reference_a",
@@ -215,7 +215,7 @@ contribute to each ranked site. The two-reference floors are the smallest
 supported consensus path.
 
 ```python
-from phospy.advanced import SpsDiscoveryConfig
+from phospy.api.advanced import SpsDiscoveryConfig
 
 discovery_config = SpsDiscoveryConfig(
     top_n=2,
@@ -228,7 +228,7 @@ discovery_config = SpsDiscoveryConfig(
 ## Construct and Run the Discovery Request
 
 ```python
-from phospy.advanced import SpsDiscoveryRequest
+from phospy.api.advanced import SpsDiscoveryRequest
 
 discovery_request = SpsDiscoveryRequest(
     reference_datasets=reference_datasets,
@@ -237,7 +237,7 @@ discovery_request = SpsDiscoveryRequest(
 ```
 
 ```python
-from phospy.advanced import SpsDiscoveryWorkflow
+from phospy.api.advanced import SpsDiscoveryWorkflow
 
 discovery_workflow = SpsDiscoveryWorkflow()
 discovery_result = discovery_workflow.run(discovery_request)
@@ -318,13 +318,13 @@ completion. The correction requests one unwanted factor and consumes the
 discovered `ControlSiteSet` directly.
 
 ```python
-from phospy.advanced import CorrectionMissingnessPolicy
+from phospy.api.advanced import CorrectionMissingnessPolicy
 
 correction_missingness = CorrectionMissingnessPolicy()
 ```
 
 ```python
-from phospy.advanced import SpsRuvBatchCorrectionConfig
+from phospy.api.advanced import SpsRuvBatchCorrectionConfig
 
 correction_config = SpsRuvBatchCorrectionConfig(
     method="sps_ruv_style",
@@ -365,7 +365,7 @@ target_request = DatasetBuildRequest(
 ```
 
 ```python
-from phospy import AnalysisReadyDatasetBuilder
+from phospy.api import AnalysisReadyDatasetBuilder
 
 dataset_builder = AnalysisReadyDatasetBuilder()
 corrected_dataset = dataset_builder.run(target_request)
@@ -483,7 +483,7 @@ JSON-compatible data. Later,
 `ControlSiteSet`; the source matrices are not needed for correction:
 
 ```python
-from phospy.advanced import SpsDiscoveryResult, SpsRuvBatchCorrectionConfig
+from phospy.api.advanced import SpsDiscoveryResult, SpsRuvBatchCorrectionConfig
 
 saved_discovery_payload = discovery_result.to_payload()
 restored = SpsDiscoveryResult.from_payload(saved_discovery_payload)
@@ -654,7 +654,7 @@ reference_b_conditions = {
     "treated_2": "treated",
 }
 
-from phospy.advanced import SpsReferenceDataset
+from phospy.api.advanced import SpsReferenceDataset
 
 reference_a = SpsReferenceDataset.from_condition_relative_log2(
     dataset_id="reference_a",
@@ -686,7 +686,7 @@ reference_b = SpsReferenceDataset.from_condition_relative_log2(
 
 reference_datasets = (reference_a, reference_b)
 
-from phospy.advanced import SpsDiscoveryConfig
+from phospy.api.advanced import SpsDiscoveryConfig
 
 discovery_config = SpsDiscoveryConfig(
     top_n=2,
@@ -695,14 +695,14 @@ discovery_config = SpsDiscoveryConfig(
     minimum_shared_sites=2,
 )
 
-from phospy.advanced import SpsDiscoveryRequest
+from phospy.api.advanced import SpsDiscoveryRequest
 
 discovery_request = SpsDiscoveryRequest(
     reference_datasets=reference_datasets,
     config=discovery_config,
 )
 
-from phospy.advanced import SpsDiscoveryWorkflow
+from phospy.api.advanced import SpsDiscoveryWorkflow
 
 discovery_workflow = SpsDiscoveryWorkflow()
 discovery_result = discovery_workflow.run(discovery_request)
@@ -750,11 +750,11 @@ target_sample_metadata = pd.DataFrame(
     index=target_phospho.columns,
 )
 
-from phospy.advanced import CorrectionMissingnessPolicy
+from phospy.api.advanced import CorrectionMissingnessPolicy
 
 correction_missingness = CorrectionMissingnessPolicy()
 
-from phospy.advanced import SpsRuvBatchCorrectionConfig
+from phospy.api.advanced import SpsRuvBatchCorrectionConfig
 
 correction_config = SpsRuvBatchCorrectionConfig(
     method="sps_ruv_style",
@@ -785,7 +785,7 @@ target_request = DatasetBuildRequest(
     preprocessing_config=preprocessing_config,
 )
 
-from phospy import AnalysisReadyDatasetBuilder
+from phospy.api import AnalysisReadyDatasetBuilder
 
 dataset_builder = AnalysisReadyDatasetBuilder()
 corrected_dataset = dataset_builder.run(target_request)

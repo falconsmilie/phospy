@@ -10,21 +10,10 @@ import pandas as pd
 import pytest
 
 import phospy
-import phospy.advanced as advanced_api
 import phospy.api as public_api
-from phospy import (
-    AnalysisReadyDatasetBuilder,
-)
-from phospy._api_inventory import (
-    ADVANCED_PUBLIC_API,
-    ORDINARY_PUBLIC_API,
-)
-from phospy.advanced import (
-    DIFFERENTIAL_PROTEIN_AWARE_METHOD_PROTEIN_COVARIATE_ADJUSTED_MODERATED_LINEAR_MODEL_V1,
-    DifferentialAnalysisConfig,
-    DifferentialProteinAwareModelConfig,
-)
+import phospy.api.advanced as advanced_api
 from phospy.api import (
+    AnalysisReadyDatasetBuilder,
     Contrast,
     DatasetBuildRequest,
     DifferentialAnalysisRequest,
@@ -32,6 +21,15 @@ from phospy.api import (
     ExperimentalDesign,
     Organism,
     SampleDesignRecord,
+)
+from phospy.api._inventory import (
+    ADVANCED_PUBLIC_API,
+    ORDINARY_PUBLIC_API,
+)
+from phospy.api.advanced import (
+    DIFFERENTIAL_PROTEIN_AWARE_METHOD_PROTEIN_COVARIATE_ADJUSTED_MODERATED_LINEAR_MODEL_V1,
+    DifferentialAnalysisConfig,
+    DifferentialProteinAwareModelConfig,
 )
 from phospy.differential.diagnostics import (
     EmpiricalBayesPriorDiagnostics,

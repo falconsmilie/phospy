@@ -6,8 +6,12 @@ from itertools import permutations
 import pandas as pd
 import pytest
 
-from phospy import AnalysisReadyDatasetBuilder
-from phospy.api import DatasetBuildRequest, Organism, PhosPyInputError
+from phospy.api import (
+    AnalysisReadyDatasetBuilder,
+    DatasetBuildRequest,
+    Organism,
+    PhosPyInputError,
+)
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.datasets.validation.request import DatasetBuildRequestValidator
 from phospy.evidence import (

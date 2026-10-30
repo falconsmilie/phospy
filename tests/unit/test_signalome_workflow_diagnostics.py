@@ -8,14 +8,6 @@ import pytest
 from hypothesis import assume, given, settings
 from hypothesis import strategies as st
 
-from phospy import (
-    SignalomeWorkflow,
-)
-from phospy.advanced import (
-    ReferenceContextCompatibilityPolicy,
-    SignalomeConfig,
-    SignalomeValidationConfig,
-)
 from phospy.api import (
     AnalysisReadyPhosphoDataset,
     KinasePredictionResult,
@@ -23,8 +15,14 @@ from phospy.api import (
     KinaseWorkflowResult,
     Organism,
     ReferenceBundle,
+    SignalomeWorkflow,
     SignalomeWorkflowRequest,
     SignalomeWorkflowResult,
+)
+from phospy.api.advanced import (
+    ReferenceContextCompatibilityPolicy,
+    SignalomeConfig,
+    SignalomeValidationConfig,
 )
 from phospy.datasets.internal_view import DatasetInternalView
 from phospy.errors import (

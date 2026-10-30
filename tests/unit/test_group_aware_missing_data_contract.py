@@ -6,15 +6,15 @@ import pandas as pd
 import pytest
 
 import phospy
-import phospy.advanced as advanced_api
 import phospy.api as stable_api
-from phospy._api_inventory import ADVANCED_PUBLIC_API
-from phospy.advanced import (
-    DatasetIntensityTransformConfig,
-    DatasetMissingDataConfig,
-)
+import phospy.api.advanced as advanced_api
 from phospy.api import (
     DatasetPreprocessingConfig,
+)
+from phospy.api._inventory import ADVANCED_PUBLIC_API
+from phospy.api.advanced import (
+    DatasetIntensityTransformConfig,
+    DatasetMissingDataConfig,
 )
 from phospy.datasets.construction.contracts import (
     InterpretedDatasetBuildRequest,

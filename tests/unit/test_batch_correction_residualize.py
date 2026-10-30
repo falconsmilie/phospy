@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pandas.testing as pdt
 
-from phospy.advanced import DatasetBatchCorrectionConfig
+from phospy.api.advanced import DatasetBatchCorrectionConfig
 from phospy.preprocessing.batch_correction.contracts.results import (
     BatchCorrectionResult,
 )

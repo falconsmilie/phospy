@@ -7,20 +7,8 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phospy import (
-    AnalysisReadyDatasetBuilder,
-)
-from phospy.advanced import (
-    CorrectionMissingnessPolicy,
-    DifferentialAnalysisConfig,
-    SpsDiscoveryConfig,
-    SpsDiscoveryRequest,
-    SpsDiscoveryWorkflow,
-    SpsReferenceDataset,
-    SpsRuvBatchCorrectionConfig,
-    TechnicalReplicatePolicy,
-)
 from phospy.api import (
+    AnalysisReadyDatasetBuilder,
     Contrast,
     DatasetBuildRequest,
     DatasetPreprocessingConfig,
@@ -29,6 +17,16 @@ from phospy.api import (
     ExperimentalDesign,
     Organism,
     SampleDesignRecord,
+)
+from phospy.api.advanced import (
+    CorrectionMissingnessPolicy,
+    DifferentialAnalysisConfig,
+    SpsDiscoveryConfig,
+    SpsDiscoveryRequest,
+    SpsDiscoveryWorkflow,
+    SpsReferenceDataset,
+    SpsRuvBatchCorrectionConfig,
+    TechnicalReplicatePolicy,
 )
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from tests.support.site_keys import protein_site_key_index

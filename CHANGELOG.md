@@ -4,6 +4,13 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Breaking
+
+- Consolidated supported scientific imports beneath `phospy.api`: ordinary
+  imports remain in `phospy.api`, specialist imports moved from
+  `phospy.advanced` to `phospy.api.advanced`, and the package root now exposes
+  version metadata only. The retired module paths are not forwarded.
+
 ## [1.8.0] - 2026-10-21
 
 ### Architecture

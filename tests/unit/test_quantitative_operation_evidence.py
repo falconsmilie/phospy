@@ -6,11 +6,11 @@ from typing import Any, cast
 import pandas as pd
 import pytest
 
-from phospy.advanced import (
-    SpsRuvBatchCorrectionConfig,
-)
 from phospy.api import (
     DatasetPreprocessingConfig,
+)
+from phospy.api.advanced import (
+    SpsRuvBatchCorrectionConfig,
 )
 from phospy.datasets.construction.state_assembly import (
     DatasetProcessingStateBuilder,

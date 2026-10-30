@@ -5,12 +5,12 @@ from dataclasses import replace
 import pandas as pd
 import pytest
 
-from phospy.advanced import (
-    DatasetMissingDataConfig,
-    DatasetSiteMatrixConfig,
-)
 from phospy.api import (
     DatasetPreprocessingConfig,
+)
+from phospy.api.advanced import (
+    DatasetMissingDataConfig,
+    DatasetSiteMatrixConfig,
 )
 from phospy.datasets.construction.preprocessing import DatasetPreprocessor
 from phospy.datasets.processing_state import DatasetPreprocessingReport

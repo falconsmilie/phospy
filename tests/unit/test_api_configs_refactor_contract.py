@@ -14,7 +14,7 @@ def test_stable_config_imports_remain_from_api_configs() -> None:
 
 
 def test_advanced_config_imports_have_advanced_owner() -> None:
-    from phospy.advanced import (
+    from phospy.api.advanced import (
         DatasetBatchCorrectionConfig,
         DatasetGroupCoverageFilterConfig,
         DatasetIntensityTransformConfig,

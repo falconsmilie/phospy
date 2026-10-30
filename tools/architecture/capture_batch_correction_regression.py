@@ -11,7 +11,7 @@ from unittest.mock import patch
 import numpy as np
 import pandas as pd
 
-from phospy.advanced import (
+from phospy.api.advanced import (
     CorrectionMissingnessPolicy,
     ObservationMask,
     OriginallyMissingCellTracking,

@@ -53,10 +53,10 @@ def _write_json(path: Path, payload: dict[str, Any]) -> None:
 
 
 def _refresh_kinase_golden() -> None:
-    from phospy import KinaseWorkflow
     from phospy.api import (
         KinasePredictionConfig,
         KinaseScoringConfig,
+        KinaseWorkflow,
         KinaseWorkflowRequest,
         ReferenceContextCompatibilityPolicy,
     )
@@ -104,13 +104,14 @@ def _refresh_kinase_golden() -> None:
 
 
 def _refresh_signalome_golden() -> None:
-    from phospy import KinaseWorkflow, SignalomeWorkflow
     from phospy.api import (
         KinasePredictionConfig,
         KinaseScoringConfig,
+        KinaseWorkflow,
         KinaseWorkflowRequest,
         ReferenceContextCompatibilityPolicy,
         ReferencePreset,
+        SignalomeWorkflow,
         SignalomeWorkflowRequest,
     )
     from tests.support.rewrite_fixture_data import build_rat_l6_dataset

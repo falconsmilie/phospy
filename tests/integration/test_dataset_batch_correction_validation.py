@@ -5,10 +5,6 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phospy.advanced import (
-    DatasetBatchCorrectionConfig,
-    DatasetIntensityTransformConfig,
-)
 from phospy.api import (
     AnalysisReadyDatasetBuilder,
     Contrast,
@@ -19,6 +15,10 @@ from phospy.api import (
     ExperimentalDesign,
     Organism,
     SampleDesignRecord,
+)
+from phospy.api.advanced import (
+    DatasetBatchCorrectionConfig,
+    DatasetIntensityTransformConfig,
 )
 from phospy.errors import PhosPyInputError
 

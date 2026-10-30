@@ -6,13 +6,13 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from phospy.advanced import (
+from phospy.api import (
+    DatasetPreprocessingConfig,
+)
+from phospy.api.advanced import (
     DatasetIntensityTransformConfig,
     DatasetTotalProteinCorrectionConfig,
     DatasetTotalProteinCorrectionIdentityConfig,
-)
-from phospy.api import (
-    DatasetPreprocessingConfig,
 )
 from phospy.datasets.construction.executor import DatasetBuildExecutor
 from phospy.datasets.construction.interpreter import DatasetBuildRequestInterpreter

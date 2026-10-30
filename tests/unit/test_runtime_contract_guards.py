@@ -5,12 +5,12 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from phospy.advanced import (
-    KinasePredictionConfig,
-    KinaseScoringConfig,
-)
 from phospy.api import (
     KinaseWorkflowRequest,
+)
+from phospy.api.advanced import (
+    KinasePredictionConfig,
+    KinaseScoringConfig,
 )
 from phospy.datasets.construction.input_resolution import DatasetInputReader
 from phospy.datasets.internal_view import DatasetInternalView

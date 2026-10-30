@@ -9,8 +9,8 @@ import pandas as pd
 import pytest
 
 import phospy
-import phospy.advanced as advanced_api
 import phospy.api as public_api
+import phospy.api.advanced as advanced_api
 import phospy.phosphosites.contracts as identity_contracts
 from phospy.activities.validation import (
     MethodQuantitativeInputValidator,

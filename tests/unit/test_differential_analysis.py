@@ -9,12 +9,6 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phospy.advanced import (
-    DifferentialAnalysisConfig,
-    EmpiricalBayesConfig,
-    MultipleTestingConfig,
-    MultipleTestingMethod,
-)
 from phospy.api import (
     CategoricalCovariate,
     ContinuousCovariate,
@@ -24,6 +18,12 @@ from phospy.api import (
     ExperimentalDesign,
     Organism,
     SampleDesignRecord,
+)
+from phospy.api.advanced import (
+    DifferentialAnalysisConfig,
+    EmpiricalBayesConfig,
+    MultipleTestingConfig,
+    MultipleTestingMethod,
 )
 from phospy.datasets.construction.intensity_scale import (
     DatasetIntensityScaleResolver,

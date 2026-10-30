@@ -11,16 +11,11 @@ import pandas as pd
 import pytest
 
 import phospy
-import phospy.advanced as advanced_api
 import phospy.api as public_api
 import phospy.api as request_models
 import phospy.api as result_models
 import phospy.api as workflow_models
-from phospy.advanced import (
-    EnrichmentIdentifierKind,
-    EnrichmentOutsideBackgroundPolicy,
-    MultipleTestingCorrection,
-)
+import phospy.api.advanced as advanced_api
 from phospy.api import (
     ContractValidationError,
     EnrichmentConfig,
@@ -32,6 +27,11 @@ from phospy.api import (
     GeneSetCollection,
     PtmSetCollection,
     WorkflowValidationError,
+)
+from phospy.api.advanced import (
+    EnrichmentIdentifierKind,
+    EnrichmentOutsideBackgroundPolicy,
+    MultipleTestingCorrection,
 )
 from phospy.enrichment.contracts.vocabulary import (
     ENRICHMENT_IDENTIFIER_KIND_GENE_SYMBOL,

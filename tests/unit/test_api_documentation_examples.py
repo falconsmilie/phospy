@@ -7,10 +7,31 @@ from typing import Any
 
 import pandas as pd
 
-from phospy import (
+from phospy.api import (
     AnalysisReadyDatasetBuilder,
+    Contrast,
+    DatasetBuildRequest,
+    DatasetLocalisationConfig,
+    DatasetPreprocessingConfig,
+    DifferentialAnalysisRequest,
+    DifferentialAnalysisWorkflow,
+    EnrichmentConfig,
+    EnrichmentWorkflow,
+    EnrichmentWorkflowRequest,
+    ExperimentalDesign,
+    GeneSetCollection,
+    IntensityScaleKind,
+    KinasePredictionResult,
+    KinaseScoringResult,
+    KinaseWorkflowRequest,
+    KinaseWorkflowResult,
+    Organism,
+    ReferenceBundle,
+    ReferencePreset,
+    SampleDesignRecord,
+    SignalomeWorkflowRequest,
 )
-from phospy.advanced import (
+from phospy.api.advanced import (
     PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION,
     ControlSiteSet,
     ControlSiteSourceMetadata,
@@ -36,29 +57,6 @@ from phospy.advanced import (
     SpsRuvBatchCorrectionConfig,
     TemporaryImputationMethod,
     TemporaryImputationPolicy,
-)
-from phospy.api import (
-    Contrast,
-    DatasetBuildRequest,
-    DatasetLocalisationConfig,
-    DatasetPreprocessingConfig,
-    DifferentialAnalysisRequest,
-    DifferentialAnalysisWorkflow,
-    EnrichmentConfig,
-    EnrichmentWorkflow,
-    EnrichmentWorkflowRequest,
-    ExperimentalDesign,
-    GeneSetCollection,
-    IntensityScaleKind,
-    KinasePredictionResult,
-    KinaseScoringResult,
-    KinaseWorkflowRequest,
-    KinaseWorkflowResult,
-    Organism,
-    ReferenceBundle,
-    ReferencePreset,
-    SampleDesignRecord,
-    SignalomeWorkflowRequest,
 )
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -469,7 +467,7 @@ def test_api_docs_public_imports_are_valid() -> None:
     namespace: dict[str, object] = {}
 
     exec(
-        """from phospy import (
+        """from phospy.api import (
     AnalysisReadyDatasetBuilder,
     KinaseWorkflow,
     SignalomeWorkflow,
@@ -497,7 +495,7 @@ def test_api_docs_public_imports_are_valid() -> None:
         namespace,
     )
     exec(
-        """from phospy.advanced import SignalomeConfig""",
+        """from phospy.api.advanced import SignalomeConfig""",
         namespace,
     )
     exec(
@@ -940,7 +938,7 @@ def test_api_docs_duplicate_correlation_public_example_runs() -> None:
 
     _assert_python_imports(
         source,
-        "phospy.advanced",
+        "phospy.api.advanced",
         (
             "DifferentialAnalysisConfig",
             "PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION",
@@ -1106,7 +1104,7 @@ def test_api_docs_protein_aware_differential_contract_is_documented() -> None:
 
     _assert_python_imports(
         source,
-        "phospy.advanced",
+        "phospy.api.advanced",
         (
             "DatasetProteinAwarePreparationConfig",
             "DifferentialAnalysisConfig",

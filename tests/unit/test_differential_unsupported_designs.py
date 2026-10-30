@@ -5,7 +5,6 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from phospy.advanced import DifferentialAnalysisConfig
 from phospy.api import (
     BatchCovariate,
     Contrast,
@@ -15,6 +14,7 @@ from phospy.api import (
     Organism,
     SampleDesignRecord,
 )
+from phospy.api.advanced import DifferentialAnalysisConfig
 from phospy.differential.models.design import (
     DifferentialAnalysisRequest as CoreDiffRequest,
 )

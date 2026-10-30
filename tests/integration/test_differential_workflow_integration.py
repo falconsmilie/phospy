@@ -4,14 +4,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from phospy import (
-    AnalysisReadyDatasetBuilder,
-)
-from phospy.advanced import (
-    DatasetIntensityTransformConfig,
-    DifferentialAnalysisConfig,
-)
 from phospy.api import (
+    AnalysisReadyDatasetBuilder,
     AnalysisReadyPhosphoDataset,
     Contrast,
     DatasetBuildRequest,
@@ -21,6 +15,10 @@ from phospy.api import (
     ExperimentalDesign,
     Organism,
     SampleDesignRecord,
+)
+from phospy.api.advanced import (
+    DatasetIntensityTransformConfig,
+    DifferentialAnalysisConfig,
 )
 from phospy.differential.tables import (
     DIFFERENTIAL_RESULT_STATUS_COLUMN,

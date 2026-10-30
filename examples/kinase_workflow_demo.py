@@ -5,24 +5,22 @@ from __future__ import annotations
 
 import pandas as pd
 
-from phospy import (
-    AnalysisReadyDatasetBuilder,
-    KinaseWorkflow,
-)
-from phospy.advanced import (
-    KinaseReliabilityProfile,
-    KinaseScoringConfig,
-    ReferenceContextCompatibilityPolicy,
-)
 from phospy.api import (
+    AnalysisReadyDatasetBuilder,
     AnalysisReadyPhosphoDataset,
     DatasetBuildRequest,
     DatasetLocalisationConfig,
     DatasetPreprocessingConfig,
+    KinaseWorkflow,
     KinaseWorkflowRequest,
     KinaseWorkflowResult,
     Organism,
     ReferencePreset,
+)
+from phospy.api.advanced import (
+    KinaseReliabilityProfile,
+    KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
 )
 
 

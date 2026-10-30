@@ -5,20 +5,18 @@ from pathlib import Path
 
 import pytest
 
-from phospy import (
+from phospy.api import (
     KinaseWorkflow,
+    KinaseWorkflowRequest,
+    ReferencePreset,
     SignalomeWorkflow,
+    SignalomeWorkflowRequest,
+    SignalomeWorkflowResult,
 )
-from phospy.advanced import (
+from phospy.api.advanced import (
     KinasePredictionConfig,
     KinaseScoringConfig,
     ReferenceContextCompatibilityPolicy,
-)
-from phospy.api import (
-    KinaseWorkflowRequest,
-    ReferencePreset,
-    SignalomeWorkflowRequest,
-    SignalomeWorkflowResult,
 )
 from phospy.io.publishers.workflows import publish_signalome_workflow
 from tests.support.rewrite_fixture_data import build_rat_l6_dataset

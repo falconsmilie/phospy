@@ -6,9 +6,9 @@ import pytest
 
 def test_duplicate_correlation_scientific_contracts_are_not_public_exports() -> None:
     import phospy
-    import phospy.advanced as advanced_api
     import phospy.api as api_configs
     import phospy.api as public_api
+    import phospy.api.advanced as advanced_api
     import phospy.differential.models as differential_models
     import phospy.differential.policies as differential_policies
 

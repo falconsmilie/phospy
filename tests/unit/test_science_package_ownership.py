@@ -61,7 +61,6 @@ def test_quantitative_and_statistics_owner_packages_are_importable() -> None:
 
 
 def test_public_api_contract_remains_stable() -> None:
-    from phospy.advanced import TechnicalReplicatePolicy
     from phospy.api import (
         AnalysisReadyDatasetBuilder,
         AnalysisReadyPhosphoDataset,
@@ -72,6 +71,7 @@ def test_public_api_contract_remains_stable() -> None:
         ReferencePreset,
         SignalomeWorkflow,
     )
+    from phospy.api.advanced import TechnicalReplicatePolicy
 
     assert AnalysisReadyDatasetBuilder is not None
     assert AnalysisReadyPhosphoDataset is not None
@@ -85,14 +85,12 @@ def test_public_api_contract_remains_stable() -> None:
 
 
 def test_root_convenience_contract_remains_stable() -> None:
-    from phospy import (
-        AnalysisReadyDatasetBuilder,
-        KinaseWorkflow,
-        SignalomeWorkflow,
-    )
     from phospy.api import (
+        AnalysisReadyDatasetBuilder,
         AnalysisReadyPhosphoDataset,
         DifferentialAnalysisWorkflow,
+        KinaseWorkflow,
+        SignalomeWorkflow,
     )
 
     assert AnalysisReadyDatasetBuilder is not None
@@ -103,11 +101,11 @@ def test_root_convenience_contract_remains_stable() -> None:
 
 
 def test_representative_moved_object_ownership() -> None:
-    from phospy.advanced import TechnicalReplicatePolicy
     from phospy.api import (
         AnalysisReadyPhosphoDataset,
         ReferenceBundle,
     )
+    from phospy.api.advanced import TechnicalReplicatePolicy
     from phospy.kinase.policies import ThresholdMode
     from phospy.phosphosites.identifiers import canonicalize_site_identifier
     from phospy.quantitative.models import IntensityScaleState

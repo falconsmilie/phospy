@@ -8,7 +8,18 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phospy.advanced import (
+from phospy.api import (
+    AnalysisReadyDatasetBuilder,
+    Contrast,
+    DatasetBuildRequest,
+    DatasetPreprocessingConfig,
+    DifferentialAnalysisRequest,
+    DifferentialAnalysisWorkflow,
+    ExperimentalDesign,
+    Organism,
+    SampleDesignRecord,
+)
+from phospy.api.advanced import (
     ControlSiteSet,
     CorrectionMissingnessPolicy,
     DatasetBatchCorrectionConfig,
@@ -22,17 +33,6 @@ from phospy.advanced import (
     SpsDiscoveryWorkflow,
     SpsReferenceDataset,
     SpsRuvBatchCorrectionConfig,
-)
-from phospy.api import (
-    AnalysisReadyDatasetBuilder,
-    Contrast,
-    DatasetBuildRequest,
-    DatasetPreprocessingConfig,
-    DifferentialAnalysisRequest,
-    DifferentialAnalysisWorkflow,
-    ExperimentalDesign,
-    Organism,
-    SampleDesignRecord,
 )
 from phospy.datasets.construction.interpreter import DatasetBuildRequestInterpreter
 from phospy.errors import PhosPyInputError

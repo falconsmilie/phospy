@@ -60,14 +60,14 @@ former broad capability-to-shared/foundation rule.
 | `phospy.provenance.serialization._payload` | `phospy.provenance.serialization.payload` | Preprocessing provenance serialization | Historical provenance payload validation/coercion. |
 | `phospy.frames.ownership._borrow_dataframe` and `_borrow_optional_dataframe` | Existing `borrow_dataframe` and `borrow_optional_dataframe` owner contract | Kinase scoring and prediction results | Immutable internal dataframe snapshots without public mutable borrowing. |
 
-These modules are not exported by `phospy`, `phospy.api`, or
-`phospy.advanced`; direct owner-module imports remain unsupported for external
-callers.
+These modules are not exported by `phospy.api` or `phospy.api.advanced`;
+direct owner-module imports remain unsupported for external callers.
 
-The supported public surfaces are the `phospy`, `phospy.api`, and
-`phospy.advanced` facades. Public exports preserve the exact object identities of
-their domain owners. Domain code cannot depend on those aggregate facades, and
-removed compatibility routes are tested as negative imports.
+The supported scientific surfaces are the `phospy.api` and
+`phospy.api.advanced` facades. The `phospy` root provides version metadata.
+Public exports preserve the exact object identities of their domain owners.
+Domain code cannot depend on those aggregate facades, and removed compatibility
+routes are tested as negative imports.
 
 The machine-readable authority lives in the top-level `architecture/` directory:
 
@@ -85,13 +85,12 @@ decisions are [ADR-0053](adr/adr_0053_domain_first_capability_architecture.md) a
 [ADR-0054](adr/adr_0054_public_api_reset_and_compatibility_removal.md).
 
 [ADR-0055](adr/adr_0055_nested_owner_namespaces_and_api_consolidation.md)
-approves the next directory-only refinement: the reusable owners will become
-separate children of the inert `phospy.core` namespace, the specialist facade
-will become `phospy.api.advanced`, the private inventory will move beneath
-`phospy.api`, and the three root conveniences will be retired while remaining
-available through `phospy.api`. Until the corresponding migration tickets move
-those files atomically, the live routes and the maintained API baseline above
-remain authoritative.
+governs the current API consolidation and the next directory refinement. The
+specialist facade and private inventory now live beneath `phospy.api`, and the
+three former root conveniences remain available through `phospy.api` only.
+Later migration tickets will move the reusable owners into separate children
+of the inert `phospy.core` namespace. Until each owner package moves atomically,
+the live owner routes and maintained API baseline above remain authoritative.
 
 Architecture enforcement resolves owner-pure package units from the owner map,
 so nested siblings such as future `phospy.core.frames` and

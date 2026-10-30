@@ -6,7 +6,6 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phospy import SignalomeWorkflow
 from phospy.api import (
     AnalysisReadyPhosphoDataset,
     KinasePredictionResult,
@@ -14,6 +13,7 @@ from phospy.api import (
     KinaseWorkflowResult,
     Organism,
     ReferenceBundle,
+    SignalomeWorkflow,
     SignalomeWorkflowRequest,
     SignalomeWorkflowResult,
 )

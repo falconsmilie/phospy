@@ -10,13 +10,13 @@ import pandas as pd
 import pandas.testing as pdt
 
 import phospy as phospy_root
-import phospy.advanced as phospy_advanced
 import phospy.api as phospy_api
+import phospy.api.advanced as phospy_advanced
 import phospy.kinase.caveats as kinase_caveats
 import phospy.kinase.policies as kinase_policies
 import phospy.kinase.scoring.rank_fusion as scoring_rank_fusion
 import phospy.kinase.scoring.tables as kinase_tables
-from phospy._api_inventory import (
+from phospy.api._inventory import (
     ADVANCED_PUBLIC_API,
     ORDINARY_PUBLIC_API,
     ROOT_PUBLIC_API,
@@ -315,7 +315,7 @@ def test_boundary_and_signalome_imports_do_not_load_kinase_implementation() -> N
     assert completed.returncode == 0, completed.stderr
 
 
-def test_public_inventories_remain_ordered_3_66_126() -> None:
+def test_public_inventories_remain_ordered_0_66_126() -> None:
     assert tuple(phospy_root.__all__) == tuple(ROOT_PUBLIC_API)
     assert tuple(phospy_api.__all__) == tuple(ORDINARY_PUBLIC_API)
     assert tuple(phospy_advanced.__all__) == tuple(ADVANCED_PUBLIC_API)
@@ -324,4 +324,4 @@ def test_public_inventories_remain_ordered_3_66_126() -> None:
             len,
             (phospy_root.__all__, phospy_api.__all__, phospy_advanced.__all__),
         )
-    ) == (3, 66, 126)
+    ) == (0, 66, 126)

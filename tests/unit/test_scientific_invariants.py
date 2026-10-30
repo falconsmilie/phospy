@@ -5,20 +5,18 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phospy import (
-    SignalomeWorkflow,
-)
 from phospy.activities.semantics import ActivityInputMatrix
-from phospy.advanced import (
-    ReferenceContextCompatibilityPolicy,
-)
 from phospy.api import (
     AnalysisReadyPhosphoDataset,
     KinasePredictionResult,
     KinaseScoringResult,
     KinaseWorkflowResult,
     Organism,
+    SignalomeWorkflow,
     SignalomeWorkflowRequest,
+)
+from phospy.api.advanced import (
+    ReferenceContextCompatibilityPolicy,
 )
 from phospy.kinase.activity.execution import compute_activity_from_inputs
 from phospy.kinase.activity.inputs import KinaseActivityInputs, PredMatOverlapSummary

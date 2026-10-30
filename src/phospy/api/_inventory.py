@@ -1,17 +1,13 @@
-"""Authoritative aggregate export inventories from ADR-0054.
+"""Authoritative aggregate export inventories from ADR-0054 and ADR-0055.
 
-The inventories define only the three supported aggregate namespaces. They
-are intentionally free of compatibility routes, stability tiers, and runtime
-deprecation metadata.
+The inventories define the two supported scientific aggregates and the empty
+package-root convenience surface. They are intentionally free of compatibility
+routes, stability tiers, and runtime deprecation metadata.
 """
 
 from __future__ import annotations
 
-ROOT_PUBLIC_API = (
-    "AnalysisReadyDatasetBuilder",
-    "KinaseWorkflow",
-    "SignalomeWorkflow",
-)
+ROOT_PUBLIC_API: tuple[str, ...] = ()
 
 ORDINARY_PUBLIC_API = (
     "AnalysisReadyDatasetBuilder",

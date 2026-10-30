@@ -4,10 +4,6 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from phospy.advanced import (
-    DifferentialAnalysisConfig,
-    MultipleTestingConfig,
-)
 from phospy.api import (
     Contrast,
     DifferentialAnalysisRequest,
@@ -15,6 +11,10 @@ from phospy.api import (
     ExperimentalDesign,
     Organism,
     SampleDesignRecord,
+)
+from phospy.api.advanced import (
+    DifferentialAnalysisConfig,
+    MultipleTestingConfig,
 )
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.differential.execution.model_executor import (

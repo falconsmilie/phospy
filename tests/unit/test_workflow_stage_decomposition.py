@@ -7,7 +7,6 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from phospy.advanced import DifferentialAnalysisConfig
 from phospy.api import (
     Contrast,
     EnrichmentConfig,
@@ -15,6 +14,7 @@ from phospy.api import (
     GeneSetCollection,
     SampleDesignRecord,
 )
+from phospy.api.advanced import DifferentialAnalysisConfig
 from phospy.differential.design.models import PAIRED_DESIGN_POLICY_REJECT
 from phospy.differential.execution.fitting import DifferentialModelFitter
 from phospy.differential.execution.linear_model import decompose_differential_design

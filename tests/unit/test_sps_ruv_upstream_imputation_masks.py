@@ -7,16 +7,16 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from phospy.advanced import (
-    ControlSiteSet,
-    DatasetMissingDataConfig,
-    SpsRuvBatchCorrectionConfig,
-)
 from phospy.api import (
     AnalysisReadyDatasetBuilder,
     DatasetBuildRequest,
     DatasetPreprocessingConfig,
     Organism,
+)
+from phospy.api.advanced import (
+    ControlSiteSet,
+    DatasetMissingDataConfig,
+    SpsRuvBatchCorrectionConfig,
 )
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors import PhosPyInputError

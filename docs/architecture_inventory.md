@@ -21,7 +21,6 @@ exact owner-edge policy, and the permanent classification registry.
 | --- | --- |
 | `.` | `public_facade_machinery` |
 | `activities` | `passive_shared_scientific_foundation` |
-| `advanced` | `public_facade` |
 | `api` | `public_facade` |
 | `data` | `packaged_resource_payload` |
 | `datasets` | `capability` |
@@ -358,18 +357,18 @@ imports reachable while modules and class bodies execute.
 ## Public facades, adapters, and foundations
 
 The root table is authoritative for every top-level owner. The public
-facades are `phospy`, `phospy.api`, and `phospy.advanced`; `phospy.io`
+supported facades are `phospy.api` and `phospy.api.advanced`; the
+`phospy` root provides metadata only, and `phospy.io`
 is the inward adapter. Shared scientific, record, composition, and
 technical foundations are the roots carrying those classifications above.
 
 Exact permanent facade/safety modules:
 
-- `src/phospy/_api_inventory.py`: authoritative aggregate inventory data; explicitly free of compatibility routes
+- `src/phospy/api/_inventory.py`: authoritative aggregate inventory data; explicitly free of compatibility routes
 - `src/phospy/differential/aggregation/experimental.py`: permanent fail-closed scientific safety seam governed by ADR-0041; it is not a supported compatibility import route
 
 Exact permanent lazy loaders:
 
-- `src/phospy/__init__.py`: three-name supported root facade
 - `src/phospy/io/__init__.py`: IO adapter composition
 - `src/phospy/io/bundles/__init__.py`: IO bundle adapter composition
 - `src/phospy/io/readers/__init__.py`: IO reader adapter composition
@@ -389,8 +388,8 @@ runtime binding, and it does not attempt to model arbitrary Python behavior.
 
 | Source path | Policy disposition | Rationale |
 | --- | --- | --- |
-| `src/phospy/advanced/__init__.py` | `supported_aggregate_facade` | ADR-0054 advanced aggregate API; exact owner identities only. |
 | `src/phospy/api/__init__.py` | `supported_aggregate_facade` | ADR-0054 ordinary aggregate API; exact owner identities only. |
+| `src/phospy/api/advanced/__init__.py` | `supported_aggregate_facade` | ADR-0055 specialist aggregate API; exact owner identities only. |
 | `src/phospy/api/builders.py` | `deliberate_internal_facade` | Internal aggregate composition used by the supported API; unsupported as an external route. |
 | `src/phospy/errors/__init__.py` | `deliberate_internal_facade` | Owner-package aggregation for internal imports. |
 | `src/phospy/evidence/__init__.py` | `deliberate_internal_facade` | Owner-package aggregation for evidence records. |
@@ -535,13 +534,13 @@ identifiers from live compatibility routes. Their exact sets are enforced.
 ## Complete tracked production file inventory
 
 - `src/phospy/__init__.py`
-- `src/phospy/_api_inventory.py`
 - `src/phospy/activities/__init__.py`
 - `src/phospy/activities/contracts.py`
 - `src/phospy/activities/semantics.py`
 - `src/phospy/activities/validation.py`
-- `src/phospy/advanced/__init__.py`
 - `src/phospy/api/__init__.py`
+- `src/phospy/api/_inventory.py`
+- `src/phospy/api/advanced/__init__.py`
 - `src/phospy/api/builders.py`
 - `src/phospy/data/reference_bundles/rat/l6_native/ATTRIBUTION.md`
 - `src/phospy/data/reference_bundles/rat/l6_native/manifest.json`
@@ -1184,15 +1183,15 @@ identifiers from live compatibility routes. Their exact sets are enforced.
 
 | Source path | Module | Owner | Rationale |
 | --- | --- | --- | --- |
-| `src/phospy/__init__.py` | `phospy` | `public_facades` | Supported or compatibility aggregate adapter |
-| `src/phospy/_api_inventory.py` | `phospy._api_inventory` | `public_facades` | Supported or compatibility aggregate adapter |
+| `src/phospy/__init__.py` | `phospy` | `public_facades` | Metadata-only package root |
 | `src/phospy/activities/__init__.py` | `phospy.activities` | `activities` | Passive activity quantitative contract package |
 | `src/phospy/activities/contracts.py` | `phospy.activities.contracts` | `activities` | Generic activity quantitative method contract |
 | `src/phospy/activities/semantics.py` | `phospy.activities.semantics` | `activities` | Generic activity profile and quantitative semantics |
 | `src/phospy/activities/validation.py` | `phospy.activities.validation` | `activities` | Generic activity quantitative contract validation |
-| `src/phospy/advanced/__init__.py` | `phospy.advanced` | `public_facades` | Supported or compatibility aggregate adapter |
 | `src/phospy/api/__init__.py` | `phospy.api` | `public_facades` | Supported or compatibility aggregate adapter |
-| `src/phospy/api/builders.py` | `phospy.api.builders` | `public_facades` | Supported or compatibility aggregate adapter |
+| `src/phospy/api/_inventory.py` | `phospy.api._inventory` | `public_facades` | Supported aggregate inventory |
+| `src/phospy/api/advanced/__init__.py` | `phospy.api.advanced` | `public_facades` | Supported specialist aggregate adapter |
+| `src/phospy/api/builders.py` | `phospy.api.builders` | `public_facades` | Internal API composition route; unsupported for direct consumer import |
 | `src/phospy/datasets/__init__.py` | `phospy.datasets` | `datasets` | Dataset model construction invariant or durable attached record |
 | `src/phospy/datasets/_construction/__init__.py` | `phospy.datasets._construction` | `datasets` | Dataset model construction invariant or durable attached record |
 | `src/phospy/datasets/_construction/fingerprints.py` | `phospy.datasets._construction.fingerprints` | `datasets` | Dataset model construction invariant or durable attached record |

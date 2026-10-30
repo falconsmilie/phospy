@@ -103,7 +103,7 @@ dataset_request = DatasetBuildRequest(
 ```
 
 ```python
-from phospy import AnalysisReadyDatasetBuilder
+from phospy.api import AnalysisReadyDatasetBuilder
 
 dataset_builder = AnalysisReadyDatasetBuilder()
 dataset = dataset_builder.run(dataset_request)
@@ -129,7 +129,7 @@ production evidence envelope. Allowing unknown reference context records a
 caveat; it does not prove compatibility.
 
 ```python
-from phospy.advanced import (
+from phospy.api.advanced import (
     KinaseReliabilityProfile,
     KinaseScoringConfig,
     ReferenceContextCompatibilityPolicy,
@@ -148,7 +148,7 @@ Prediction ranks the score matrix. The deterministic constructor avoids a
 random sampling path and is repeatable for the same inputs and package version.
 
 ```python
-from phospy.advanced import KinasePredictionConfig
+from phospy.api.advanced import KinasePredictionConfig
 
 prediction_config = KinasePredictionConfig.deterministic()
 ```
@@ -175,7 +175,7 @@ kinase_request = KinaseWorkflowRequest(
 ## Run the Workflow
 
 ```python
-from phospy import KinaseWorkflow
+from phospy.api import KinaseWorkflow
 
 kinase_workflow = KinaseWorkflow()
 kinase_result = kinase_workflow.run(kinase_request)
@@ -562,7 +562,7 @@ dataset_request = DatasetBuildRequest(
     preprocessing_config=preprocessing_config,
 )
 
-from phospy import AnalysisReadyDatasetBuilder
+from phospy.api import AnalysisReadyDatasetBuilder
 
 dataset_builder = AnalysisReadyDatasetBuilder()
 dataset = dataset_builder.run(dataset_request)
@@ -573,7 +573,7 @@ intensity_scale = dataset.intensity_scale_state.label
 print("Phosphosites by samples:", dataset_shape)
 print("Intensity scale:", intensity_scale)
 
-from phospy.advanced import (
+from phospy.api.advanced import (
     KinaseReliabilityProfile,
     KinaseScoringConfig,
     ReferenceContextCompatibilityPolicy,
@@ -587,7 +587,7 @@ scoring_config = KinaseScoringConfig(
     min_substrates=2,
 )
 
-from phospy.advanced import KinasePredictionConfig
+from phospy.api.advanced import KinasePredictionConfig
 
 prediction_config = KinasePredictionConfig.deterministic()
 
@@ -601,7 +601,7 @@ kinase_request = KinaseWorkflowRequest(
     activity_config=None,
 )
 
-from phospy import KinaseWorkflow
+from phospy.api import KinaseWorkflow
 
 kinase_workflow = KinaseWorkflow()
 kinase_result = kinase_workflow.run(kinase_request)

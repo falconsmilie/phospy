@@ -9,13 +9,6 @@ from typing import Any
 import pandas as pd
 import pytest
 
-from phospy.advanced import (
-    DifferentialAnalysisConfig,
-    KinaseActivityConfig,
-    KinasePredictionConfig,
-    KinaseScoringConfig,
-    SignalomeConfig,
-)
 from phospy.api import (
     AnalysisReadyPhosphoDataset,
     BatchCovariate,
@@ -33,6 +26,13 @@ from phospy.api import (
     ReferenceBundle,
     SampleDesignRecord,
     SignalomeWorkflowRequest,
+)
+from phospy.api.advanced import (
+    DifferentialAnalysisConfig,
+    KinaseActivityConfig,
+    KinasePredictionConfig,
+    KinaseScoringConfig,
+    SignalomeConfig,
 )
 from phospy.datasets.processing_state import (
     DatasetPreprocessingReport,

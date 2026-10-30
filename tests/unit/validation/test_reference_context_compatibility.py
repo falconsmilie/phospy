@@ -6,10 +6,10 @@ from dataclasses import replace
 import pandas as pd
 import pytest
 
-from phospy.advanced import (
+from phospy.api import KinaseWorkflowRequest, Organism, ReferenceBundle
+from phospy.api.advanced import (
     KinaseScoringConfig,
 )
-from phospy.api import KinaseWorkflowRequest, Organism, ReferenceBundle
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors.validation import PhosPyValidationError, WorkflowValidationError
 from phospy.kinase.validator import KinaseWorkflowValidator

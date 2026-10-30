@@ -10,6 +10,11 @@
 - **Amends:** ADR-0053 and ADR-0054
 - **Pre-migration revision:** `f180248b2f2c2f0da3323d54549def8128005d72`
 
+The CORE-002 implementation applies the supported-API portion of this
+decision: the specialist facade and inventory move beneath `phospy.api`, and
+the root conveniences retire. The reusable owner-package moves beneath
+`phospy.core` remain sequenced in later tickets.
+
 ## Context
 
 ADR-0053 established separate logical owners and ADR-0054 established the
@@ -25,8 +30,8 @@ component below `phospy` would lose sibling boundaries after that move.
 
 The committed pre-migration candidate was inspected at
 `f180248b2f2c2f0da3323d54549def8128005d72`. The authoritative comparison is
-[`architecture/public-api-baseline.json`](../../architecture/public-api-baseline.json),
-schema version 2, captured with Python 3.11.15. It records three current root
+`architecture/public-api-baseline.json`, schema version 2, captured with Python
+3.11.15. It records three current root
 conveniences, 66 ordinary `phospy.api` exports and 126 specialist
 `phospy.advanced` exports. Because the starting candidate was committed and
 clean, the revision and maintained baseline are sufficient starting-state

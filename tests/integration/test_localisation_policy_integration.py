@@ -5,16 +5,16 @@ from typing import Any
 import pandas as pd
 import pytest
 
-from phospy.advanced import (
-    KinasePredictionConfig,
-    KinaseScoringConfig,
-    LocalisationRequirement,
-    ReferenceContextCompatibilityPolicy,
-)
 from phospy.api import (
     KinaseWorkflowRequest,
     KinaseWorkflowResult,
     SignalomeWorkflowRequest,
+)
+from phospy.api.advanced import (
+    KinasePredictionConfig,
+    KinaseScoringConfig,
+    LocalisationRequirement,
+    ReferenceContextCompatibilityPolicy,
 )
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors.validation import WorkflowValidationError

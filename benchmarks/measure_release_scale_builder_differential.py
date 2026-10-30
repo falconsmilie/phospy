@@ -41,18 +41,8 @@ for _path in (ROOT, SRC):
     sys.path.insert(0, str(_path))
 
 import phospy
-from phospy import (
-    AnalysisReadyDatasetBuilder,
-)
-from phospy.advanced import (
-    DatasetIntensityTransformConfig,
-    DatasetMissingDataConfig,
-    DatasetNormalisationConfig,
-    DatasetSiteMatrixConfig,
-    DifferentialAnalysisConfig,
-    EmpiricalBayesConfig,
-)
 from phospy.api import (
+    AnalysisReadyDatasetBuilder,
     AnalysisReadyPhosphoDataset,
     Contrast,
     DatasetBuildRequest,
@@ -63,6 +53,14 @@ from phospy.api import (
     ExperimentalDesign,
     Organism,
     SampleDesignRecord,
+)
+from phospy.api.advanced import (
+    DatasetIntensityTransformConfig,
+    DatasetMissingDataConfig,
+    DatasetNormalisationConfig,
+    DatasetSiteMatrixConfig,
+    DifferentialAnalysisConfig,
+    EmpiricalBayesConfig,
 )
 from phospy.datasets.construction.executor import DatasetBuildExecutor
 from phospy.differential.config import (

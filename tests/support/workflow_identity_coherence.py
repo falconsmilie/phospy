@@ -2,13 +2,6 @@ from __future__ import annotations
 
 import pandas as pd
 
-from phospy.advanced import (
-    DifferentialAnalysisConfig,
-    KinasePredictionConfig,
-    KinaseReferenceDisplayAmbiguityPolicy,
-    KinaseScoringConfig,
-    ReferenceContextCompatibilityPolicy,
-)
 from phospy.api import (
     AnalysisReadyPhosphoDataset,
     Contrast,
@@ -22,6 +15,13 @@ from phospy.api import (
     ReferenceBundle,
     SampleDesignRecord,
     SignalomeWorkflowRequest,
+)
+from phospy.api.advanced import (
+    DifferentialAnalysisConfig,
+    KinasePredictionConfig,
+    KinaseReferenceDisplayAmbiguityPolicy,
+    KinaseScoringConfig,
+    ReferenceContextCompatibilityPolicy,
 )
 from phospy.differential.policies import (
     PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION,

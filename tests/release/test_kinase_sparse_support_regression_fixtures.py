@@ -10,17 +10,17 @@ import pandas as pd
 import pytest
 
 from phospy.activities.semantics import ActivityInputMatrix
-from phospy.advanced import (
-    KinasePredictionConfig,
-    KinaseScoringConfig,
-    ProfileSelfInclusionPolicy,
-    ReferenceContextCompatibilityPolicy,
-)
 from phospy.api import (
     KinaseWorkflow,
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
+)
+from phospy.api.advanced import (
+    KinasePredictionConfig,
+    KinaseScoringConfig,
+    ProfileSelfInclusionPolicy,
+    ReferenceContextCompatibilityPolicy,
 )
 from phospy.errors.validation import WorkflowValidationError
 from phospy.kinase.activity.methods.ssgsea_substrate_enrichment import (

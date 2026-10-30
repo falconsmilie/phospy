@@ -3,15 +3,15 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy import AnalysisReadyDatasetBuilder
-from phospy.advanced import (
+from phospy.api import (
+    AnalysisReadyDatasetBuilder,
+    DatasetBuildRequest,
+    DatasetPreprocessingConfig,
+)
+from phospy.api.advanced import (
     DatasetIntensityTransformConfig,
     DatasetMissingDataConfig,
     DatasetTotalProteinCorrectionConfig,
-)
-from phospy.api import (
-    DatasetBuildRequest,
-    DatasetPreprocessingConfig,
 )
 from phospy.errors import DatasetValidationError, PhosPyInputError
 from phospy.errors.transformations import TransformationStateEstablishmentError

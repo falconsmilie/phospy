@@ -7,6 +7,7 @@
 - **Status:** Accepted
 - **Date:** 26 September 2026
 - **Accepted:** 26 September 2026
+- **Amended:** 30 October 2026 by ADR-0055
 - **Decision type:** API and compatibility governance
 - **Evidence base:** Source snapshot `138b7764bcb75bc3506dc58cdd2d8b044cf70d4c` (PhosPy 1.7.6)
 - **Related decision:** ADR-0053, Domain-First Capability Architecture and Dependency Governance
@@ -45,37 +46,32 @@ or remove names merely because they exist today.
 
 ### Supported external surfaces
 
-After the reset, PhosPy has three supported aggregate surfaces.
+After the ADR-0055 consolidation, PhosPy has two supported aggregate surfaces
+and a metadata-only package root.
 
 | Surface | Purpose | Support rule |
 | --- | --- | --- |
-| `phospy` | Minimal convenience imports | Only names in `phospy.__all__` are supported. |
+| `phospy` | Version metadata | No scientific names are exported; `phospy.__version__` remains available. |
 | `phospy.api` | Official ordinary user contract | Only names in `phospy.api.__all__` are supported. |
-| `phospy.advanced` | Documented specialist contract | Only names in `phospy.advanced.__all__` are supported. |
+| `phospy.api.advanced` | Documented specialist contract | Only names in `phospy.api.advanced.__all__` are supported. |
 
-`phospy.api` and `phospy.advanced` are permanent composition facades, not
+`phospy.api` and `phospy.api.advanced` are permanent composition facades, not
 compatibility shims. They own no scientific behaviour and re-export the exact
 objects defined by logical owners. No facade submodule or implementation
 package is an additional supported external route unless a later ADR adds it.
 
 ### Root convenience surface
 
-The target root is exactly:
+The target root convenience inventory is exactly:
 
 ```python
-(
-    "AnalysisReadyDatasetBuilder",
-    "KinaseWorkflow",
-    "SignalomeWorkflow",
-)
+()
 ```
 
-This preserves the established product decision that the root offers the
-dataset entry point and the two primary downstream workflows. Differential and
-Enrichment are first-class architectural capabilities and remain fully
-supported through `phospy.api`; architectural status does not require a root
-alias. `AnalysisReadyPhosphoDataset` remains stable in `phospy.api` but is not a
-root executable entry point.
+`AnalysisReadyDatasetBuilder`, `KinaseWorkflow`, and `SignalomeWorkflow` remain
+ordinary supported exports from `phospy.api`. Differential and Enrichment are
+also fully supported through `phospy.api`. The package root retains version
+resolution and `phospy.__version__` but forwards no scientific symbols.
 
 ### Ordinary API classification
 
@@ -301,7 +297,9 @@ The following cease to be supported at the API reset:
 - `phospy.api.builders`, `phospy.api.datasets`, `phospy.api.configs` and its
   descendants, `phospy.api.enums`, `phospy.api.requests`,
   `phospy.api.results`, and `phospy.api.workflows`;
-- `phospy.advanced.configs` and `phospy.advanced.results`;
+- the retired `phospy.advanced` package and all of its descendants;
+- unsupported submodules beneath `phospy.api.advanced`, including
+  `phospy.api.advanced.configs` and `phospy.api.advanced.results`;
 - `phospy.workflows` and `phospy.workflows.<capability>`;
 - compatibility exports under `phospy.tables`;
 - direct external imports from owner and implementation packages; and
@@ -349,7 +347,7 @@ supported inputs retain their scientific behaviour.
 ### Ownership and dependency direction
 
 Public facades depend inward on owner-defined contracts. Owners never import
-from `phospy`, `phospy.api`, or `phospy.advanced`. Cross-capability imports use
+from `phospy`, `phospy.api`, or `phospy.api.advanced`. Cross-capability imports use
 owner-defined contracts directly. Signalome therefore consumes the owner-defined
 `KinaseWorkflowResult`, not its facade route.
 
@@ -370,14 +368,15 @@ module imports are not supported persistence contracts.
 
 ## Enforcement
 
-1. Exact-set tests assert root, 66-name ordinary, and 126-name advanced
+1. Exact-set tests assert the empty root convenience inventory, 66-name
+   ordinary inventory, and 126-name specialist
    `__all__` inventories.
 2. Identity tests prove facade exports are the owner-defined objects.
 3. Negative tests prove removed routes fail rather than warn or redirect.
 4. Static tests reject facade `__getattr__` dispatch and implementation imports
    from public facades.
-5. Documentation tests allow ordinary imports only from `phospy` and
-   `phospy.api`, and specialist imports only from `phospy.advanced`.
+5. Documentation tests allow scientific imports only from `phospy.api`, and
+   specialist imports only from `phospy.api.advanced`.
 6. Behaviour, parity, provenance, dataframe-ownership, and serialization tests
    prove unchanged supported behaviour.
 
@@ -386,7 +385,7 @@ module imports are not supported persistence contracts.
 ### Positive
 
 - The public model has one ordinary and one specialist comprehensive route.
-- The root remains intentionally small.
+- The root is metadata-only.
 - Compatibility machinery cannot constrain domain migration.
 - Semi-public ambiguity and duplicate supported paths disappear.
 - The 194 current aggregate names have explicit post-reset decisions and
@@ -412,10 +411,11 @@ cutover.
 
 This ADR is accepted with the following decisions fixed:
 
-1. only aggregate `phospy`, `phospy.api`, and `phospy.advanced` are supported;
-2. root exports exactly the builder, Kinase workflow, and Signalome workflow;
+1. scientific imports are supported only through the aggregate `phospy.api`
+   and `phospy.api.advanced` facades; the `phospy` root provides metadata;
+2. the root convenience inventory is empty;
 3. `phospy.api` contains the 66 retained ordinary names above;
-4. `phospy.advanced` contains the 126 retained specialist names above;
+4. `phospy.api.advanced` contains the 126 retained specialist names above;
 5. all compatibility and semi-public routes and all deprecated runtime
    behaviours are removed without shims;
 6. compatibility removal precedes physical migration as a separate change set;

@@ -24,12 +24,12 @@ def test_repository_strict_coverage_policy_is_clean_and_above_floor() -> None:
     supported_aggregate_facades = {
         "src/phospy/__init__.py",
         "src/phospy/api/__init__.py",
-        "src/phospy/advanced/__init__.py",
+        "src/phospy/api/advanced/__init__.py",
     }
 
     assert coverage.included_source_file_count > 0
     assert supported_aggregate_facades <= set(coverage.included_source_files)
-    assert "src/phospy/_api_inventory.py" in coverage.included_source_files
+    assert "src/phospy/api/_inventory.py" in coverage.included_source_files
     assert coverage.declared_strict_source_file_count >= 95
     assert coverage.strict_source_files_inside_include_count == (
         coverage.declared_strict_source_file_count

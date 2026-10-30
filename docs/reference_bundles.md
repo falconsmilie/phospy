@@ -373,7 +373,7 @@ Kinase Library parity.
 Use `KinaseLibraryResourceLoader` for local files:
 
 ```python
-from phospy.advanced import KinaseLibraryResourceLoader
+from phospy.api.advanced import KinaseLibraryResourceLoader
 
 resource = KinaseLibraryResourceLoader().run("kinase_library_matrices.csv")
 ```

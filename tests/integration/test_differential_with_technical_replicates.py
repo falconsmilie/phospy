@@ -3,10 +3,6 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy.advanced import (
-    DifferentialAnalysisConfig,
-    TechnicalReplicatePolicy,
-)
 from phospy.api import (
     AnalysisReadyPhosphoDataset,
     Contrast,
@@ -15,6 +11,10 @@ from phospy.api import (
     ExperimentalDesign,
     Organism,
     SampleDesignRecord,
+)
+from phospy.api.advanced import (
+    DifferentialAnalysisConfig,
+    TechnicalReplicatePolicy,
 )
 from phospy.errors import WorkflowValidationError
 from tests.support.analysis_ready_dataset_factories import (

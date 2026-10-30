@@ -4,10 +4,6 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phospy.advanced import (
-    DifferentialAnalysisConfig,
-    TechnicalReplicatePolicy,
-)
 from phospy.api import (
     AnalysisReadyPhosphoDataset,
     Contrast,
@@ -16,6 +12,10 @@ from phospy.api import (
     ExperimentalDesign,
     Organism,
     SampleDesignRecord,
+)
+from phospy.api.advanced import (
+    DifferentialAnalysisConfig,
+    TechnicalReplicatePolicy,
 )
 from phospy.datasets.derived_quantitative import (
     DerivedAnalysisReadyPhosphoDataset,

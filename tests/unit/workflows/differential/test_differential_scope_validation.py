@@ -5,7 +5,6 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from phospy.advanced import DifferentialAnalysisConfig
 from phospy.api import (
     AnalysisReadyPhosphoDataset,
     BatchCovariate,
@@ -16,6 +15,7 @@ from phospy.api import (
     Organism,
     SampleDesignRecord,
 )
+from phospy.api.advanced import DifferentialAnalysisConfig
 from phospy.differential.policies import (
     DIFFERENTIAL_RELIABILITY_PROFILE_EXPLORATORY_SINGLE_REPLICATE,
 )

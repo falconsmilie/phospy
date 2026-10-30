@@ -4,7 +4,10 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
-from phospy.advanced import (
+from phospy.api import (
+    DatasetPreprocessingConfig,
+)
+from phospy.api.advanced import (
     DatasetComparisonBuildingConfig,
     DatasetIntensityTransformConfig,
     DatasetMissingDataConfig,
@@ -26,9 +29,6 @@ from phospy.advanced import (
     SignalomePerformanceConfig,
     SignalomeScientificConfig,
     SignalomeValidationConfig,
-)
-from phospy.api import (
-    DatasetPreprocessingConfig,
 )
 from phospy.errors import ContractValidationError, PhosPyInputError
 from phospy.evidence.config import (

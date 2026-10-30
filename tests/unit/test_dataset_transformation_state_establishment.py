@@ -7,12 +7,12 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phospy import AnalysisReadyDatasetBuilder
-from phospy.advanced import DatasetIntensityTransformConfig
 from phospy.api import (
+    AnalysisReadyDatasetBuilder,
     DatasetBuildRequest,
     DatasetPreprocessingConfig,
 )
+from phospy.api.advanced import DatasetIntensityTransformConfig
 from phospy.datasets.construction import transformation_state
 from phospy.datasets.construction.contracts import (
     InterpretedDatasetBuildRequest,

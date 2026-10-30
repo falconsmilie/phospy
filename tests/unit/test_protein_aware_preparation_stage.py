@@ -3,7 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pandas.testing as pdt
 
-from phospy.advanced import DatasetProteinAwarePreparationConfig
+from phospy.api.advanced import DatasetProteinAwarePreparationConfig
 from phospy.preparation_records.protein_aware import (
     ProteinAwarePreparationEligibility,
 )

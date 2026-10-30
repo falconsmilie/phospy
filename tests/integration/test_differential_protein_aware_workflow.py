@@ -6,18 +6,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from phospy import (
-    AnalysisReadyDatasetBuilder,
-)
-from phospy.advanced import (
-    PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION,
-    PAIRED_DESIGN_POLICY_FIXED_BLOCK,
-    DatasetProteinAwarePreparationConfig,
-    DifferentialAnalysisConfig,
-    DifferentialProteinAwareModelConfig,
-    TechnicalReplicatePolicy,
-)
 from phospy.api import (
+    AnalysisReadyDatasetBuilder,
     AnalysisReadyPhosphoDataset,
     ContinuousCovariate,
     Contrast,
@@ -29,6 +19,14 @@ from phospy.api import (
     ExperimentalDesign,
     Organism,
     SampleDesignRecord,
+)
+from phospy.api.advanced import (
+    PAIRED_DESIGN_POLICY_DUPLICATE_CORRELATION,
+    PAIRED_DESIGN_POLICY_FIXED_BLOCK,
+    DatasetProteinAwarePreparationConfig,
+    DifferentialAnalysisConfig,
+    DifferentialProteinAwareModelConfig,
+    TechnicalReplicatePolicy,
 )
 from phospy.differential.moderation.config import (
     EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,

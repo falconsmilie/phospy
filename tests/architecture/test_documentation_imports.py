@@ -5,13 +5,14 @@ import json
 from pathlib import Path
 
 from documentation_import_policy import (
+    HISTORICAL_MARKDOWN_PATHS,
     documented_import_problems,
     user_facing_markdown_paths,
 )
 
 import phospy
-import phospy.advanced
 import phospy.api
+import phospy.api.advanced
 
 ROOT = Path(__file__).resolve().parents[2]
 PUBLIC_BASELINE = ROOT / "architecture/public-api-baseline.json"
@@ -21,7 +22,7 @@ def _inventories() -> dict[str, frozenset[str]]:
     return {
         "phospy": frozenset(phospy.__all__),
         "phospy.api": frozenset(phospy.api.__all__),
-        "phospy.advanced": frozenset(phospy.advanced.__all__),
+        "phospy.api.advanced": frozenset(phospy.api.advanced.__all__),
     }
 
 
@@ -42,6 +43,16 @@ def test_every_current_user_facing_markdown_import_is_supported() -> None:
 
     assert problems == []
     assert documented
+
+
+def test_versioned_release_notes_are_precisely_classified_as_historical() -> None:
+    assert HISTORICAL_MARKDOWN_PATHS == frozenset({"docs/release-notes.md"})
+    historical = ROOT / "docs" / "release-notes.md"
+    assert historical not in user_facing_markdown_paths(ROOT)
+    source = historical.read_text(encoding="utf-8")
+    assert "Version 1.8.0" in source
+    assert "from phospy.advanced import" in source
+    assert "from phospy import AnalysisReadyDatasetBuilder" in source
 
 
 def test_documented_aggregate_names_resolve_to_exact_owner_identities() -> None:

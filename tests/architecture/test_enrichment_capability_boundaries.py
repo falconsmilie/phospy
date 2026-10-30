@@ -94,14 +94,14 @@ def test_io_enrichment_reader_imports_only_the_two_passive_owner_leaves() -> Non
         ),
         (
             "phospy.api",
-            "phospy.advanced",
+            "phospy.api.advanced",
             "phospy.enrichment.workflow",
             "phospy.enrichment.contracts.results",
         ),
         (
             "phospy.enrichment.contracts.results",
             "phospy.enrichment.workflow",
-            "phospy.advanced",
+            "phospy.api.advanced",
             "phospy.api",
         ),
         (

@@ -5,16 +5,16 @@ import inspect
 import pandas as pd
 import pytest
 
-from phospy.advanced import (
-    KinasePredictionConfig,
-    KinaseScoringConfig,
-)
 from phospy.api import (
     DatasetBuildRequest,
     KinaseWorkflowRequest,
     KinaseWorkflowResult,
     SignalomeWorkflowRequest,
     SignalomeWorkflowResult,
+)
+from phospy.api.advanced import (
+    KinasePredictionConfig,
+    KinaseScoringConfig,
 )
 from phospy.datasets._construction.service import (
     _AnalysisReadyDatasetConstructionService,

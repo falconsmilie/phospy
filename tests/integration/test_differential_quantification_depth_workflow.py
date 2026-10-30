@@ -8,17 +8,8 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phospy import (
-    AnalysisReadyDatasetBuilder,
-)
-from phospy.advanced import (
-    DatasetIntensityTransformConfig,
-    DatasetProteinAwarePreparationConfig,
-    DifferentialAnalysisConfig,
-    DifferentialProteinAwareModelConfig,
-    EmpiricalBayesConfig,
-)
 from phospy.api import (
+    AnalysisReadyDatasetBuilder,
     AnalysisReadyPhosphoDataset,
     Contrast,
     DatasetBuildRequest,
@@ -30,6 +21,13 @@ from phospy.api import (
     Organism,
     PhosphositeImportResult,
     SampleDesignRecord,
+)
+from phospy.api.advanced import (
+    DatasetIntensityTransformConfig,
+    DatasetProteinAwarePreparationConfig,
+    DifferentialAnalysisConfig,
+    DifferentialProteinAwareModelConfig,
+    EmpiricalBayesConfig,
 )
 from phospy.differential.moderation.config import (
     EMPIRICAL_BAYES_TREND_COVARIATE_QUANTIFICATION_DEPTH,

@@ -3,16 +3,16 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy.advanced import (
-    DatasetBatchCorrectionConfig,
-    DatasetNormalisationConfig,
-    SpsRuvBatchCorrectionConfig,
-)
 from phospy.api import (
     AnalysisReadyDatasetBuilder,
     DatasetBuildRequest,
     DatasetPreprocessingConfig,
     Organism,
+)
+from phospy.api.advanced import (
+    DatasetBatchCorrectionConfig,
+    DatasetNormalisationConfig,
+    SpsRuvBatchCorrectionConfig,
 )
 from phospy.datasets.construction.contracts import InterpretedDatasetBuildRequest
 from phospy.datasets.construction.executor import DatasetBuildExecutor

@@ -378,14 +378,14 @@ def _differential_request(dataset: Any):
 
 
 def _kinase_request(dataset: Any, config: BenchmarkConfig):
-    from phospy.advanced import (
-        KinasePredictionConfig,
-        KinaseScoringConfig,
-        ReferenceContextCompatibilityPolicy,
-    )
     from phospy.api import (
         KinaseWorkflowRequest,
         ReferenceBundle,
+    )
+    from phospy.api.advanced import (
+        KinasePredictionConfig,
+        KinaseScoringConfig,
+        ReferenceContextCompatibilityPolicy,
     )
 
     site_metadata = dataset.site_metadata
@@ -591,8 +591,7 @@ def _build_setup(
 
 
 def run_benchmark(config: BenchmarkConfig | None = None) -> BenchmarkResult:
-    from phospy import KinaseWorkflow
-    from phospy.api import DifferentialAnalysisWorkflow
+    from phospy.api import DifferentialAnalysisWorkflow, KinaseWorkflow
 
     resolved_config = config or default_config()
     with _instrument_copy_accounting() as counts:

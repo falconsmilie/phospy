@@ -1,14 +1,14 @@
 {
   "schema_version": 1,
-  "policy": "ADR-0053 and ADR-0054 permanent architecture policy",
+  "policy": "ADR-0053 through ADR-0055 permanent architecture policy",
   "forwarding_and_safety_modules": {
-    "src/phospy/_api_inventory.py": "Authoritative aggregate inventory data; explicitly free of compatibility routes.",
+    "src/phospy/api/_inventory.py": "Authoritative aggregate inventory data; explicitly free of compatibility routes.",
     "src/phospy/differential/aggregation/experimental.py": "Permanent ADR-0041 fail-closed scientific safety seam; no executable compatibility behavior."
   },
   "structural_forwarding_modules": {
-    "src/phospy/advanced/__init__.py": {
+    "src/phospy/api/advanced/__init__.py": {
       "disposition": "supported_aggregate_facade",
-      "rationale": "ADR-0054 advanced aggregate API; exact owner identities only."
+      "rationale": "ADR-0055 specialist aggregate API; exact owner identities only."
     },
     "src/phospy/api/__init__.py": {
       "disposition": "supported_aggregate_facade",
@@ -168,7 +168,6 @@
     }
   },
   "lazy_loader_modules": {
-    "src/phospy/__init__.py": "Three-name supported root facade.",
     "src/phospy/io/__init__.py": "IO adapter composition.",
     "src/phospy/io/bundles/__init__.py": "IO bundle adapter composition.",
     "src/phospy/io/readers/__init__.py": "IO reader adapter composition.",

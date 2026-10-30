@@ -65,7 +65,7 @@ differences, making the direction and size of `logFC` easier to interpret.
 default pseudocount is `1.0`.
 
 ```python
-from phospy.advanced import DatasetIntensityTransformConfig
+from phospy.api.advanced import DatasetIntensityTransformConfig
 
 intensity_transform = DatasetIntensityTransformConfig(policy="log2")
 ```
@@ -121,7 +121,7 @@ dataset. Its `run()` method validates the request, aligns the tables, applies
 the configured preprocessing, and returns the result.
 
 ```python
-from phospy import AnalysisReadyDatasetBuilder
+from phospy.api import AnalysisReadyDatasetBuilder
 
 builder = AnalysisReadyDatasetBuilder()
 dataset = builder.run(dataset_request)
@@ -278,8 +278,8 @@ workflow rather than supporting a biological conclusion.
 ```python
 import pandas as pd
 
-from phospy import AnalysisReadyDatasetBuilder
-from phospy.advanced import DatasetIntensityTransformConfig
+from phospy.api import AnalysisReadyDatasetBuilder
+from phospy.api.advanced import DatasetIntensityTransformConfig
 from phospy.api import (
     Contrast,
     DatasetBuildRequest,

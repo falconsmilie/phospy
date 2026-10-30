@@ -5,13 +5,8 @@ from __future__ import annotations
 
 import pandas as pd
 
-from phospy import AnalysisReadyDatasetBuilder
-from phospy.advanced import (
-    DatasetProteinAwarePreparationConfig,
-    DifferentialAnalysisConfig,
-    DifferentialProteinAwareModelConfig,
-)
 from phospy.api import (
+    AnalysisReadyDatasetBuilder,
     Contrast,
     DatasetBuildRequest,
     DatasetPreprocessingConfig,
@@ -20,6 +15,11 @@ from phospy.api import (
     ExperimentalDesign,
     Organism,
     SampleDesignRecord,
+)
+from phospy.api.advanced import (
+    DatasetProteinAwarePreparationConfig,
+    DifferentialAnalysisConfig,
+    DifferentialProteinAwareModelConfig,
 )
 
 METHOD_ID = "protein_covariate_adjusted_moderated_linear_model_v1"

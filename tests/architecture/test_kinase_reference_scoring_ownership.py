@@ -10,8 +10,8 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-import phospy.advanced as advanced
 import phospy.api as api
+import phospy.api.advanced as advanced
 import phospy.kinase.results as kinase_result_contracts
 from phospy.errors.validation import PhosPyValidationError
 from phospy.kinase.contracts import ResolvedKinaseWorkflowRequest
