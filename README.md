@@ -154,6 +154,7 @@ from phospy.api import EnrichmentConfig, EnrichmentWorkflow, EnrichmentWorkflowR
 - [Run enrichment](docs/api/enrichment.md)
 - [Run kinase analysis](docs/api/kinase.md)
 - [Run signalome analysis](docs/api/signalome.md)
+- [Read the Version 1.8.1 release notes](docs/release-notes.md)
 
 The full documentation is available at [PhosPy Docs](https://phospy.com/docs/).
 See the [contributing guide](docs/contributing.md), [license](LICENSE), and

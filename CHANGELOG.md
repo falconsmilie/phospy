@@ -4,12 +4,63 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+## [1.8.1] - 2026-10-31
+
+### Added
+
+- Added the advanced `CorrectedPreprocessingOutput` contract and
+  `create_external_corrected_preprocessing_output(...)` factory for supplying
+  finite, axis-aligned, caller-attested `sps_ruv_style` or `ruv_iii_style`
+  correction output. The builder validates controls, design fields, unwanted
+  factors, fingerprints, stage order, and observation state without claiming
+  that PhosPy executed or verified the external method.
+
 ### Breaking
 
 - Consolidated supported scientific imports beneath `phospy.api`: ordinary
   imports remain in `phospy.api`, specialist imports moved from
   `phospy.advanced` to `phospy.api.advanced`, and the package root now exposes
   version metadata only. The retired module paths are not forwarded.
+- Moved reusable implementation-owner packages, including errors, evidence,
+  frames, policies, provenance, quantitative state, references, statistics,
+  taxonomy, validation, preparation records, and run lineage, beneath the
+  organisational `phospy.core` namespace. These packages remain unsupported
+  external import surfaces; retained supported objects continue through the
+  aggregate APIs.
+- Advanced reloadable bundles now require kinase manifest version 4 or
+  signalome manifest version 3. Older bundle versions are rejected because
+  they lack enough state for faithful kinase-scoring reconstruction and must be
+  regenerated with the current release.
+
+### Fixed
+
+- Preserved complete typed kinase-scoring state when kinase and signalome
+  bundles are written and reloaded, including optional tables, score-source
+  metadata, validation results, policies, dtypes, and `None` versus empty
+  distinctions.
+- Made `phospy.__version__` prefer installed distribution metadata and limited
+  source fallback to the checkout's fixed, verified `pyproject.toml` layout.
+- Corrected installed-distribution verification and aligned it with the two
+  supported aggregate API surfaces and the completed package layout.
+
+### Architecture and Release Tooling
+
+- Added namespace-aware owner enforcement, dependency-graph reporting, public
+  facade identity checks, run-lineage validation contracts, and generated
+  architecture inventories for the completed nested package layout.
+- Updated Pyright coverage, examples, documentation checks, release policy,
+  and the installed wheel/source-distribution probes for the consolidated
+  namespaces. The maintained package release command remains
+  `make release-check`, with strict documentation validation through the
+  separate `make docs-build` command.
+
+### Scientific and Numerical Behaviour
+
+- Kept scientific algorithms, analysis defaults, dataset invariants, runtime
+  dependency lower bounds, Python 3.11/3.12 support, and documented external
+  parity scopes unchanged. The external-correction handoff is a validated
+  caller-attested input route, not a new estimator or a broader equivalence
+  claim.
 
 ## [1.8.0] - 2026-10-21
 
@@ -858,3 +909,6 @@ All notable changes to this project are documented here.
 
 - First supported PhosPy release.
 - Covered core preprocessing, kinase analysis, a small public API, and CLI support for the initial workflow lane.
+
+[Unreleased]: https://github.com/falconsmilie/phospy/compare/v1.8.1...HEAD
+[1.8.1]: https://github.com/falconsmilie/phospy/compare/v1.8.0...v1.8.1

@@ -93,7 +93,9 @@ nav:
       - Architecture: architecture.md
       - Architecture Inventory: architecture_inventory.md
       - Release Validation: release_validation.md
-      - Release Notes: release-notes.md
+      - Release Notes:
+          - Version 1.8.1: release-notes.md
+          - Version 1.8.0: release-notes-1.8.0.md
       - Validation Ownership: validation-ownership.md
       - Testing Audit: testing/README.md
       - Architecture Decisions: adr/index.md

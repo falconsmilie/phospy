@@ -18,7 +18,7 @@ class DocumentedImport:
 
 
 SUPPORTED_AGGREGATES = frozenset({"phospy", "phospy.api", "phospy.api.advanced"})
-HISTORICAL_MARKDOWN_PATHS = frozenset({"docs/release-notes.md"})
+HISTORICAL_MARKDOWN_PATHS = frozenset({"docs/release-notes-1.8.0.md"})
 _NAV_MARKDOWN = re.compile(r":\s+([^#\s]+\.md)\s*$", re.MULTILINE)
 
 

@@ -1,199 +1,177 @@
 # PhosPy Release Notes
 
-## Version 1.8.0
+## Version 1.8.1
 
-Publication date: 2026-10-21.
+Publication date: 2026-10-31.
+
+Compare the complete change set from
+[v1.8.0 to v1.8.1](https://github.com/falconsmilie/phospy/compare/v1.8.0...v1.8.1),
+or read the [Version 1.8.0 release notes](release-notes-1.8.0.md).
 
 ## Release Overview
 
-PhosPy 1.8.0 completes a domain-first package reorganisation and makes a clean
-public API break. Supported external imports now come from the aggregate
-`phospy`, `phospy.api`, and `phospy.advanced` modules. Existing code that uses
-facade submodules, workflow packages, implementation modules, or deprecated
-aliases must be updated before upgrading.
+PhosPy 1.8.1 completes the supported API and owner-namespace consolidation
+started in Version 1.8.0. Ordinary scientific imports now come from
+`phospy.api`, specialist imports come from `phospy.api.advanced`, and the
+package root exposes version metadata only. The release also adds a governed
+route for supplying caller-attested output from an external batch correction
+and makes kinase and signalome bundles preserve the complete kinase-scoring
+state.
 
-The release does not add a scientific method, change analysis defaults, broaden
-an external parity claim, or strengthen biological interpretation. Supported
-algorithms, dataset invariants, and versioned table and bundle formats continue
-across the reorganisation.
+This release does not add or change a scientific estimator, alter analysis
+defaults, expand an external parity claim, or strengthen biological
+interpretation. Python support remains 3.11 and 3.12, with
+`Requires-Python: >=3.11,<3.13`.
 
-## Prepare for the Upgrade
+## Compatibility Warning
 
-Audit imports and deprecated calls while still using Version 1.7.6. After
-Version 1.8.0 is published, install the release in a clean environment and run
-representative workflows and bundle round trips before updating production
-environments:
+Although numbered as a patch release, Version 1.8.1 contains breaking import
+and reloadable-bundle changes. This follows the repository's accepted beta API
+reset policy, but applications that import from the Version 1.8.0 package root
+or `phospy.advanced` must update before upgrading. No forwarding modules or
+compatibility shims are provided.
+
+Install and test the candidate in a clean environment before updating a
+production analysis environment:
 
 ```bash
-python -m pip install --upgrade "phospy==1.8.0"
+python -m pip install --upgrade "phospy==1.8.1"
 ```
 
-PhosPy continues to support Python 3.11 and 3.12. The declared runtime
-dependency lower bounds are unchanged.
+## Update Supported Imports
 
-## Use the Aggregate Public Facades
-
-The package root remains a deliberately small convenience surface:
+Move the three former package-root conveniences to the ordinary aggregate:
 
 ```python
-from phospy import (
+from phospy.api import (
     AnalysisReadyDatasetBuilder,
     KinaseWorkflow,
     SignalomeWorkflow,
 )
 ```
 
-Use `phospy.api` for ordinary requests, configurations, results, errors,
-references, and workflows:
+Move specialist configuration, diagnostics, reference helpers, and publishers
+from `phospy.advanced` to the nested specialist aggregate:
 
 ```python
-from phospy.api import (
-    AnalysisReadyPhosphoDataset,
-    Contrast,
-    DatasetBuildRequest,
-    DifferentialAnalysisRequest,
-    DifferentialAnalysisWorkflow,
-    ExperimentalDesign,
-    KinaseWorkflowRequest,
-    SampleDesignRecord,
-)
-```
-
-Use `phospy.advanced` only for documented specialist configuration,
-diagnostics, resources, and publishing helpers:
-
-```python
-from phospy.advanced import (
-    DatasetIntensityTransformConfig,
+from phospy.api.advanced import (
     KinaseScoringConfig,
-    SignalomeConfig,
-    publish_dataset,
+    ReferenceContextCompatibilityPolicy,
+    publish_kinase_workflow,
 )
 ```
 
-The [Public Python API](api/guide.md) is the current import authority. A class
-or function available from an owner module is still unsupported for external
-callers unless it is exported by one of these aggregate facades.
+The ordinary `phospy.api` inventory retains its 66 supported names. The
+specialist inventory retains its Version 1.8.0 names and adds
+`CorrectedPreprocessingOutput` and
+`create_external_corrected_preprocessing_output`, for 126 names in total.
 
-## Migrate Imports
+Reusable implementation packages such as the former `phospy.errors`,
+`phospy.references`, `phospy.quantitative`, `phospy.provenance`, and
+`phospy.validation` locations moved beneath `phospy.core`. Those owner modules
+remain unsupported external import targets. Import a documented retained name
+from `phospy.api` or `phospy.api.advanced`; internal-only helpers have no
+supported replacement.
 
-The following table covers common Version 1.7.6 imports. A replacement applies
-only when the named object remains present in the destination aggregate.
+## Supply Externally Corrected Preprocessing Output
 
-| Version 1.7.6 code | Version 1.8.0 code or action |
-| --- | --- |
-| `from phospy import AnalysisReadyPhosphoDataset` | `from phospy.api import AnalysisReadyPhosphoDataset` |
-| `from phospy import DifferentialAnalysisWorkflow` | `from phospy.api import DifferentialAnalysisWorkflow` |
-| `from phospy.api.<submodule> import Name` | `from phospy.api import Name`; if `Name` is absent, it has no supported ordinary route |
-| `from phospy.advanced.configs import Name` or `from phospy.advanced.results import Name` | `from phospy.advanced import Name`; if absent, it has no supported advanced route |
-| `phospy.workflows.*`, `phospy.tables.*`, or direct `phospy.science.*` imports | Import a documented retained object from `phospy.api` or `phospy.advanced`; internal-only helpers have no public replacement |
-| `DesignMatrix` or `ContrastMatrix` | Build an `ExperimentalDesign` and one or more `Contrast` values, then pass them through `DifferentialAnalysisRequest` |
-| `DifferentialAnalysis(...)` | `DifferentialAnalysisWorkflow().run(DifferentialAnalysisRequest(...))` from `phospy.api` |
-| Former semi-public preprocessing, clustering, or rank-fusion helpers | Use the documented builder or workflow boundary; there is no public low-level extension replacement in this release |
-
-The aggregate modules re-export the owner-defined objects. Changing the import
-does not require a new request shape for a retained object.
-
-## Replace Removed Runtime Behaviour
-
-Version 1.8.0 removes deprecated behaviour immediately. Removed calls raise
-normal import, attribute, type, or validation errors; they do not emit a
-deprecation warning or forward to the new path.
-
-| Removed behaviour | Supported migration |
-| --- | --- |
-| `KinaseScoringConfig.default()` | Use `KinaseScoringConfig.exploratory()` for the former permissive preset, `KinaseScoringConfig.production(...)` with study-specific retention floors, or explicit custom settings with `reliability_profile="custom"`. |
-| `scoring_mode="kinase_library_motif"` | Use `scoring_mode="kinase_library_contextual_motif"`. |
-| `KinaseActivityResult.activity_scores` or `.weighted_activity` | Use `KinaseActivityResult.activity_matrix`. |
-| `KinaseActivityResult.legacy_condition_statistics_table_dataframe()` | Use `statistics_table_dataframe()` or `statistics_table`; `profile_id` is the row identity. |
-| `ActivityMethodSummary.kinase_condition_pairs_*` fields | Use the corresponding `kinase_profile_pairs_*` fields. Historical payloads containing the former field names are rejected. |
-| Activity inputs without typed semantics, a raw `effect_matrix`, or activity results without `input_semantics` and `profile_metadata` | Use the public `KinaseWorkflow` boundary. Code constructing internal activity objects directly has no supported low-level compatibility route. |
-| `TechnicalReplicateResolver` | Run `DifferentialAnalysisWorkflow` with the public request, design, and technical-replicate policy. The former resolver was an internal workflow wrapper. |
-| `load_enrichment_sets_gmt`, `load_enrichment_sets_table`, `load_enrichment_sets_csv`, or `load_enrichment_sets_tsv` | Read and validate the local file in application code, then construct a public `GeneSetCollection`, `PtmSetCollection`, or `EnrichmentSetCollection`. |
-| Bare string entries passed to internal motif-library construction helpers | Use the documented `KinaseLibraryResource` loading route from `phospy.advanced`; the former semi-public helper is not supported. |
-| `PreprocessingPipeline(stage_metadata_registry=...)` and unknown-attribute delegation from validated request wrappers | Use documented builder and workflow configuration fields. These implementation hooks have no supported external replacement. |
-
-Ordinary dataset creation still uses the builder:
+Version 1.8.1 adds an advanced typed route for a supported SPS/RUV-style
+correction executed outside PhosPy:
 
 ```python
-from phospy import AnalysisReadyDatasetBuilder
-from phospy.api import DatasetBuildRequest
+from phospy.api import AnalysisReadyDatasetBuilder, DatasetBuildRequest
+from phospy.api.advanced import create_external_corrected_preprocessing_output
+
+corrected_output = create_external_corrected_preprocessing_output(
+    pre_correction_matrix=phospho,
+    corrected_matrix=externally_corrected,
+    method="sps_ruv_style",
+    source_software="external-correction-tool",
+    source_version="2.1",
+    control_site_set=controls,
+    n_unwanted_factors=1,
+    batch_column="batch",
+    condition_columns=("condition",),
+)
 
 dataset = AnalysisReadyDatasetBuilder().run(
     DatasetBuildRequest(
         phospho=phospho,
         site_metadata=site_metadata,
         organism=organism,
+        input_intensity_scale="log2",
         preprocessing_config=preprocessing_config,
+        corrected_preprocessing_output=corrected_output,
     )
 )
 ```
 
-Direct `AnalysisReadyPhosphoDataset(...)` construction was already sealed in
-Version 1.7.x and remains sealed. Use
-`AnalysisReadyPhosphoDataset.from_trusted_tables(...)` only for the documented
-advanced reconstruction case with complete trusted assertions.
+The factory supports `sps_ruv_style` and `ruv_iii_style`; the latter also
+requires `replicate_column`. It requires finite, axis-aligned input and output,
+eligible controls, a positive unwanted-factor count, a batch column, protected
+condition columns, and preservation of condition effects. PhosPy validates and
+fingerprints the supplied state, but records the execution as caller-attested
+and does not claim to have verified the external method or environment.
 
-## Review Inputs, Outputs, and Persistence
+Externally corrected output must be the only matrix-changing preprocessing
+input. It cannot be combined with configured total-protein correction,
+site-matrix construction, normalisation, comparison building, or another batch
+correction. See [Prepare a Dataset](api/dataset-build-workflow.md) for the full
+validated example and rejection boundaries.
 
-The API reset changes import locations and removes compatibility behaviour. It
-does not change the supported request-and-`run()` workflow shape, default
-analysis policies, required analysis-ready dataset invariants, or supported
-Python versions.
+## Regenerate Reloadable Bundles
 
-No persistence or schema version was bumped for the package reorganisation.
-Continue to use documented table and bundle formats and verify a representative
-round trip after upgrading. Python pickle module paths, class `__module__`
-values, and imports from implementation packages are not persistence
-contracts; applications relying on them must migrate to the supported
-table/bundle interfaces described in [Output Bundles](output_bundles.md).
+Current internal bundle writers emit kinase manifest version 4 and signalome
+manifest version 3. Both formats now store the complete typed kinase-scoring
+state, including all optional score tables, score-source data, diagnostics,
+validation results, policies, dtypes, and `None` versus empty distinctions.
+Loaders reconstruct the original `KinaseScoringResult` through its validating
+constructor instead of substituting defaults.
 
-The fixed sample-order profile-correlation reduction can produce different
-last-bit floating-point values from Version 1.7.6 on some numerical backends.
-The scoring method, ranking and decision contracts, and supported parity limits
-remain unchanged. Applications should compare floating outputs with the
-documented scientific tolerances rather than requiring backend-identical bytes.
+Readers accept only the current schema. Kinase bundle versions 1 through 3 and
+signalome versions 1 and 2 are rejected because they do not contain enough
+state for faithful reconstruction. Regenerate reloadable bundles with Version
+1.8.1 before relying on them. User-facing `publish_*` table directories remain
+the supported output route and are distinct from these internal reloadable
+codecs. See [Output Bundles](output_bundles.md) for details.
 
-## Portability, Performance, and Release Checks
+## Runtime Version and Release Verification
 
-Profile scoring now calculates its correlation numerator in a fixed sample
-order instead of relying on a backend-dependent BLAS reduction. Adaptive
-prediction concurrency is more stable, validated SPS fingerprints are reused,
-and log2 conversion handles nullable values correctly. These changes target
-portable and reliable execution; they do not establish a general workflow
-speedup.
+`pyproject.toml` remains the single package-version authority. An installed
+distribution now takes precedence when resolving `phospy.__version__`; an
+uninstalled fixed-layout source checkout falls back only to its own verified
+project file and otherwise reports `0+unknown`. Reinstall editable metadata
+after changing the project version.
 
-The release infrastructure adds generated architecture inventories,
-repository-hygiene checks, distribution-to-committed-Git byte comparison, and
-stronger clean wheel and source-distribution consumer checks. Absolute
-wall-clock contracts have dedicated isolated lanes so they do not compete with
-the broader source/runtime suite. The constrained documentation environment
-uses `mkdocs-material` 9.6.23; this is a documentation-tool update rather than
-a runtime dependency change.
+Release tooling now:
 
-## Scientific Continuity and Limits
+- verifies architecture inventory generation through its package module entry;
+- checks all supported public aggregates during installed wheel and source
+  distribution verification;
+- enforces namespace-aware logical ownership after the `phospy.core` moves; and
+- keeps strict Pyright coverage aligned with every supported aggregate and
+  owner package.
 
-The domain-first move changes code ownership and dependency direction. It does
-not change supported estimators, dataset invariants, defaults, scientific
-policy, or biological claim boundaries. In particular:
+These are release and architecture checks, not new scientific capabilities or
+performance claims.
 
-- Kinase outputs remain scores or associations rather than causal activity
-  claims unless a documented method supplies eligible inferential output.
-- Signalome networks remain descriptive, score-derived summaries rather than
-  causal, directional, or experimental evidence.
-- Enrichment remains offline over-representation analysis over an explicit
-  foreground, background, and caller-supplied collection.
-- Existing PhosR, limma, RUV-III, and other external parity claims remain
-  limited to their documented fixtures and semantics.
-- The profile-correlation portability fix does not introduce a new scientific
-  method or broader numerical-equivalence claim.
+## Scientific and Environment Continuity
+
+The directory and API changes do not change the supported workflow
+request-and-`run()` shape, scientific calculations, defaults, dataset
+invariants, dependency lower bounds, or external validation scope. Existing
+PhosR, limma, RUV-III, and other parity claims remain limited to their
+documented fixtures and semantics. The external-correction handoff records
+caller declarations and validation evidence; it does not create a new native
+estimator or a broader PhosR/RUV equivalence claim.
 
 Review [Scientific Coverage](scientific-coverage.md), [Parity](parity.md), and
 the workflow-specific caveats before interpreting results.
 
 ## Continue With the Current Guides
 
-After migrating imports, run the [Quickstart](quickstart.md) or the relevant
-workflow guide. The [Public Python API](api/guide.md) shows the supported
-surfaces, and the project [changelog](https://github.com/falconsmilie/phospy/blob/main/CHANGELOG.md)
-preserves the complete history for Version 1.7.6 and earlier releases.
+After updating imports and regenerating any reloadable bundles, run the
+[Quickstart](quickstart.md) or the relevant workflow guide. The
+[Public Python API](api/guide.md) is the supported import authority, and the
+[changelog](https://github.com/falconsmilie/phospy/blob/main/CHANGELOG.md)
+preserves the complete release history.

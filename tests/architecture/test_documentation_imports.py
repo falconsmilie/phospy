@@ -46,8 +46,8 @@ def test_every_current_user_facing_markdown_import_is_supported() -> None:
 
 
 def test_versioned_release_notes_are_precisely_classified_as_historical() -> None:
-    assert HISTORICAL_MARKDOWN_PATHS == frozenset({"docs/release-notes.md"})
-    historical = ROOT / "docs" / "release-notes.md"
+    assert HISTORICAL_MARKDOWN_PATHS == frozenset({"docs/release-notes-1.8.0.md"})
+    historical = ROOT / "docs" / "release-notes-1.8.0.md"
     assert historical not in user_facing_markdown_paths(ROOT)
     source = historical.read_text(encoding="utf-8")
     assert "Version 1.8.0" in source

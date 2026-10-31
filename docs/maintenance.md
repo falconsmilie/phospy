@@ -481,7 +481,8 @@ Exposure categories:
 
 ## Release Notes
 
-- Current release notes: [PhosPy Release Notes](release-notes.md)
+- Current release notes: [Version 1.8.1](release-notes.md)
+- Historical release notes: [Version 1.8.0](release-notes-1.8.0.md)
 - Changelog: [`CHANGELOG.md`](https://github.com/falconsmilie/phospy/blob/main/CHANGELOG.md)
 - Citation metadata: [`CITATION.cff`](https://github.com/falconsmilie/phospy/blob/main/CITATION.cff)
 
