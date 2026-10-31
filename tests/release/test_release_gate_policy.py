@@ -2504,6 +2504,9 @@ def test_ci_keeps_supported_python_source_tests_and_single_build_smoke() -> None
     )
     assert "make test-performance-isolated" in performance
     assert "make test-performance\n" not in performance
+    assert "sps_discovery_runtime_target_seconds" in performance
+    assert "sps_discovery_runtime_ceiling_seconds" in performance
+    assert "SPS discovery performance target exceeded" in performance
     assert (
         "performance-contracts-${{ runner.os }}-py${{ matrix.python-version }}"
         in performance

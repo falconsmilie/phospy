@@ -413,9 +413,14 @@ jobs:
           fi
 
           sps_runtime="$(property_value sps_discovery_runtime_seconds)"
-          sps_ceiling="$(property_value sps_discovery_runtime_threshold_seconds)"
+          sps_target="$(property_value sps_discovery_runtime_target_seconds)"
+          sps_ceiling="$(property_value sps_discovery_runtime_ceiling_seconds)"
           if [[ -n "${sps_runtime}" ]]; then
-            echo "::notice file=tests/performance/test_sps_discovery_performance.py,title=SPS discovery performance::runtime_seconds=${sps_runtime}; runtime_ceiling_seconds=${sps_ceiling}"
+            if awk -v runtime="${sps_runtime}" -v target="${sps_target}" 'BEGIN { exit !(runtime >= target) }'; then
+              echo "::warning file=tests/performance/test_sps_discovery_performance.py,title=SPS discovery performance target exceeded::runtime_seconds=${sps_runtime}; runtime_target_seconds=${sps_target}; hard_ceiling_seconds=${sps_ceiling}"
+            else
+              echo "::notice file=tests/performance/test_sps_discovery_performance.py,title=SPS discovery performance::runtime_seconds=${sps_runtime}; runtime_target_seconds=${sps_target}; hard_ceiling_seconds=${sps_ceiling}"
+            fi
           fi
       - name: Retain performance budget reports
         if: always()

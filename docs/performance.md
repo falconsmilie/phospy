@@ -194,10 +194,14 @@ replicates per condition. Deterministic values, different row and sample orders,
 and distinct missing-condition subsets exercise partial-reference
 contributions. The test in `tests/performance/test_sps_discovery_performance.py`
 runs the real `SpsDiscoveryWorkflow`, checks structural outputs, and enforces a
-20-second release budget. The ceiling is approximately twice the observed
-optimized runtime of 10.061645 seconds, leaving broad runner headroom, while
-remaining below the 26.444624-second same-fixture scalar baseline so restoring
-the reviewed hotspot is a release-gate failure.
+20-second performance target. The target is approximately twice the observed
+optimized runtime of 10.061645 seconds and remains below the
+26.444624-second same-fixture scalar baseline, so restoring the reviewed
+hotspot remains visible in CI. Because shared hosted-runner load can push the
+optimized path above that machine-specific target, a target miss is reported
+as a CI warning rather than failing the entire build. A separate 45-second
+hard ceiling remains release-blocking and catches substantially larger
+regressions.
 
 Run the comparable local benchmark with:
 
@@ -239,13 +243,14 @@ informational rather than a release threshold.
 The performance stage of a release-check rerun on 2026-09-18 used the same
 moderate 10,000-site fixture on Windows 11 with Python 3.12.10. The complete
 production workflow finished in 10.671174 seconds, below the declared
-20-second release threshold. A direct benchmark-script run in the Python 3.14
+20-second performance target. A direct benchmark-script run in the Python 3.14
 environment above finished in 10.715662 seconds, with the separate stability
 pass taking 0.497013 seconds. Both runs again produced 29,901 valid
 reference-site entries, ranked all 10,000 eligible sites, and selected 100.
-The performance test writes both the measured workflow runtime and declared
-threshold into its JUnit properties, which the CI performance job retains as
-the threshold evidence artifact.
+The performance test writes the measured workflow runtime, 20-second target,
+and 45-second hard ceiling into its JUnit properties. The CI performance job
+retains those properties as evidence and emits a warning when the target is
+missed; only the hard ceiling fails the release gate.
 
 ## Optional Repeated Workflow Snapshot Reuse Benchmark
 

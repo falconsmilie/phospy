@@ -7,6 +7,7 @@ import pytest
 from phospy.api import Organism
 from tests.support.performance_contracts import (
     SPS_DISCOVERY_RUNTIME_SECONDS_MAX,
+    SPS_DISCOVERY_RUNTIME_SECONDS_TARGET,
 )
 from tests.support.sps_discovery_performance import (
     MODERATE_SPS_BENCHMARK_CONFIG,
@@ -31,7 +32,11 @@ def test_sps_discovery_moderate_scale_production_path(
         f"{benchmark.runtime_seconds:.6f}",
     )
     record_property(
-        "sps_discovery_runtime_threshold_seconds",
+        "sps_discovery_runtime_target_seconds",
+        f"{SPS_DISCOVERY_RUNTIME_SECONDS_TARGET:.6f}",
+    )
+    record_property(
+        "sps_discovery_runtime_ceiling_seconds",
         f"{SPS_DISCOVERY_RUNTIME_SECONDS_MAX:.6f}",
     )
     record_property("sps_discovery_site_count", config.n_sites)

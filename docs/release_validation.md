@@ -85,8 +85,9 @@ passed. The supplemental exact-byte predicate did not execute and was not
 reported as a pass.
 
 The accepted macOS Python 3.12 SPS measurement was 18.955900 seconds under the
-unchanged 20-second ceiling. Its narrow margin is an accepted qualification;
-the workload, warm-up, iteration count, and ceiling were not relaxed.
+then-current 20-second ceiling. Its narrow margin later motivated separating
+that value into a visible performance target and a 45-second hard regression
+ceiling; the workload itself was not relaxed.
 
 This gate records architecture-migration acceptance only. It does not create
 or authorise a tag, package publication, deployment, or release publication.
